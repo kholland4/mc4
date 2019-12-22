@@ -9,4 +9,8 @@
   api.loadTexture("default:grass:side", modpath + "/textures/default_grass_side.png");
   api.registerItem(new Item("default:grass", {isNode: true, iconFile: modpath + "/textures/default_grass_side.png"}));
   api.registerNode(new Node("default:grass", {texTop: "default:grass:top", texBottom: "default:dirt", texSides: "default:grass:side"}));
+  
+  api.loadTexture("default:stone", modpath + "/textures/default_stone.png");
+  api.registerItem(new Item("default:stone", {isNode: true, iconFile: modpath + "/textures/default_stone.png"}));
+  api.registerNode(new Node("default:stone", {texAll: "default:stone"}));
 })();

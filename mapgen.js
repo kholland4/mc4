@@ -77,15 +77,21 @@ class MapgenDefault extends MapgenBase {
     
     var grassID = block.getNodeID("default:grass");
     var dirtID = block.getNodeID("default:dirt");
+    var stoneID = block.getNodeID("default:stone");
     
     for(var x = 0; x < block.size.x; x++) {
       for(var y = 0; y < block.size.y; y++) {
         var h = y + (pos.y * block.size.y);
         for(var z = 0; z < block.size.z; z++) {
-          if(h == heightMap[x][z]) {
+          var hmap = heightMap[x][z];
+          if(h > hmap) {
+            
+          } else if(h == hmap) {
             block.data[x][y][z] = grassID;
-          } else if(h < heightMap[x][z]) {
+          } else if(h >= hmap - 2) {
             block.data[x][y][z] = dirtID;
+          } else if(h < hmap - 2) {
+            block.data[x][y][z] = stoneID;
           }
         }
       }

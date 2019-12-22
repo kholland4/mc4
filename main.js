@@ -38,9 +38,17 @@ function init() {
   
   raycaster = new THREE.Raycaster();
   
+  api.mouse = new THREE.Vector2(0, 0);
+  document.body.addEventListener("mousemove", function(e) {
+    api.mouse.x = e.clientX;
+    api.mouse.y = e.clientY;
+  });
+  
   api.registerNode(new Node("default:air", {transparent: true, visible: false, walkable: true}));
   
   initTextures();
+  initRenderer();
+  initUI();
   
   server = new ServerLocal(new MapLocal(new MapgenDefault()));
   
@@ -94,6 +102,7 @@ function init() {
   
   loadMod("default", "mods/default");
   loadMod("hud", "mods/hud");
+  loadMod("inventory", "mods/inventory");
   
   loadLoop();
 }

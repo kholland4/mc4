@@ -5,7 +5,7 @@
   var hudContainer = document.createElement("div");
   hudContainer.style.position = "fixed";
   hudContainer.style.left = "50%";
-  hudContainer.style.bottom = "10px";
+  hudContainer.style.bottom = "5px";
   hudContainer.style.transform = "translate(-50%)";
   mods.hud.dom = hudContainer;
   api.registerHUD(hudContainer);
@@ -15,6 +15,7 @@
   wieldSel.style.display = "none";
   wieldSel.style.position = "fixed";
   wieldSel.style.border = "4px solid #999";
+  wieldSel.style.pointerEvents = "none";
   mods.hud.wieldSel = wieldSel;
   api.registerHUD(wieldSel);
   
@@ -35,7 +36,7 @@
   };
   mods.hud.updateWield = function() {
     var wieldIndex = api.player.wieldIndex;
-    var wieldEl = mods.hud.dom.children[0].children[wieldIndex];
+    var wieldEl = mods.hud.dom.children[0].querySelectorAll(".uiIL_square")[wieldIndex];
     var rect = wieldEl.getBoundingClientRect();
     mods.hud.wieldSel.style.left = (rect.left - 4) + "px";
     mods.hud.wieldSel.style.top = (rect.top - 4) + "px";

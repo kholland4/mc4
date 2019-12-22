@@ -12,13 +12,13 @@ var renderWorkers = [];
 
 var renderWorkersActual = [];
 
-//FIXME move into init function
-for(var i = 0; i < RENDER_MAX_WORKERS; i++) {
-  var _worker = new Worker("meshgen-worker.js");
-  _worker.onmessage = renderWorkerCallback;
-  renderWorkersActual.push(_worker);
+function initRenderer() {
+  for(var i = 0; i < RENDER_MAX_WORKERS; i++) {
+    var _worker = new Worker("meshgen-worker.js");
+    _worker.onmessage = renderWorkerCallback;
+    renderWorkersActual.push(_worker);
+  }
 }
-//---
 
 /*function mapBlockNeedsUpdate(pos) {
   var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString();
