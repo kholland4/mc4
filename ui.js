@@ -28,7 +28,14 @@ function uiRenderItemStack(stack) {
   }
   
   if(stack.wear != null) {
-    //TODO
+    var amt = stack.wear / stack.getDef().toolWear;
+    
+    if(amt < 1) {
+      var bar = document.createElement("div");
+      bar.className = "uiIS_bar";
+      bar.style.width = (amt * 90).toFixed(0) + "%";
+      container.appendChild(bar);
+    }
   }
   
   return container;
@@ -37,7 +44,7 @@ function uiRenderItemStack(stack) {
 function uiRenderInventoryList(inv, listName, kwargs) {
   var list = inv.getList(listName);
   
-  var args = Object.assign({start: 0, count: list.length, width: list.length, interactive: true}, kwargs);
+  var args = Object.assign({start: 0, count: list.length, width: list.length, interactive: true, onUpdate: function() {}}, kwargs);
   
   var container = document.createElement("div");
   container.className = "uiInvList";
@@ -60,11 +67,13 @@ function uiRenderInventoryList(inv, listName, kwargs) {
       sq.onclick = function() {
         uiInteractInventoryList(this.inv, this.listName, this.index, "leftclick");
         uiUpdateInventoryList(this.inv, this.listName, this.args, this.container);
+        this.args.onUpdate();
       }.bind({inv: inv, listName: listName, index: i, args: args, container: container});
       sq.oncontextmenu = function(e) {
         e.preventDefault();
         uiInteractInventoryList(this.inv, this.listName, this.index, "rightclick");
         uiUpdateInventoryList(this.inv, this.listName, this.args, this.container);
+        this.args.onUpdate();
       }.bind({inv: inv, listName: listName, index: i, args: args, container: container});
     }
     
@@ -125,7 +134,7 @@ function uiUpdateInventoryList(inv, listName, kwargs, container) {
 }
 
 function uiInteractInventoryList(inv, listName, index, type="leftclick") {
-  var handInv = inv;
+  var handInv = player.inventory;
   var handListName = "hand";
   var handListIndex = 0;
   
@@ -285,6 +294,14 @@ api.uiShowHand = uiShowHand;
 api.uiShowWindow = uiShowWindow;
 api.uiHideWindow = uiHideWindow;
 api.UIWindow = UIWindow;
+
+api.uiElement = function(name) {
+  if(name == "spacer") {
+    var el = document.createElement("div");
+    el.style.height = "20px";
+    return el;
+  }
+};
 
 api.registerHUD = function(dom) {
   document.body.appendChild(dom);

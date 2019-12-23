@@ -21,7 +21,7 @@ function iconsLoaded() {
 
 function iconExists(file) {
   for(var key in allIcons) {
-    if(allIcons[key].img.src == file) {
+    if(allIcons[key].file == file) { //FIXME
       return key;
     }
   }
@@ -31,6 +31,7 @@ function iconExists(file) {
 class Icon {
   constructor(name, file) {
     this.name = name;
+    this.file = file;
     this.img = document.createElement("img");
     this.img.src = file;
     this.img.onload = this.onload.bind(this);

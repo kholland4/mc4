@@ -8,6 +8,8 @@ class ItemBase {
   constructor(itemstring, props) {
     this.itemstring = itemstring;
     
+    this.desc = "";
+    
     this.stackable = true;
     this.maxStack = 64;
     
@@ -18,8 +20,14 @@ class ItemBase {
     this.iconFile = null;
     this.icon = null;
     
+    this.groups = {};
+    this.toolGroups = {}; //node groups that a tool "helps" with
+    
     Object.assign(this, props);
     
+    if(this.isTool) {
+      this.stackable = false;
+    }
     if(!this.stackable) {
       this.maxStack = 1;
     }
@@ -41,6 +49,7 @@ class Item extends ItemBase {
   }
 }
 
+api.Item = Item;
 api.registerItem = function(item) {
   //TODO: validation
   allItems[item.itemstring] = item;

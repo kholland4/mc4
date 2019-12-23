@@ -10,18 +10,6 @@ class ServerBase {
   get ready() { return true; }
 }
 
-class NodeData {
-  constructor(itemstring, rot=0) {
-    this.itemstring = itemstring;
-    this.rot = rot;
-  }
-  
-  static fromItemStack(stack) {
-    if(stack == null) { return null; }
-    return new NodeData(stack.itemstring);
-  }
-}
-
 class ServerLocal extends ServerBase {
   constructor(map) {
     super();
@@ -165,6 +153,5 @@ class ServerRemote extends ServerBase {
   }
 }
 
-api.NodeData = NodeData;
 api.getNode = function(pos) { return server.getNode(pos); };
 api.setNode = function(pos, nodeData) { return server.getNode(pos, nodeData); };

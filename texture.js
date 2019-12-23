@@ -24,9 +24,19 @@ function texturesLoaded() {
   return true;
 }
 
+function textureExists(file) {
+  for(var i = 0; i < allTextures.length; i++) {
+    if(allTextures[i].file == file) { //FIXME
+      return allTextures[i].name;
+    }
+  }
+  return false;
+}
+
 class TextureImage {
   constructor(name, file) {
     this.name = name;
+    this.file = file;
     this.img = document.createElement("img");
     this.img.src = file;
     this.img.onload = this.onload.bind(this);
@@ -96,3 +106,4 @@ function updateTextureMap() {
 }
 
 api.loadTexture = loadTexture;
+api.textureExists = textureExists;

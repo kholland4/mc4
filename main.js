@@ -8,6 +8,11 @@ var raycasterSel;
 
 var destroySel = null;
 var placeSel = null;
+var digTimer = null;
+var digTimerStart = null;
+var digSel = null;
+var isDigging = false;
+var digOverlay;
 
 var controls;
 
@@ -15,6 +20,8 @@ var server;
 var player;
 
 var RAYCAST_DISTANCE = 10;
+
+var DIG_PREEMPT_TIME = 0.05;
 
 function init() {
   viewport.w = window.innerWidth;
@@ -62,14 +69,15 @@ function init() {
   raycasterSel = new THREE.LineSegments(geometry, material);
   scene.add(raycasterSel);
   
-  window.addEventListener("click", function(e) {
+  var geometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
+  var material = new THREE.LineBasicMaterial({color: 0xff0000, linewidth: 2});
+  digOverlay = new THREE.LineSegments(geometry, material);
+  scene.add(digOverlay);
+  
+  window.addEventListener("mousedown", function(e) {
     if(!controls.isLocked) { return; }
     if(e.which == 1) {
-      if(destroySel != null) {
-        if(server.getNode(destroySel).itemstring != "default:air") {
-          server.digNode(player, destroySel);
-        }
-      }
+      isDigging = true;
     } else if(e.which == 3) {
       if(placeSel != null) {
         var nodeData = server.nodeToPlace(player);
@@ -98,6 +106,23 @@ function init() {
         }
       }
     }
+  });
+  window.addEventListener("mouseup", function(e) {
+    if(!controls.isLocked) { return; }
+    if(e.which == 1) {
+      isDigging = false;
+      digTimer = null;
+      digSel = null;
+    }
+  });
+  
+  window.addEventListener("resize", function(e) {
+    viewport.w = window.innerWidth;
+    viewport.h = window.innerHeight;
+    
+    camera.aspect = viewport.w / viewport.h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(viewport.w, viewport.h);
   });
   
   loadMod("default", "mods/default");
@@ -128,6 +153,15 @@ function afterLoad() {
   //---
   player.inventory.setStack("main", 0, new ItemStack("default:dirt", 3));
   //---
+  
+  //FIXME: bodge
+  var oldRenderDist = renderDist;
+  renderDist = new THREE.Vector3(1, 2, 1);
+  renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
+  renderDist = new THREE.Vector3(2, 2, 2);
+  renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
+  renderDist = oldRenderDist;
+  renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
   
   animateLastTime = performance.now();
   animate();
@@ -190,6 +224,49 @@ function animate() {
     raycastCounter = 0;
   } else {
     raycastCounter++;
+  }
+  
+  if(digTimer > DIG_PREEMPT_TIME) {
+    if(destroySel == null) {
+      digTimer = null;
+      digSel = null;
+    } else if(digSel != null) {
+      if(!destroySel.equals(digSel)) {
+        digTimer = null;
+        digSel = null;
+      } else if(server.getNode(digSel).itemstring == "default:air") {
+        digTimer = null;
+        digSel = null;
+      }
+    }
+  }
+  if(isDigging && destroySel != null && digSel == null) {
+    var nodeData = server.getNode(destroySel);
+    if(nodeData.itemstring != "default:air") {
+      digTimer = calcDigTime(nodeData, player.wield);
+      if(digTimer != null) {
+        digTimerStart = digTimer;
+        digSel = destroySel.clone();
+      }
+    }
+  }
+  if(digTimer != null) {
+    digTimer -= frameTime;
+    var nodeData = server.getNode(digSel);
+    if(digTimer <= DIG_PREEMPT_TIME && nodeData.itemstring != "default:air") {
+      useTool(nodeData, player.inventory, "main", player.wieldIndex)
+      server.digNode(player, digSel);
+    } else if(digTimer <= 0) {
+      digTimer = null;
+      digSel = null;
+    }
+  }
+  if(digTimer != null && digSel != null) {
+    digOverlay.position.copy(digSel);
+    digOverlay.material.color.setRGB((1 - (digTimer / digTimerStart)), 0, 0);
+    digOverlay.visible = true;
+  } else {
+    digOverlay.visible = false;
   }
   
   player.tick(frameTime);

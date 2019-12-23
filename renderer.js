@@ -2,6 +2,7 @@
 
 var RENDER_MAX_WORKERS = 4;
 
+//renderDist *must* be greater that unrenderDist in all dimensions
 var renderDist = new THREE.Vector3(4, 2, 4);
 var unrenderDist = new THREE.Vector3(7, 4, 7);
 
@@ -250,7 +251,7 @@ function renderWorkerCallback(message) {
   geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(verts), 3));
   geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(uvs), 2));
   geometry.setAttribute("color", new THREE.BufferAttribute(new Uint8Array(colors), 3, true));
-  var material = new THREE.MeshBasicMaterial({map: texmap, vertexColors: THREE.VertexColors});
+  var material = new THREE.MeshBasicMaterial({map: texmap, vertexColors: THREE.VertexColors, alphaTest: 0.5});
   var mesh = new THREE.Mesh(geometry, material);
   mesh.position.x = pos.x * MAPBLOCK_SIZE.x;
   mesh.position.y = pos.y * MAPBLOCK_SIZE.y;

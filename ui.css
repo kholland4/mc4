@@ -22,6 +22,14 @@
   right: 2px;
   bottom: 2px;
 }
+.uiIS_bar {
+  position: absolute;
+  left: 5%;
+  bottom: 10%;
+  height: 5px;
+  
+  background-color: #0c0;
+}
 
 .uiInvList {
   
@@ -46,6 +54,8 @@
 #uiHand {
   display: none;
   position: fixed;
+  
+  transform: translate(-50%, -50%);
   
   pointer-events: none;
   

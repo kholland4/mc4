@@ -17,6 +17,17 @@ class ItemStack {
   typeMatch(stack) {
     return this.itemstring == stack.itemstring;
   }
+  //mainly used for crafting
+  softTypeMatch(needed) {
+    if(this.itemstring == needed.itemstring) { return true; }
+    if(needed.itemstring.startsWith("group:")) {
+      if(needed.itemstring.substring(0, 6) in this.getDef().groups) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
   
   equals(stack) {
     return this.itemstring == stack.itemstring && this.count == stack.count && this.wear == stack.wear && JSON.stringify(this.data) == JSON.stringify(stack.data);
@@ -200,3 +211,43 @@ class Inventory {
     return true;
   }
 }
+
+api.ItemStack = ItemStack;
+
+api.createTempInventory = function() {
+  var inv = new Inventory();
+  inv.datastore = {};
+  
+  inv._getList = function(name) {
+    if(name in this.datastore) {
+      return this.datastore[name];
+    }
+    return [];
+  }.bind(inv);
+  inv._setList = function(name, data) {
+    this.datastore[name] = data;
+    return true;
+  }.bind(inv);
+  
+  inv._getStack = function(name, index) {
+    if(name in this.datastore) {
+      var list = this.datastore[name];
+      if(index < list.length) {
+        return list[index];
+      }
+    }
+    return null;
+  }.bind(inv);
+  inv._setStack = function(name, index, data) {
+    if(name in this.datastore) {
+      var list = this.datastore[name];
+      if(index < list.length) {
+        list[index] = data;
+        return true;
+      }
+    }
+    return false;
+  }.bind(inv);
+  
+  return inv;
+};
