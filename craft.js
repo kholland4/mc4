@@ -47,9 +47,9 @@ function craftConsumeEntry(entry, inv, listName, listShape) {
       for(var n = 0; n < list.length; n++) {
         if(list[n] == null) { continue; }
         
-        if(list[n].softTypeMatch(needed) && list[n].count >= entry.list[i].count) {
+        if(list[n].softTypeMatch(needed) && list[n].count >= needed.count) {
           found = true;
-          list[n].count -= entry.list[n].count;
+          list[n].count -= needed.count;
           if(list[n].count <= 0) { list[n] = null; }
           break;
         }
@@ -107,13 +107,20 @@ class CraftEntry {
           if(list[n] == null) { continue; }
           if(used[n]) { continue; }
           
-          if(list[n].softTypeMatch(needed) && list[n].count >= this.list[i].count) {
+          if(list[n].softTypeMatch(needed) && list[n].count >= needed.count) {
             found = true;
             used[n] = true;
             break;
           }
         }
         if(!found) { return false; }
+      }
+      
+      //check for extra items
+      for(var i = 0; i < list.length; i++) {
+        if(used[i] == false && list[i] != null) {
+          return false;
+        }
       }
       
       return true;
