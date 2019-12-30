@@ -31,6 +31,9 @@ class ServerLocal extends ServerBase {
   getMapBlock(pos) {
     return this.map.getMapBlock(pos);
   }
+  setMapBlock(pos, mapBlock) {
+    this.map.dirtyMapBlock(mapBlock.pos);
+  }
   
   getNode(pos) {
     var mapBlockPos = new THREE.Vector3(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z));
@@ -64,7 +67,7 @@ class ServerLocal extends ServerBase {
     if(localPos.z == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1))).markDirty(); } else
     if(localPos.z == MAPBLOCK_SIZE.z - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1))).markDirty(); }
     //---
-    this.map.dirtyMapBlock(mapBlockPos);
+    this.setMapBlock(mapBlockPos, mapBlock);
   }
   
   digNode(player, sel) {

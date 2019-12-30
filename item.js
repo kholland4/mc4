@@ -1,7 +1,9 @@
 var allItems = {};
 
 function getItemDef(itemstring) {
-  return allItems[itemstring];
+  var res = allItems[itemstring];
+  if(res == undefined) { return null; }
+  return res;
 }
 
 class ItemBase {
@@ -20,6 +22,7 @@ class ItemBase {
     this.iconFile = null;
     this.icon = null;
     
+    //wood, tree, stone, sand, flora, leaves
     this.groups = {};
     this.toolGroups = {}; //node groups that a tool "helps" with
     
@@ -54,3 +57,4 @@ api.registerItem = function(item) {
   //TODO: validation
   allItems[item.itemstring] = item;
 };
+api.getItemDef = getItemDef;

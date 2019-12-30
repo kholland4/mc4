@@ -18,12 +18,15 @@ class NodeBase {
     //this.customMeshFaces = null;
     //this.customMeshUVs = null;
     this.transparent = false;
+    this.lightLevel = 0;
     
     this.tex = [null, null, null, null, null, null];
     this.texAll = null;
     this.texTop = null;
     this.texBottom = null;
     this.texSides = null;
+    
+    this.drops = null;
     
     this.groups = {};
     
@@ -91,13 +94,28 @@ class NodeData {
   }
 }
 
-var noToolDef = new Item(":", {isTool: true, toolWear: null, toolGroups: {
-  cracky: {times: [0, 2], maxlevel: 1},
-  crumbly: {times: [0, 1.5, 3], maxlevel: 2}
-}});
-//---
-api.registerItem(noToolDef);
-//---
+//---TOOLS---
+//  most of this is based on MTG
+//
+//  groups: crumbly, cracky, choppy, snappy, oddly_breakable_by_hand, fleshy, explody
+//  non-tool groups: soil, sand
+//
+//  levels:
+//      crumbly        cracky                      choppy        snappy
+//
+//  1   dirt, sand     stone, cobble               planks        leaves
+//  2   gravel         ore, brick                  tree
+//  3   sandstone      hard ore, mineral blocks    
+//  4   
+//  5   
+//
+//  tools:
+//            crumbly          cracky           choppy           snappy
+//  wood      0.6, 1.2, 1.8    1.6, x, x        1.6, 3.0, x      0.4, 1.6, x
+//  stone     0.5, 1.2, 1.8    1.0, 2.0, x      1.3, 2.0, 3.0    0.4, 1.4, x
+//  steel     0.4, 0.9, 1.5    0.8, 1.6, 4.0    1.0, 1.4, 2.5    0.3, 1.2, 2.0
+//  diamond   0.3, 0.5, 1.1    0.5, 1.0, 2.0    0.5, 0.9, 2.1    0.3, 0.9, 1.8
+//------
 
 function calcDigTimeActual(node, tool) {
   if(tool == null) { return null; }
@@ -132,6 +150,18 @@ function calcDigTime(node, tool) {
   var digTime = calcDigTimeActual(node, tool);
   if(digTime != null) { return digTime; }
   
+  if(getItemDef(":") == null) {
+    var noToolDef = new Item(":", {isTool: true, toolWear: null, toolGroups: {
+      crumbly: {times: [0, 2], maxlevel: 1},
+      cracky: {times: [0, 2], maxlevel: 1},
+      choppy: {times: [0, 2], maxlevel: 1},
+      snappy: {times: [0, 2], maxlevel: 1},
+      oddly_breakable_by_hand: {times: [0, 1], maxlevel: 1}
+    }});
+    
+    api.registerItem(noToolDef);
+  }
+  
   return calcDigTimeActual(node, new ItemStack(":"));
 }
 
@@ -153,3 +183,4 @@ api.registerNode = function(item) {
   //TODO: validation
   allNodes[item.itemstring] = item;
 };
+api.getNodeDef = getNodeDef;

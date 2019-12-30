@@ -22,6 +22,7 @@ class MapBlock {
     }
     
     this.updateNum = 0;
+    this.lightNeedsUpdate = true;
   }
   
   getNodeID(itemstring) {
@@ -38,6 +39,7 @@ class MapBlock {
   
   markDirty() {
     this.updateNum++;
+    this.lightNeedsUpdate = true;
   }
 }
 
@@ -61,6 +63,14 @@ class MapgenDefault extends MapgenBase {
     noise.seed(this.seed);
     
     var block = new MapBlock(pos);
+    
+    function heightAt(x, z) {
+      var val = noise.simplex2(x / 50, z / 50);
+      
+      val = Math.round(val * 10);
+      
+      return val;
+    }
     
     var heightMap = [];
     for(var x = pos.x * block.size.x; x < (pos.x + 1) * block.size.x; x++) {
@@ -93,6 +103,73 @@ class MapgenDefault extends MapgenBase {
           } else if(h < hmap - 2) {
             block.data[x][y][z] = stoneID;
           }
+        }
+      }
+    }
+    
+    //Trees
+    var treePos = [];
+    var treeMaxSpread = new THREE.Vector3(7, 10, 7);
+    var basePos = new THREE.Vector3(pos.x * block.size.x, pos.y * block.size.y, pos.z * block.size.z);
+    for(var x = basePos.x - treeMaxSpread.x; x < basePos.x + block.size.x + treeMaxSpread.x; x++) {
+      for(var z = basePos.z - treeMaxSpread.z; z < basePos.z + block.size.z + treeMaxSpread.z; z++) {
+        var hmap;
+        if(x >= basePos.x && x < basePos.x + block.size.x && z >= basePos.z && z < basePos.z + block.size.z) {
+          hmap = heightMap[x - basePos.x][z - basePos.z];
+        } else {
+          hmap = heightAt(x, z);
+        }
+        
+        if(hmap < basePos.y - treeMaxSpread.y || hmap > basePos.y + block.size.y + treeMaxSpread.y) { continue; }
+        
+        var n = noise.simplex2(x / 4, z / 4);
+        if(n > 0.85) {
+          treePos.push(new THREE.Vector3(x, hmap + 1, z));
+        }
+      }
+    }
+    
+    var trunkID = block.getNodeID("default:tree");
+    var leafID = block.getNodeID("default:leaves");
+    
+    for(var i = 0; i < treePos.length; i++) {
+      var p = treePos[i];
+      
+      var nodes = [];
+      
+      for(var n = 0; n < 6; n++) {
+        nodes.push({pos: new THREE.Vector3(0, n, 0).add(p), data: trunkID});
+      }
+      
+      for(var x = -3; x <= 3; x++) {
+        for(var y = 2; y <= 6; y++) {
+          for(var z = -3; z <= 3; z++) {
+            if(x == 0 && z == 0 && y >= 0 && y < 6) { continue; }
+            
+            var r = 3;
+            if(y >= 4) { r = 2; }
+            if(y >= 5) { r = 1; }
+            if(x < -r || x > r || z < -r || z > r || (x == -r && z == -r) || (x == r && z == -r) || (x == -r && z == r) || (x == r && z == r)) { continue; }
+            if(y == 6 && x != 0 && z != 0) { continue; }
+            
+            var r = 2;
+            if(y >= 4) { r = 1; }
+            if(y >= 6) { r = 0; }
+            if(!(x >= -r && x <= r && z >= -r && z <= r)) {
+              if(!(noise.simplex3((p.x + x) / 15, (p.y + y) / 15, (p.z + z) / 15) > 0.2)) {
+                continue;
+              }
+            }
+            
+            nodes.push({pos: new THREE.Vector3(x, y, z).add(p), data: leafID});
+          }
+        }
+      }
+      
+      for(var n = 0; n < nodes.length; n++) {
+        var nodePos = nodes[n].pos;
+        if(nodePos.x >= basePos.x && nodePos.x < basePos.x + block.size.x && nodePos.y >= basePos.y && nodePos.y < basePos.y + block.size.y && nodePos.z >= basePos.z && nodePos.z < basePos.z + block.size.z) {
+          block.data[nodePos.x - basePos.x][nodePos.y - basePos.y][nodePos.z - basePos.z] = nodes[n].data;
         }
       }
     }

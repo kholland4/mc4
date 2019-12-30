@@ -91,6 +91,39 @@ class RenderWorker {
       data.push(s1);
     }
     
+    /*var ldata = [];
+    if(mapBlock.lightNeedsUpdate) {
+      //mapblock data to recalculate lighting
+      for(var x = -1; x <= 1; x++) {
+        for(var y = -1; y <= 1; y++) {
+          for(var z = -1; z <= 1; z++) {
+            var index = x + "," + y + "," + z;
+            if(!(index in blocks)) {
+              blocks[index] = server.getMapBlock(new THREE.Vector3(pos.x + x, pos.y + y, pos.z + z));
+            }
+          }
+        }
+      }
+      
+      for(var x = -mapBlock.size.x; x < mapBlock.size.x * 2; x++) {
+        var s1 = [];
+          for(var y = -mapBlock.size.y; y < mapBlock.size.y * 2; y++) {
+          var s2 = [];
+          for(var z = -mapBlock.size.z; z < mapBlock.size.z * 2; z++) {
+            var mbPos = new THREE.Vector3(Math.floor(x / mapBlock.size.x), Math.floor(y / mapBlock.size.y), Math.floor(z / mapBlock.size.z));
+            var index = mbPos.x + "," + mbPos.y + "," + mbPos.z;
+            var localPos = new THREE.Vector3(
+              ((x % mapBlock.size.x) + mapBlock.size.x) % mapBlock.size.x,
+              ((y % mapBlock.size.y) + mapBlock.size.y) % mapBlock.size.y,
+              ((z % mapBlock.size.z) + mapBlock.size.z) % mapBlock.size.z);
+            s2.push(blocks[index].data[localPos.x][localPos.y][localPos.z] & 0x7fffff);
+          }
+          s1.push(s2);
+        }
+        ldata.push(s1);
+      }
+    }*/
+    
     var nodeDefAdj = {};
     for(var key in blocks) {
       if(key == "0,0,0") { continue; }
@@ -113,7 +146,9 @@ class RenderWorker {
       size: {x: mapBlock.size.x, y: mapBlock.size.y, z: mapBlock.size.z},
       nodeDef: nodeDef,
       nodeDefAdj: nodeDefAdj,
-      data: data
+      data: data,
+      lightNeedsUpdate: mapBlock.lightNeedsUpdate
+      //ldata: ldata
     });
   }
 }
@@ -262,4 +297,16 @@ function renderWorkerCallback(message) {
   var renderObj = new RenderMesh(pos, updateNum, mesh);
   var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString();
   renderCurrentMeshes[index] = renderObj;
+  
+  /*var mapBlock = server.getMapBlock(pos);
+  if(mapBlock.lightNeedsUpdate) {
+    for(var x = 0; x < mapBlock.size.x; x++) {
+      for(var y = 0; y < mapBlock.size.y; y++) {
+        for(var z = 0; z < mapBlock.size.z; z++) {
+          mapBlock.data[x][y][z] = message.data.data[x + 1][y + 1][z + 1];
+        }
+      }
+    }
+    server.setMapBlock(pos, mapBlock);
+  }*/
 }

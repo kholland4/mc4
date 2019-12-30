@@ -11,7 +11,7 @@
     var list = api.player.inventory.getList("craft");
     
     var craftRes = api.getCraftRes(list, {x: 3, y: 3});
-    if(craftRes != null) { craftRes = craftRes.res.clone(); }
+    if(craftRes != null) { craftRes = craftRes.getRes(); }
     mods.inventory.craftOutput.setStack("main", 0, craftRes);
     
     api.uiUpdateInventoryList(mods.inventory.craftOutput, "main", {interactive: true}, mods.inventory.craftOutputEl);
@@ -25,13 +25,40 @@
       api.uiUpdateInventoryList(api.player.inventory, "craft", {width: 3}, mods.inventory.craftListEl);
       mods.inventory.updateCraftOutput();
     } else if(mods.inventory.craftOutput.getStack("main", 0) != null) {
-      //FIXME - this is a bodge
-      //FIXME - this doesn't work right
-      //FIXME - seriously fix this
-      var handStack = api.player.inventory.getStack("hand", 0);
-      var targetStack = mods.inventory.craftOutput.getStack("main", 0);
-      api.player.inventory.setStack("hand", 0, targetStack);
-      mods.inventory.craftOutput.setStack("main", 0, handStack);
+      //FIXME - this is a bodge but it seems to work correctly
+      
+      if(api.player.inventory.getStack("hand", 0) == null) {
+        var handStack = api.player.inventory.getStack("hand", 0);
+        var targetStack = mods.inventory.craftOutput.getStack("main", 0);
+        api.player.inventory.setStack("hand", 0, targetStack);
+        mods.inventory.craftOutput.setStack("main", 0, handStack);
+        
+        if(craftEntry != null) {
+          craftConsumeEntry(craftEntry, api.player.inventory, "craft", {x: 3, y: 3});
+          api.uiUpdateInventoryList(api.player.inventory, "craft", {width: 3}, mods.inventory.craftListEl);
+        }
+      } else {
+        var handStack = api.player.inventory.getStack("hand", 0);
+        var targetStack = mods.inventory.craftOutput.getStack("main", 0);
+        
+        if(handStack.typeMatch(targetStack) && handStack.count + targetStack.count <= handStack.getDef().maxStack) {
+          handStack.count += targetStack.count;
+          targetStack = null;
+          api.player.inventory.setStack("hand", 0, handStack);
+          mods.inventory.craftOutput.setStack("main", 0, targetStack);
+          
+          if(craftEntry != null) {
+            craftConsumeEntry(craftEntry, api.player.inventory, "craft", {x: 3, y: 3});
+            api.uiUpdateInventoryList(api.player.inventory, "craft", {width: 3}, mods.inventory.craftListEl);
+          }
+        } else {
+          //swap
+          var handStack = api.player.inventory.getStack("hand", 0);
+          var targetStack = mods.inventory.craftOutput.getStack("main", 0);
+          api.player.inventory.setStack("hand", 0, targetStack);
+          mods.inventory.craftOutput.setStack("main", 0, handStack);
+        }
+      }
       
       mods.inventory.updateCraftOutput();
     }

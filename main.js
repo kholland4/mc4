@@ -14,6 +14,8 @@ var digSel = null;
 var isDigging = false;
 var digOverlay;
 
+var needsRaycast = false;
+
 var controls;
 
 var server;
@@ -21,7 +23,7 @@ var player;
 
 var RAYCAST_DISTANCE = 10;
 
-var DIG_PREEMPT_TIME = 0.05;
+var DIG_PREEMPT_TIME = 0.04;
 
 function init() {
   viewport.w = window.innerWidth;
@@ -69,9 +71,17 @@ function init() {
   raycasterSel = new THREE.LineSegments(geometry, material);
   scene.add(raycasterSel);
   
-  var geometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
-  var material = new THREE.LineBasicMaterial({color: 0xff0000, linewidth: 2});
-  digOverlay = new THREE.LineSegments(geometry, material);
+  var geometry = new THREE.BoxGeometry(1.001, 1.001, 1.001);
+  var materials = [];
+  for(var i = 0; i < 5; i++) {
+    var texture = new THREE.TextureLoader().load("textures/crack_" + i + ".png");
+    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.NearestFilter;
+    var material = new THREE.MeshBasicMaterial({map: texture, transparent: true});
+    materials.push(material);
+  }
+  digOverlay = new THREE.Mesh(geometry, materials);
+  digOverlay.geometry.faces.forEach(function(face) { face.materialIndex = 0; });
   scene.add(digOverlay);
   
   window.addEventListener("mousedown", function(e) {
@@ -101,6 +111,7 @@ function init() {
           if(ok) {
             if(server.getNode(placeSel).itemstring == "default:air") {
               server.placeNode(player, placeSel);
+              needsRaycast = true;
             }
           }
         }
@@ -128,6 +139,7 @@ function init() {
   loadMod("default", "mods/default");
   loadMod("hud", "mods/hud");
   loadMod("inventory", "mods/inventory");
+  loadMod("chat", "mods/chat");
   
   loadLoop();
 }
@@ -151,7 +163,10 @@ function loadLoop() {
 
 function afterLoad() {
   //---
-  player.inventory.setStack("main", 0, new ItemStack("default:dirt", 3));
+  player.inventory.give("main", new ItemStack("default:dirt", 3));
+  player.inventory.give("main", new ItemStack("default:tree", 64));
+  player.inventory.give("main", new ItemStack("default:wood", 64));
+  player.inventory.give("main", new ItemStack("default:leaves", 64));
   //---
   
   //FIXME: bodge
@@ -183,7 +198,7 @@ function animate() {
   
   apiOnFrame(frameTime);
   
-  if(raycastCounter >= 3) {
+  if(raycastCounter >= 3 || needsRaycast) {
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
     var intersects = raycaster.intersectObjects(renderMapGroup.children);
     if(intersects.length > 0) {
@@ -222,6 +237,7 @@ function animate() {
     }
     
     raycastCounter = 0;
+    needsRaycast = false;
   } else {
     raycastCounter++;
   }
@@ -259,11 +275,15 @@ function animate() {
     } else if(digTimer <= 0) {
       digTimer = null;
       digSel = null;
+      needRaycast = true;
     }
   }
   if(digTimer != null && digSel != null) {
     digOverlay.position.copy(digSel);
-    digOverlay.material.color.setRGB((1 - (digTimer / digTimerStart)), 0, 0);
+    //digOverlay.material.color.setRGB((1 - (digTimer / digTimerStart)), 0, 0);
+    var n = Math.floor((1 - (Math.min(digTimer, digTimerStart - 0.0001) / digTimerStart)) * 5);
+    digOverlay.geometry.faces.forEach(function(face) { face.materialIndex = n; });
+    digOverlay.geometry.elementsNeedUpdate = true;
     digOverlay.visible = true;
   } else {
     digOverlay.visible = false;

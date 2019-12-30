@@ -38,6 +38,24 @@ function craftConsumeEntry(entry, inv, listName, listShape) {
       }
     }
   }
+    
+  if(entry.shape == null) {
+    for(var i = 0; i < entry.list.length; i++) {
+      var needed = entry.list[i];
+      if(needed == null) { continue; }
+      var found = false;
+      for(var n = 0; n < list.length; n++) {
+        if(list[n] == null) { continue; }
+        
+        if(list[n].softTypeMatch(needed) && list[n].count >= entry.list[i].count) {
+          found = true;
+          list[n].count -= entry.list[n].count;
+          if(list[n].count <= 0) { list[n] = null; }
+          break;
+        }
+      }
+    }
+  }
   
   inv.setList(listName, list);
   
@@ -47,7 +65,14 @@ function craftConsumeEntry(entry, inv, listName, listShape) {
 class CraftEntry {
   constructor(res, recipie, props) {
     this.res = res;
-    this.list = recipie;
+    this.list = [];
+    for(var i = 0; i < recipie.length; i++) {
+      if(recipie[i] == null) {
+        this.list.push(null);
+      } else {
+        this.list.push(ItemStackV.fromString(recipie[i]));
+      }
+    }
     
     this.shape = null; // or {x: <x>, y: <y>}
     this.type = "craft"; // or cook
@@ -70,7 +95,35 @@ class CraftEntry {
       }
     }
     
+    if(this.shape == null) {
+      var used = [];
+      for(var i = 0; i < list.length; i++) { used.push(false); }
+      
+      for(var i = 0; i < this.list.length; i++) {
+        var needed = this.list[i];
+        if(needed == null) { continue; }
+        var found = false;
+        for(var n = 0; n < list.length; n++) {
+          if(list[n] == null) { continue; }
+          if(used[n]) { continue; }
+          
+          if(list[n].softTypeMatch(needed) && list[n].count >= this.list[i].count) {
+            found = true;
+            used[n] = true;
+            break;
+          }
+        }
+        if(!found) { return false; }
+      }
+      
+      return true;
+    }
+    
     return false;
+  }
+  
+  getRes() {
+    return ItemStack.fromString(this.res);
   }
 }
 

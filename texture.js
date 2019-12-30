@@ -33,6 +33,15 @@ function textureExists(file) {
   return false;
 }
 
+function getTexture(name) {
+  for(var i = 0; i < allTextures.length; i++) {
+    if(allTextures[i].name == name) {
+      return allTextures[i];
+    }
+  }
+  return false;
+}
+
 class TextureImage {
   constructor(name, file) {
     this.name = name;
@@ -100,6 +109,32 @@ function updateTextureMap() {
     var x = i % texmapWidth;
     var y = Math.floor(i / texmapWidth);
     textureCtx.drawImage(textures[i].img, x * TEXTURE_SIZE.x, y * TEXTURE_SIZE.y);
+    
+    //transparency
+    var lx = x * TEXTURE_SIZE.x;
+    var ly = y * TEXTURE_SIZE.y;
+    var lw = TEXTURE_SIZE.x;
+    var lh = TEXTURE_SIZE.y;
+    
+    var imgData = textureCtx.getImageData(lx, ly, lw, lh);
+    
+    //FIXME - sets pixels with #ff00ff color to transparent, should really check for alpha in source image
+    var pixelData = imgData.data;
+    for(var n = 0; n < pixelData.length; n += 4) {
+      var r = pixelData[n];
+      var g = pixelData[n + 1];
+      var b = pixelData[n + 2];
+      
+      if(r == 255 && g == 0 && b == 255) {
+        pixelData[n + 2] = 0;
+        pixelData[n + 3] = 0;
+      } else {
+        pixelData[n + 3] = 255;
+      }
+    }
+    
+    textureCtx.putImageData(imgData, lx, ly);
+    
   }
   
   texmap.needsUpdate = true;

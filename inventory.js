@@ -1,13 +1,10 @@
-class ItemStack {
+class ItemStackBase {
   constructor(itemstring, count=1, wear=null, data=null) {
     this.itemstring = itemstring;
     this.count = count;
     this.wear = wear;
     this.data = data;
     if(this.data == null) { this.data = {}; }
-    if(this.getDef().isTool && this.wear == null) {
-      this.wear = this.getDef().toolWear;
-    }
   }
   
   getDef() {
@@ -21,7 +18,7 @@ class ItemStack {
   softTypeMatch(needed) {
     if(this.itemstring == needed.itemstring) { return true; }
     if(needed.itemstring.startsWith("group:")) {
-      if(needed.itemstring.substring(0, 6) in this.getDef().groups) {
+      if(needed.itemstring.substring(6) in this.getDef().groups) {
         return true;
       }
     }
@@ -40,9 +37,66 @@ class ItemStack {
     return new ItemStack(this.itemstring, this.count, this.wear); //data is omitted deliberately
   }
   
+  toString() {
+    var out = this.itemstring;
+    if(this.count != 1) {
+      out += " " + this.count.toString();
+    }
+    return out;
+  }
+  
   static fromNodeData(nodeData) {
     if(nodeData == null) { return null; }
+    var def = getNodeDef(nodeData.itemstring);
+    if(def == null) { return null; }
+    if(def.drops != null) {
+      return ItemStack.fromString(def.drops);
+    }
     return new ItemStack(nodeData.itemstring);
+  }
+  
+  static fromString(str) {
+    var s = str.split(" ");
+    var itemstring = s[0];
+    if(getItemDef(itemstring) == null) { return null; }
+    var count = 1;
+    if(s.length >= 2) {
+      count = parseInt(s[1]);
+      if(isNaN(count)) {
+        count = 1;
+      }
+    }
+    return new ItemStack(itemstring, count);
+  }
+}
+
+class ItemStack extends ItemStackBase {
+  constructor(itemstring, count=1, wear=null, data=null) {
+    super(itemstring, count, wear, data);
+    
+    if(this.getDef().isTool && this.wear == null) {
+      this.wear = this.getDef().toolWear;
+    }
+  }
+}
+
+class ItemStackV extends ItemStackBase {
+  constructor(itemstring, count=1, wear=null, data=null) {
+    super(itemstring, count, wear, data);
+  }
+  
+  static fromString(str) {
+    var s = str.split(" ");
+    var itemstring = s[0];
+    if(getItemDef(itemstring) == null && !itemstring.startsWith("group:")) { return null; }
+    var count = 1;
+    if(s.length >= 2) {
+      count = parseInt(s[1]);
+      if(isNaN(count)) {
+        count = 1;
+      }
+    }
+    return new ItemStackV(itemstring, count);
   }
 }
 
