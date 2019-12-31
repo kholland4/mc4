@@ -7,7 +7,9 @@ function collideMap(box) {
     for(var y = Math.round(box.min.y); y <= Math.round(box.max.y); y++) {
       for(var z = Math.round(box.min.z); z <= Math.round(box.max.z); z++) {
         var pos = new THREE.Vector3(x, y, z);
-        var def = getNodeDef(server.getNode(pos).itemstring);
+        var nodeData = server.getNode(pos);
+        if(nodeData == null) { return true; }
+        var def = getNodeDef(nodeData.itemstring);
         
         if(def.boundingBox != null) {
           for(var i = 0; i < def.boundingBox.length; i++) {

@@ -1,6 +1,5 @@
 ## Rendering
 
-* Fix transparency
 * Lighting
 * Textures - composite textures similar to MT
 * Custom mesh support
@@ -29,7 +28,12 @@
 * Comprehensive nodes/items/crafts
 
 
-## Server/map
+## mods/hud
+
+* Fix wield selector position on resize
+
+
+## Server / map
 
 * Metadata system
 * Actual networked server support

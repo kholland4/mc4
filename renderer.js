@@ -63,6 +63,14 @@ class RenderWorker {
       "0,0,1": server.getMapBlock(new THREE.Vector3(pos.x, pos.y, pos.z + 1))
     };
     
+    this.ok = true;
+    for(var key in blocks) {
+      if(blocks[key] == null) {
+        this.ok = false;
+        return;
+      }
+    }
+    
     for(var x = -1; x < mapBlock.size.x + 1; x++) {
       var s1 = [];
       for(var y = -1; y < mapBlock.size.y + 1; y++) {
@@ -234,7 +242,11 @@ function renderUpdateMap(centerPos) {
     if(targetWorker == null) { break; }
     
     var worker = new RenderWorker(mapBlock, targetWorker);
-    renderWorkers.push(worker);
+    if(worker.ok) {
+      renderWorkers.push(worker);
+    } else {
+      break;
+    }
   }
 }
 

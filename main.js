@@ -59,7 +59,8 @@ function init() {
   initRenderer();
   initUI();
   
-  server = new ServerLocal(new MapLocal(new MapgenDefault()));
+  //server = new ServerLocal(new MapLocal(new MapgenDefault()));
+  server = new ServerRemote("ws://localhost:8080/");
   
   player = new Player();
   server.addPlayer(player);
@@ -175,8 +176,8 @@ function afterLoad() {
   renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
   renderDist = new THREE.Vector3(2, 2, 2);
   renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
-  renderDist = oldRenderDist;
-  renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
+  //renderDist = oldRenderDist;
+  //renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
   
   animateLastTime = performance.now();
   animate();
