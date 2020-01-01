@@ -9,12 +9,13 @@
 ## UI (ingame)
 
 * Formspec-inspired UI
+* Fix icon display (pixel art)
 
 
 ## UI (menu)
 
 * Loading screen (show if files not found)
-* Menu screen
+* Better menu screen
 
 
 ## Crafting
@@ -36,15 +37,30 @@
 ## Server / map
 
 * Metadata system
-* Actual networked server support
+* Further work on networked server support
 
 
 ## Server (remote)
 
-* Modify nodes rather than whole chunks
 * Server-side inventory handling (anticheat)
+* Server-side dig/place handling (anticheat)
+* Store player inventories
+* Track player position and generate entities
+
+
+## Mapgen
+
+* Good server-side mapgen
+* Ores
+* Grass etc.
+* Caves
+* Biomes
+* Water
+* Better tree generation
 
 
 ## Other
 
 * Entities
+* Creative mode
+* Configurable keybindings

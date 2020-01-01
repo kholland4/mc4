@@ -75,3 +75,34 @@
   background-color: #999;
   padding: 20px;
 }
+
+.uiEl_spacer {
+  height: 20px;
+}
+.uiEl_text {
+  font-family: sans-serif;
+  font-size: 18px;
+}
+.uiEl_br {
+  
+}
+.uiEl_button, .uiEl_select, .uiEl_input_text {
+  background-color: #bbb;
+  color: black;
+  border: 1px solid #555;
+  padding: 5px;
+  
+  font-family: sans-serif;
+  font-size: 18px;
+  
+  margin: 2px;
+}
+.uiEl_button {
+  
+}
+.uiEl_select {
+  
+}
+.uiEl_input_text {
+  background-color: white;
+}

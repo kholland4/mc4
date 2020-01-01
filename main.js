@@ -30,6 +30,33 @@ var menuConfig = {
   remoteServer: "ws://localhost:8080/"
 };
 
+function initMenu() {
+  var win = new UIWindow();
+  
+  win.add(uiElement("text", "Local"));
+  win.add(uiElement("br"));
+  var startButton = uiElement("button");
+  startButton.innerText = "Start Game";
+  startButton.onclick = function() { menuConfig.gameType = "local"; uiHideWindow(); init(); };
+  win.add(startButton);
+  
+  win.add(uiElement("spacer"));
+  
+  win.add(uiElement("text", "Join Server"));
+  win.add(uiElement("br"));
+  var serverAddr = uiElement("input", menuConfig.remoteServer);
+  serverAddr.onchange = function() { menuConfig.remoteServer = this.value; };
+  win.add(serverAddr);
+  
+  var startButton = uiElement("button");
+  startButton.innerText = "Connect";
+  startButton.onclick = function() { menuConfig.gameType = "remote"; uiHideWindow(); init(); };
+  win.add(startButton);
+  
+  uiShowWindow(win);
+}
+document.addEventListener("DOMContentLoaded", initMenu);
+
 function init() {
   viewport.w = window.innerWidth;
   viewport.h = window.innerHeight;
@@ -46,6 +73,8 @@ function init() {
       controls.lock();
     }
   });
+  
+  if(!controls.isLocked) { controls.lock(); }
   
   renderMapGroup = new THREE.Group();
   scene.add(renderMapGroup);
@@ -154,7 +183,6 @@ function init() {
   
   loadLoop();
 }
-document.addEventListener("DOMContentLoaded", init);
 
 function loadLoop() {
   var ready = true;

@@ -15,7 +15,7 @@ class NodeBase {
     
     this.visible = true;
     this.customMesh = false;
-    //this.customMeshFaces = null;
+    //this.customMeshVerts = null;
     //this.customMeshUVs = null;
     this.transparent = false;
     this.lightLevel = 0;
