@@ -1,7 +1,9 @@
 #!/usr/bin/python3
-import asyncio, websockets, time, json
+import asyncio, websockets, time, json, math
 
-class MapBlock:
+MAPBLOCK_SIZE = (16, 16, 16)
+
+class Mapblock:
     def __init__(self, data):
         self.pos = {"x": data["pos"]["x"], "y": data["pos"]["y"], "z": data["pos"]["z"]}
         self.updateNum = data["updateNum"]
@@ -9,12 +11,21 @@ class MapBlock:
         self.IDtoIS = data["IDtoIS"]
         self.IStoID = data["IStoID"]
         self.data = data["data"]
+    
+    def getNodeID(self, itemstring):
+        if itemstring not in self.IStoID:
+            self.IStoID[itemstring] = len(self.IDtoIS)
+            self.IDtoIS.append(itemstring)
+        return self.IStoID[itemstring]
+    
+    def getItemstring(self, nodeID):
+        return self.IDtoIS[nodeID]
 
-def genMapblock(px, py, pz):
+def genMapblock(pos):
     res = {}
     res["type"] = "req_mapblock"
     
-    res["pos"] = {"x": px, "y": py, "z": pz}
+    res["pos"] = {"x": pos[0], "y": pos[1], "z": pos[2]}
     
     res["updateNum"] = 0
     res["lightNeedsUpdate"] = False
@@ -23,12 +34,12 @@ def genMapblock(px, py, pz):
     res["IStoID"] = {"default:air": 0, "default:dirt": 1, "default:grass": 2, "default:stone": 3}
     
     data = []
-    for x in range(16):
+    for x in range(MAPBLOCK_SIZE[0]):
         s1 = []
-        for y in range(16):
+        for y in range(MAPBLOCK_SIZE[1]):
             s2 = []
-            for z in range(16):
-                if py == -1:
+            for z in range(MAPBLOCK_SIZE[2]):
+                if pos[1] == -1:
                     if y == 15:
                         s2.append(2)
                     elif y >= 13:
@@ -42,22 +53,37 @@ def genMapblock(px, py, pz):
     
     res["data"] = data
     
-    return MapBlock(res)
+    return Mapblock(res)
 
 cache = {}
 
-def getMapblock(px, py, pz):
-    index = (px, py, pz)
-    if index in cache:
-        return cache[index]
+def getMapblock(pos):
+    if pos in cache:
+        return cache[pos]
     else:
-        cache[index] = genMapblock(px, py, pz)
+        cache[pos] = genMapblock(pos)
     
-    return cache[index]
+    return cache[pos]
 
-def setMapblock(mapBlock):
-    index = (mapBlock.pos["x"], mapBlock.pos["y"], mapBlock.pos["z"])
-    cache[index] = mapBlock
+def setMapblock(mapblock):
+    index = (mapblock.pos["x"], mapblock.pos["y"], mapblock.pos["z"])
+    cache[index] = mapblock
+
+def xyzToTuple(data):
+    return (data["x"], data["y"], data["z"])
+def mbPos(pos):
+    return (math.floor(pos[0] / MAPBLOCK_SIZE[0]), math.floor(pos[1] / MAPBLOCK_SIZE[1]), math.floor(pos[2] / MAPBLOCK_SIZE[2]))
+def localPos(pos):
+    return (pos[0] % MAPBLOCK_SIZE[0], pos[1] % MAPBLOCK_SIZE[1], pos[2] % MAPBLOCK_SIZE[2])
+def setNode(pos, data):
+    mb_pos = mbPos(pos)
+    local_pos = localPos(pos)
+    
+    current = getMapblock(mb_pos)
+    
+    current.data[local_pos[0]][local_pos[1]][local_pos[2]] = current.getNodeID(data["itemstring"]) #TODO - rotation
+    
+    cache[mb_pos] = current
 
 users = set()
 to_send = []
@@ -103,18 +129,28 @@ async def consumer(websocket, message):
         s += str(data["pos"])
     elif data["type"] == "set_mapblock":
         s += str(data["data"]["pos"])
+    elif data["type"] == "set_node":
+        s += str(data["pos"]) + " " + str(data["data"])
     print("> " + s)
     
     if data["type"] == "req_mapblock":
         await websocket.send(json.dumps({
             "type": "req_mapblock",
-            "data": getMapblock(data["pos"]["x"], data["pos"]["y"], data["pos"]["z"]).__dict__
+            "data": getMapblock(xyzToTuple(data["pos"])).__dict__
         }))
     elif data["type"] == "set_mapblock":
-        setMapblock(MapBlock(data["data"]))
+        setMapblock(Mapblock(data["data"]))
         to_send.append(Message(json.dumps({
             "type": "req_mapblock",
-            "data": getMapblock(data["data"]["pos"]["x"], data["data"]["pos"]["y"], data["data"]["pos"]["z"]).__dict__
+            "data": getMapblock(xyzToTuple(data["data"]["pos"])).__dict__
+        }), [websocket]))
+    elif data["type"] == "set_node":
+        setNode(xyzToTuple(data["pos"]), data["data"])
+        getMapblock(mbPos(xyzToTuple(data["pos"]))).updateNum += 1
+        
+        to_send.append(Message(json.dumps({
+            "type": "req_mapblock",
+            "data": getMapblock(mbPos(xyzToTuple(data["pos"]))).__dict__
         }), [websocket]))
 
 async def consumer_handler(websocket, path):

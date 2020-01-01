@@ -39,6 +39,12 @@
 * Actual networked server support
 
 
+## Server (remote)
+
+* Modify nodes rather than whole chunks
+* Server-side inventory handling (anticheat)
+
+
 ## Other
 
 * Entities

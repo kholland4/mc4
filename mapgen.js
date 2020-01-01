@@ -23,6 +23,7 @@ class MapBlock {
     
     this.updateNum = 0;
     this.lightNeedsUpdate = true;
+    this.renderNeedsUpdate = 0;
   }
   
   getNodeID(itemstring) {
@@ -40,6 +41,7 @@ class MapBlock {
   markDirty() {
     this.updateNum++;
     this.lightNeedsUpdate = true;
+    this.renderNeedsUpdate = 2;
   }
 }
 
@@ -175,6 +177,7 @@ class MapgenDefault extends MapgenBase {
     }
     
     block.markDirty();
+    block.renderNeedsUpdate = 1; //FIXME
     
     return block;
   }

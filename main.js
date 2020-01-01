@@ -25,6 +25,11 @@ var RAYCAST_DISTANCE = 10;
 
 var DIG_PREEMPT_TIME = 0.04;
 
+var menuConfig = {
+  gameType: "remote", // local, remote
+  remoteServer: "ws://localhost:8080/"
+};
+
 function init() {
   viewport.w = window.innerWidth;
   viewport.h = window.innerHeight;
@@ -59,8 +64,13 @@ function init() {
   initRenderer();
   initUI();
   
-  //server = new ServerLocal(new MapLocal(new MapgenDefault()));
-  server = new ServerRemote("ws://localhost:8080/");
+  if(menuConfig.gameType == "local") {
+    server = new ServerLocal(new MapLocal(new MapgenDefault()));
+  } else if(menuConfig.gameType == "remote") {
+    server = new ServerRemote(menuConfig.remoteServer);
+  } else {
+    //whoops
+  }
   
   player = new Player();
   server.addPlayer(player);
@@ -164,10 +174,14 @@ function loadLoop() {
 
 function afterLoad() {
   //---
+  player.inventory.give("main", new ItemStack("default:pick_diamond"));
+  player.inventory.give("main", new ItemStack("default:axe_diamond"));
   player.inventory.give("main", new ItemStack("default:dirt", 3));
+  player.inventory.give("main", new ItemStack("default:shovel_diamond"));
   player.inventory.give("main", new ItemStack("default:tree", 64));
   player.inventory.give("main", new ItemStack("default:wood", 64));
   player.inventory.give("main", new ItemStack("default:leaves", 64));
+  player.inventory.give("main", new ItemStack("default:cobble", 64));
   //---
   
   //FIXME: bodge

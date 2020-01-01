@@ -180,7 +180,26 @@ function renderUpdateMap(centerPos) {
           //calling getMapBlock should cache the block, so it's not a waste of resources
           var mapBlock = server.getMapBlock(pos);
           if(mapBlock != null) {
-            if(mapBlock.updateNum != renderCurrentMeshes[index].updateNum) {
+            /*if(mapBlock.updateNum != renderCurrentMeshes[index].updateNum) {
+              renderQueueUpdate(pos);
+            }*/
+            if(mapBlock.renderNeedsUpdate > 0) {
+              //cascade
+              if(mapBlock.renderNeedsUpdate > 1) {
+                function flagAdj(pos, level) {
+                  var mb = server.getMapBlock(pos);
+                  if(mb != null) { mb.renderNeedsUpdate = Math.max(mb.renderNeedsUpdate, level); }
+                  
+                  if(level <= 1) { return; }
+                  
+                  for(var face = 0; face < 6; face++) {
+                    var adj = new THREE.Vector3(stdFaces[face].x, stdFaces[face].y, stdFaces[face].z).add(pos);
+                    flagAdj(adj, level - 1);
+                  }
+                }
+                flagAdj(mapBlock.pos, mapBlock.renderNeedsUpdate);
+              }
+              
               renderQueueUpdate(pos);
             }
           }
@@ -321,4 +340,9 @@ function renderWorkerCallback(message) {
     }
     server.setMapBlock(pos, mapBlock);
   }*/
+  
+  var mapBlock = server.getMapBlock(pos);
+  if(updateNum == mapBlock.updateNum) {
+    mapBlock.renderNeedsUpdate = 0;
+  }
 }

@@ -40,6 +40,7 @@ class MapLocal extends MapBase {
         this.saved[index] = this.getMapBlock(pos);
       }
     }
+    //this.saved[index].markDirty();
   }
 }
 

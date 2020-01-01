@@ -47,12 +47,12 @@ class ServerBase {
     if(localPos.y == MAPBLOCK_SIZE.y - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 1, 0))).markDirty(); }
     if(localPos.z == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1))).markDirty(); } else
     if(localPos.z == MAPBLOCK_SIZE.z - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1))).markDirty(); }*/
-    if(localPos.x == 0) { var p = mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0)); this.setMapBlock(p, this.getMapBlock(p)); } else
+    /*if(localPos.x == 0) { var p = mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0)); this.setMapBlock(p, this.getMapBlock(p)); } else
     if(localPos.x == MAPBLOCK_SIZE.z - 1) { var p = mapBlockPos.clone().add(new THREE.Vector3(1, 0, 0)); this.setMapBlock(p, this.getMapBlock(p)); }
     if(localPos.y == 0) { var p = mapBlockPos.clone().add(new THREE.Vector3(0, -1, 0)); this.setMapBlock(p, this.getMapBlock(p)); } else
     if(localPos.y == MAPBLOCK_SIZE.z - 1) { var p = mapBlockPos.clone().add(new THREE.Vector3(0, 1, 0)); this.setMapBlock(p, this.getMapBlock(p)); }
     if(localPos.z == 0) { var p = mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1)); this.setMapBlock(p, this.getMapBlock(p)); } else
-    if(localPos.z == MAPBLOCK_SIZE.z - 1) { var p = mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1)); this.setMapBlock(p, this.getMapBlock(p)); }
+    if(localPos.z == MAPBLOCK_SIZE.z - 1) { var p = mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1)); this.setMapBlock(p, this.getMapBlock(p)); }*/
     //---
     this.setMapBlock(mapBlockPos, mapBlock);
   }
@@ -185,14 +185,22 @@ class ServerRemote extends ServerBase {
       
       if(data.type == "req_mapblock") {
         var mdata = data.data;
+        var index = mdata.pos.x + "," + mdata.pos.y + "," + mdata.pos.z;
+        
         var mapBlock = new MapBlock(new THREE.Vector3(mdata.pos.x, mdata.pos.y, mdata.pos.z));
         mapBlock.updateNum = mdata.updateNum;
         mapBlock.lightingNeedsUpdate = mdata.lightingNeedsUpdate;
+        if(index in this.cache) {
+          if(mapBlock.updateNum != this.cache[index].updateNum) {
+            mapBlock.renderNeedsUpdate = 2;
+          }
+        } else {
+          mapBlock.renderNeedsUpdate = 1;
+        }
         mapBlock.IDtoIS = mdata.IDtoIS;
         mapBlock.IStoID = mdata.IStoID;
         mapBlock.data = mdata.data;
         
-        var index = mdata.pos.x + "," + mdata.pos.y + "," + mdata.pos.z;
         this.cache[index] = mapBlock;
       }
     }.bind(this);
@@ -241,6 +249,37 @@ class ServerRemote extends ServerBase {
       this.socket.send(JSON.stringify({
         type: "set_mapblock",
         data: mapBlock
+      }));
+    }
+  }
+  
+  setNode(pos, nodeData) {
+    //FIXME
+    var mapBlockPos = new THREE.Vector3(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z));
+    var mapBlock = this.getMapBlock(mapBlockPos);
+    var localPos = new THREE.Vector3(
+      ((pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
+      ((pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
+      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
+    
+    var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot);
+    mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
+    mapBlock.markDirty();
+    //FIXME
+    /*if(localPos.x == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0))).markDirty(); } else
+    if(localPos.x == MAPBLOCK_SIZE.x - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(1, 0, 0))).markDirty(); }
+    if(localPos.y == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, -1, 0))).markDirty(); } else
+    if(localPos.y == MAPBLOCK_SIZE.y - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 1, 0))).markDirty(); }
+    if(localPos.z == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1))).markDirty(); } else
+    if(localPos.z == MAPBLOCK_SIZE.z - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1))).markDirty(); }*/
+    //---
+    //this.setMapBlock(mapBlockPos, mapBlock);
+      
+    if(this._socketReady) {
+      this.socket.send(JSON.stringify({
+        type: "set_node",
+        pos: {x: pos.x, y: pos.y, z: pos.z},
+        data: nodeData
       }));
     }
   }
