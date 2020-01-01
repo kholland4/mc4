@@ -39,6 +39,29 @@ class Player {
         this.vel[d] = 0;
       }
     }
+    /*var dim = ["x", "y", "z"];
+    var yd = false;
+    for(var i = 0; i < dim.length; i++) {
+      var d = dim[i];
+      
+      var oldN = this.pos[d];
+      this.pos[d] += this.vel[d] * tscale;
+      if(this.collide()) {
+        if((d == "x" || d == "z") && !yd) {
+          this.pos.y += 0.5;
+          if(this.collide()) {
+            this.pos.y -= 0.5;
+            this.pos[d] = oldN;
+            this.vel[d] = 0;
+          } else {
+            yd = true;
+          }
+        } else {
+          this.pos[d] = oldN;
+          this.vel[d] = 0;
+        }
+      }
+    }*/
   }
   
   collide(box) {

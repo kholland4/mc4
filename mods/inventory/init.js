@@ -93,7 +93,7 @@
   };
   
   api.registerKey(function(key) {
-    if(key.toLowerCase() == "e") {
+    if(key.toLowerCase() == "e" || (mods.inventory.isOpen && key == "Escape")) {
       mods.inventory.show();
     }
   });

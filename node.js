@@ -34,39 +34,58 @@ class NodeBase {
     
     //---
     
-    if(this.texAll != null) {
-      for(var i = 0; i < 6; i++) {
-        this.tex[i] = this.texAll;
+    if(this.customMesh) {
+      this.uvs = [];
+      var loc = textureLoc(this.texAll);
+      
+      function scale(n, min1, max1, min2, max2) {
+        return (n - min1) * (max2 - min2) / (max1 - min1) + min2;
       }
-    }
-    if(this.texTop != null) {
-      this.tex[3] = this.texTop;
-    }
-    if(this.texBottom != null) {
-      this.tex[2] = this.texBottom;
-    }
-    if(this.texSides != null) {
-      this.tex[0] = this.texSides;
-      this.tex[1] = this.texSides;
-      this.tex[4] = this.texSides;
-      this.tex[5] = this.texSides;
-    }
-    
-    var texLoc = [];
-    for(var i = 0; i < 6; i++) {
-      texLoc.push(textureLoc(this.tex[i]));
-    }
-    
-    this.uvs = [];
-    if(this.visible) {
-      for(var i = 0; i < 6; i++) {
-        var faceUVs = [];
-        var loc = texLoc[i];
-        for(var n = 0; n < stdUVs.length; n += 2) {
-          if(stdUVs[n] == 0.0) { faceUVs.push(loc[0]); } else { faceUVs.push(loc[2]); }
-          if(stdUVs[n + 1] == 0.0) { faceUVs.push(loc[1]); } else { faceUVs.push(loc[3]); }
+      
+      for(var i = 0; i < this.customMeshUVs.length; i++) {
+        var faceUVs = this.customMeshUVs[i];
+        var s = [];
+        for(var n = 0; n < faceUVs.length; n += 2) {
+          s.push(scale(faceUVs[n], 0, 1, loc[0], loc[2]));
+          s.push(scale(faceUVs[n + 1], 0, 1, loc[1], loc[3]));
         }
-        this.uvs.push(faceUVs);
+        this.uvs.push(s);
+      }
+    } else {
+      if(this.texAll != null) {
+        for(var i = 0; i < 6; i++) {
+          this.tex[i] = this.texAll;
+        }
+      }
+      if(this.texTop != null) {
+        this.tex[3] = this.texTop;
+      }
+      if(this.texBottom != null) {
+        this.tex[2] = this.texBottom;
+      }
+      if(this.texSides != null) {
+        this.tex[0] = this.texSides;
+        this.tex[1] = this.texSides;
+        this.tex[4] = this.texSides;
+        this.tex[5] = this.texSides;
+      }
+      
+      var texLoc = [];
+      for(var i = 0; i < 6; i++) {
+        texLoc.push(textureLoc(this.tex[i]));
+      }
+      
+      this.uvs = [];
+      if(this.visible) {
+        for(var i = 0; i < 6; i++) {
+          var faceUVs = [];
+          var loc = texLoc[i];
+          for(var n = 0; n < stdUVs.length; n += 2) {
+            if(stdUVs[n] == 0.0) { faceUVs.push(loc[0]); } else { faceUVs.push(loc[2]); }
+            if(stdUVs[n + 1] == 0.0) { faceUVs.push(loc[1]); } else { faceUVs.push(loc[3]); }
+          }
+          this.uvs.push(faceUVs);
+        }
       }
     }
   }

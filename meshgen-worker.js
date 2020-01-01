@@ -88,7 +88,6 @@ onmessage = function(e) {
         
         var def = nodeDef[id];
         if(!def.visible) { continue; }
-        if(def.customMesh) { continue; } //TODO: implement
         
         for(var faceIndex = 0; faceIndex < 6; faceIndex++) {
           var face = stdFaces[faceIndex];
@@ -112,14 +111,19 @@ onmessage = function(e) {
           
           var tint = 1;
           if(faceIndex == 3) { tint = 1; } else
-          if(faceIndex == 2) { tint = 0.3; } else
+          if(faceIndex == 2) { tint = 0.4; } else
           { tint = 0.8; }
           
           var colorR = Math.round((relLight * 17) * tint);
           var colorG = colorR;
           var colorB = colorR;
           
-          var arr = stdVerts[faceIndex];
+          var arr;
+          if(def.customMesh) {
+            arr = def.customMeshVerts[faceIndex];
+          } else {
+            arr = stdVerts[faceIndex];
+          }
           for(var i = 0; i < arr.length; i += 3) {
             verts.push(arr[i] + (x - 1));
             verts.push(arr[i + 1] + (y - 1));

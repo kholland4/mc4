@@ -177,6 +177,7 @@ function init() {
   });
   
   loadMod("default", "mods/default");
+  loadMod("stairs", "mods/stairs");
   loadMod("hud", "mods/hud");
   loadMod("inventory", "mods/inventory");
   loadMod("chat", "mods/chat");
@@ -208,8 +209,9 @@ function afterLoad() {
   player.inventory.give("main", new ItemStack("default:shovel_diamond"));
   player.inventory.give("main", new ItemStack("default:tree", 64));
   player.inventory.give("main", new ItemStack("default:wood", 64));
-  player.inventory.give("main", new ItemStack("default:leaves", 64));
+  //player.inventory.give("main", new ItemStack("default:leaves", 64));
   player.inventory.give("main", new ItemStack("default:cobble", 64));
+  player.inventory.give("main", new ItemStack("stairs:slab_stone", 64));
   //---
   
   //FIXME: bodge
@@ -263,8 +265,10 @@ function animate() {
         var side = 1;
         if(player.pos.getComponent(plane) > center.getComponent(plane)) { side = -1; }
         
-        destroySel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * 0.5));
-        placeSel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * -0.5));
+        destroySel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * 0.01));
+        destroySel = new THREE.Vector3(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z));
+        placeSel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * -0.99));
+        placeSel = new THREE.Vector3(Math.round(placeSel.x), Math.round(placeSel.y), Math.round(placeSel.z));
         
         raycasterSel.position.copy(destroySel);
         raycasterSel.visible = true;

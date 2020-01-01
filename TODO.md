@@ -61,6 +61,7 @@
 
 ## Other
 
+* Make destroy selector look like node def's boundingBox
 * Entities
 * Creative mode
 * Configurable keybindings

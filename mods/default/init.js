@@ -81,13 +81,6 @@
     item: {groups: {leaves: null}}
   });
   
-  /*registerNodeHelper("default:torch", {
-    desc: "Torch",
-    tex: {texAll: "default_stone.png"},
-    icon: "../textures/default_stone.png",
-    node: {groups: {}, lightLevel: 14, transparent: true}
-  });*/
-  
   
   
   //---ITEMS---
