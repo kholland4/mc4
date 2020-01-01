@@ -26,7 +26,7 @@ var RAYCAST_DISTANCE = 10;
 var DIG_PREEMPT_TIME = 0.04;
 
 var menuConfig = {
-  gameType: "remote", // local, remote
+  gameType: "local", // local, remote
   remoteServer: "ws://localhost:8080/"
 };
 
