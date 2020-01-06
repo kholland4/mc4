@@ -86,6 +86,7 @@ api.uiShowWindow = uiShowWindow;
 api.uiHideWindow = uiHideWindow;
 api.UIWindow = UIWindow;
 api.uiElement = uiElement;
+api.uiWindowOpen = function() { return uiWindowOpen; }
 
 api.registerHUD = function(dom) {
   document.body.appendChild(dom);

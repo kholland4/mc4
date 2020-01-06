@@ -87,16 +87,20 @@ function init() {
     api.mouse.y = e.clientY;
   });
   
-  api.registerNode(new Node("default:air", {transparent: true, visible: false, walkable: true}));
+  api.registerNode(new Node("default:air", {transparent: true, passSunlight: true, visible: false, walkable: true}));
   
   initTextures();
   initRenderer();
+  initLightWorker();
   initUI();
+  initMenu();
   
   if(menuConfig.gameType == "local") {
     server = new ServerLocal(new MapLocal(new MapgenDefault()));
   } else if(menuConfig.gameType == "remote") {
     server = new ServerRemote(menuConfig.remoteServer);
+    
+    renderDist = new THREE.Vector3(2, 2, 2);
   } else {
     //whoops
   }
@@ -176,11 +180,11 @@ function init() {
     renderer.setSize(viewport.w, viewport.h);
   });
   
-  loadMod("default", "mods/default");
-  loadMod("stairs", "mods/stairs");
-  loadMod("hud", "mods/hud");
-  loadMod("inventory", "mods/inventory");
-  loadMod("chat", "mods/chat");
+  loadMod(new ModMeta("default", "mods/default"));
+  loadMod(new ModMeta("stairs", "mods/stairs"));
+  loadMod(new ModMeta("hud", "mods/hud"));
+  loadMod(new ModMeta("inventory", "mods/inventory"));
+  loadMod(new ModMeta("chat", "mods/chat"));
   
   loadLoop();
 }
@@ -207,19 +211,20 @@ function afterLoad() {
   player.inventory.give("main", new ItemStack("default:axe_diamond"));
   player.inventory.give("main", new ItemStack("default:dirt", 3));
   player.inventory.give("main", new ItemStack("default:shovel_diamond"));
-  player.inventory.give("main", new ItemStack("default:tree", 64));
+  //player.inventory.give("main", new ItemStack("default:tree", 64));
   player.inventory.give("main", new ItemStack("default:wood", 64));
   //player.inventory.give("main", new ItemStack("default:leaves", 64));
   player.inventory.give("main", new ItemStack("default:cobble", 64));
   player.inventory.give("main", new ItemStack("stairs:slab_stone", 64));
+  player.inventory.give("main", new ItemStack("default:torch", 64));
   //---
   
   //FIXME: bodge
-  var oldRenderDist = renderDist;
-  renderDist = new THREE.Vector3(1, 2, 1);
-  renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
-  renderDist = new THREE.Vector3(2, 2, 2);
-  renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
+  //var oldRenderDist = renderDist;
+  //renderDist = new THREE.Vector3(1, 2, 1);
+  //renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
+  //renderDist = new THREE.Vector3(2, 2, 2);
+  //renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
   //renderDist = oldRenderDist;
   //renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
   
@@ -339,6 +344,7 @@ function animate() {
   player.tick(frameTime);
   camera.position.copy(player.pos);
   
+  lightUpdate();
   renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
   
   renderer.render(scene, camera);

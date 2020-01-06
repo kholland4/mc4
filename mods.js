@@ -18,23 +18,24 @@ function modsLoaded() {
 }
 
 class ModMeta {
-  constructor(name, path) {
+  constructor(name, path, deps=null) {
     this.name = name;
     this.path = path;
+    this.deps = [];
+    if(deps != null) { this.deps = deps; }
     this.loaded = false;
   }
 }
 
-function loadMod(name, path) {
-  var meta = new ModMeta(name, path);
-  allModMeta[name] = meta;
+function loadMod(meta) {
+  allModMeta[meta.name] = meta;
   
   var script = document.createElement("script");
-  script.dataset.name = name;
+  script.dataset.name = meta.name;
   script.onload = function() {
     allModMeta[this.dataset.name].loaded = true;
   };
-  script.src = path + "/init.js";
+  script.src = meta.path + "/init.js";
   document.head.appendChild(script);
 }
 

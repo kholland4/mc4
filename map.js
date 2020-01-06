@@ -44,6 +44,15 @@ class MapLocal extends MapBase {
   }
 }
 
+//Packed node data format:
+//| light||  rot||            id|
+//322222222221111111111
+//0987654321098765432109876543210
+
+//|         light|
+//|   sun|| other|
+// 7 6 5 4 3 2 1 0
+
 function nodeID(n) {
   return n & 65535;
 }

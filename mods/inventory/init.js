@@ -66,6 +66,7 @@
   
   mods.inventory.isOpen = false;
   mods.inventory.show = function() {
+    if(mods.inventory.isOpen && !api.uiWindowOpen()) { mods.inventory.isOpen = false; }
     if(mods.inventory.isOpen) {
       api.uiHideWindow();
       mods.inventory.isOpen = false;

@@ -91,6 +91,7 @@ class KeyboardControls extends BaseControls {
         if(this.kvel.y < 0) { this.kvel.y = Math.min(0, this.kvel.y + amt); }
         if(this.kvel.y > 0) { this.kvel.y = Math.max(0, this.kvel.y - amt); }
       }
+      this.kvel.clamp(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
     } else {
       if(this.keysPressed.jump) {
         this.kvel.y = this.jumpSpeed;
@@ -113,6 +114,7 @@ class KeyboardControls extends BaseControls {
     res.multiplyScalar(len * this.speed);
     
     res.y = this.kvel.y;
+    if(this.fly) { res.y *= this.speed; }
     
     return res;
   }

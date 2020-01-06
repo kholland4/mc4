@@ -1,9 +1,13 @@
 ## Rendering
 
-* Lighting
 * Textures - composite textures similar to MT
 * Custom mesh support
 * Rotation support (also for hitboxes)
+
+
+## Lighting
+* Faster lighting
+* Fix sunlight
 
 
 ## UI (ingame)
@@ -22,6 +26,11 @@
 
 * Arbitrary-shape recipies
 * Shapeless recipies
+
+
+## Inventory
+
+* Fix give to respect maxStack
 
 
 ## mods/default
@@ -65,3 +74,4 @@
 * Entities
 * Creative mode
 * Configurable keybindings
+* Farming

@@ -10,6 +10,7 @@ class Mapblock:
         self.lightNeedsUpdate = data["lightNeedsUpdate"]
         self.IDtoIS = data["IDtoIS"]
         self.IStoID = data["IStoID"]
+        self.props = data["props"]
         self.data = data["data"]
     
     def getNodeID(self, itemstring):
@@ -28,10 +29,12 @@ def genMapblock(pos):
     res["pos"] = {"x": pos[0], "y": pos[1], "z": pos[2]}
     
     res["updateNum"] = 0
-    res["lightNeedsUpdate"] = False
+    res["lightNeedsUpdate"] = 1
     
     res["IDtoIS"] = ["default:air", "default:dirt", "default:grass", "default:stone"]
     res["IStoID"] = {"default:air": 0, "default:dirt": 1, "default:grass": 2, "default:stone": 3}
+    
+    res["props"] = {"sunlit": pos[1] >= 1}
     
     data = []
     for x in range(MAPBLOCK_SIZE[0]):
@@ -82,6 +85,9 @@ def setNode(pos, data):
     current = getMapblock(mb_pos)
     
     current.data[local_pos[0]][local_pos[1]][local_pos[2]] = current.getNodeID(data["itemstring"]) #TODO - rotation
+    
+    if data["itemstring"] != "default:air":
+        current.props["sunlit"] = False
     
     cache[mb_pos] = current
 

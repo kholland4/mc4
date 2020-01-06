@@ -21,9 +21,30 @@ class MapBlock {
       this.data.push(s1);
     }
     
+    this.props = {sunlit: false};
+    
     this.updateNum = 0;
-    this.lightNeedsUpdate = true;
-    this.renderNeedsUpdate = 0;
+    this.lightNeedsUpdate = 1; //0 none, 1 just this, 2 this and surrounding
+    this._renderNeedsUpdate = 0;
+  }
+  
+  get renderNeedsUpdate() { return this._renderNeedsUpdate; }
+  set renderNeedsUpdate(val) {
+    this._renderNeedsUpdate = val;
+    //FIXME FIXME
+    //cascade
+    if(this._renderNeedsUpdate > 1) {
+      for(var face = 0; face < 6; face++) {
+        var adj = new THREE.Vector3(stdFaces[face].x, stdFaces[face].y, stdFaces[face].z).add(this.pos);
+        
+        var mb = server.getMapBlock(adj);
+        if(mb != null) {
+          if(mb.renderNeedsUpdate < this._renderNeedsUpdate - 1) {
+            mb.renderNeedsUpdate = this._renderNeedsUpdate - 1;
+          }
+        }
+      }
+    }
   }
   
   getNodeID(itemstring) {
@@ -40,8 +61,14 @@ class MapBlock {
   
   markDirty() {
     this.updateNum++;
-    this.lightNeedsUpdate = true;
+    this.lightNeedsUpdate = 2;
     this.renderNeedsUpdate = 2;
+  }
+  
+  mapgenComplete() {
+    this.updateNum++;
+    this.lightNeedsUpdate = 1;
+    this.renderNeedsUpdate = 1;
   }
 }
 
@@ -176,8 +203,8 @@ class MapgenDefault extends MapgenBase {
       }
     }
     
-    block.markDirty();
-    block.renderNeedsUpdate = 1; //FIXME
+    if(pos.y >= 1) { block.props.sunlit = true; }
+    block.mapgenComplete();
     
     return block;
   }

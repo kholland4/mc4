@@ -7,76 +7,13 @@ onmessage = function(e) {
   var nodeDefAdj = e.data.nodeDefAdj;
   var data = e.data.data;
   var lightNeedsUpdate = e.data.lightNeedsUpdate;
+  var sunAmount = e.data.sunAmount;
   //var ldata = e.data.ldata;
   
   var verts = [];
   var uvs = [];
   var colors = [];
-  
-  /*if(nodeDef.length > 1) {
-    for(var i = 0; i < 6; i++) {
-      verts.push.apply(verts, stdVerts[i]);
-      uvs.push.apply(uvs, nodeDef[1].uvs[i]);
-    }
-  }*/
-  
-  /*if(lightNeedsUpdate) {
-    for(var rep = 0; rep < 4; rep++) {
-      for(var x = 1; x < size.x * 3 - 1; x++) {
-        var cx = Math.floor((x - size.x) / size.x);
-        for(var y = 1; y < size.y * 3 - 1; y++) {
-          var cy = Math.floor((y - size.y) / size.y);
-          for(var z = 1; z < size.z * 3 - 1; z++) {
-            var cz = Math.floor((z - size.z) / size.z);
-            
-            var d = ldata[x][y][z];
-            var id = d & 65535;
-            
-            var def = nodeDefAdj[cx + "," + cy + "," + cz];
-            var lightLevel = def.lightLevel;
-            
-            var v = (d >> 23) & 255;
-            var val1 = (v >> 4) & 15;
-            var val2 = v & 15;
-            
-            if(lightLevel > val2) {
-              val2 = lightLevel;
-            }
-            
-            v = ((val1 << 4) | val2) & 255;
-            ldata[x][y][z] = (ldata[x][y][z] & 0x7fffff) | (v << 23);
-            if(x >= size.x - 1 && x < size.x * 2 + 1 && y >= size.y - 1 && y < size.y * 2 + 1 && z >= size.z - 1 && z < size.z * 2 + 1) {
-              data[x - (size.x - 1)][y - (size.y - 1)][z - (size.z - 1)] = (data[x - (size.x - 1)][y - (size.y - 1)][z - (size.z - 1)] & 0x7fffff) | (v << 23);
-            }
-            
-            if(def.transparent) {
-              var amt = val2 - 1;
-              for(var faceIndex = 0; faceIndex < 6; faceIndex++) {
-                var face = stdFaces[faceIndex];
-                var d = ldata[x + face.x][y + face.y][z + face.z];var v = (d >> 23) & 255;
-                
-                var v = (d >> 23) & 255;
-                var val1 = (v >> 4) & 15;
-                var val2 = v & 15;
-                
-                if(amt > val2) {
-                  val2 = amt;
-                }
-                
-                v = ((val1 << 4) | val2) & 255;
-                var rx = x + face.x; var ry = y + face.y; var rz = z + face.z;
-                ldata[rx][ry][rz] = (ldata[rx][ry][rz] & 0x7fffff) | (v << 23);
-                
-                if(rx >= size.x - 1 && rx < size.x * 2 + 1 && ry >= size.y - 1 && ry < size.y * 2 + 1 && rz >= size.z - 1 && rz < size.z * 2 + 1) {
-                  data[rx - (size.x - 1)][ry - (size.y - 1)][rz - (size.z - 1)] = (data[rx - (size.x - 1)][ry - (size.y - 1)][rz - (size.z - 1)] & 0x7fffff) | (v << 23);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }*/
+  var facePos = [];
   
   for(var x = 1; x < size.x + 1; x++) {
     for(var y = 1; y < size.y + 1; y++) {
@@ -84,7 +21,9 @@ onmessage = function(e) {
         var d = data[x][y][z];
         var id = d & 65535;
         var rot = (d >> 16) & 127;
-        //var light = (d >> 23) & 255;
+        var lightRaw = (d >> 23) & 255;
+        var light = Math.max(lightRaw & 15, ((lightRaw >> 4) & 15) * sunAmount);
+        light = Math.max(light, 2);
         
         var def = nodeDef[id];
         if(!def.visible) { continue; }
@@ -95,8 +34,11 @@ onmessage = function(e) {
           var relD = data[rx][ry][rz];
           var relID = relD & 65535;
           var relLightRaw = (relD >> 23) & 255;
-          var relLight = Math.max(relLightRaw & 15, (relLightRaw >> 4) & 15);
-          relLight = Math.max(relLight, 15);
+          var relLight = Math.max(relLightRaw & 15, ((relLightRaw >> 4) & 15) * sunAmount);
+          relLight = Math.max(relLight, 2);
+          //relLight = Math.max(relLight, def.lightLevel);
+          //FIXME - not desired behavior but needed to accomodate renderUpdateLighting
+          if(def.lightLevel > 0) { relLight = light; }
           
           var relDef;
           if(rx < 1) { relDef = nodeDefAdj["-1,0,0"][relID]; } else
@@ -111,7 +53,7 @@ onmessage = function(e) {
           
           var tint = 1;
           if(faceIndex == 3) { tint = 1; } else
-          if(faceIndex == 2) { tint = 0.4; } else
+          if(faceIndex == 2) { tint = 0.5; } else
           { tint = 0.8; }
           
           var colorR = Math.round((relLight * 17) * tint);
@@ -132,6 +74,13 @@ onmessage = function(e) {
             colors.push(colorR);
             colors.push(colorG);
             colors.push(colorB);
+            
+            //FIXME - see above
+            if(def.lightLevel > 0) {
+              facePos.push([x - 1, y - 1, z - 1, tint]);
+            } else {
+              facePos.push([rx - 1, ry - 1, rz - 1, tint]);
+            }
           }
           uvs.push.apply(uvs, def.uvs[faceIndex]);
         }
@@ -142,7 +91,8 @@ onmessage = function(e) {
   var res = {
     verts: verts,
     uvs: uvs,
-    colors: colors
+    colors: colors,
+    facePos: facePos
   }
   /*if(lightNeedsUpdate) {
     res.data = data;

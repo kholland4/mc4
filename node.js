@@ -18,6 +18,7 @@ class NodeBase {
     //this.customMeshVerts = null;
     //this.customMeshUVs = null;
     this.transparent = false;
+    this.passSunlight = false;
     this.lightLevel = 0;
     
     this.tex = [null, null, null, null, null, null];
@@ -31,6 +32,10 @@ class NodeBase {
     this.groups = {};
     
     Object.assign(this, props);
+    
+    //---
+    
+    if(!("passSunlight" in props)) { this.passSunlight = this.transparent; }
     
     //---
     

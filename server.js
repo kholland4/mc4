@@ -7,7 +7,7 @@ class ServerBase {
     
   }
   
-  getMapBlock(pos) {
+  getMapBlock(pos, needLight=false) {
     return new MapBlock(pos);
   }
   setMapBlock(pos, mapBlock) {
@@ -39,6 +39,7 @@ class ServerBase {
     
     var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot);
     mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
+    if(nodeData.itemstring != "default:air") { mapBlock.props.sunlit = false; }
     mapBlock.markDirty();
     //FIXME
     /*if(localPos.x == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0))).markDirty(); } else
@@ -122,8 +123,13 @@ class ServerLocal extends ServerBase {
     inv.setList("hand", new Array(1).fill(null));
   }
   
-  getMapBlock(pos) {
-    return this.map.getMapBlock(pos);
+  getMapBlock(pos, needLight=false) {
+    var mapBlock = this.map.getMapBlock(pos);
+    if(mapBlock.lightNeedsUpdate > 0 && needLight) {
+      lightQueueUpdate(mapBlock.pos);
+      return null;
+    }
+    return mapBlock;
   }
   setMapBlock(pos, mapBlock) {
     this.map.dirtyMapBlock(mapBlock.pos);
@@ -199,6 +205,7 @@ class ServerRemote extends ServerBase {
         }
         mapBlock.IDtoIS = mdata.IDtoIS;
         mapBlock.IStoID = mdata.IStoID;
+        Object.assign(mapBlock.props, mdata.props);
         mapBlock.data = mdata.data;
         
         this.cache[index] = mapBlock;
@@ -222,7 +229,7 @@ class ServerRemote extends ServerBase {
     inv.setList("hand", new Array(1).fill(null));
   }
   
-  getMapBlock(pos) {
+  getMapBlock(pos, needLight=false) {
     var index = pos.x + "," + pos.y + "," + pos.z;
     if(index in this.saved) {
       return this.saved[index];
@@ -264,6 +271,7 @@ class ServerRemote extends ServerBase {
     
     var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot);
     mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
+    if(nodeData.itemstring != "default:air") { mapBlock.props.sunlit = false; }
     mapBlock.markDirty();
     //FIXME
     /*if(localPos.x == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0))).markDirty(); } else

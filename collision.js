@@ -11,15 +11,17 @@ function collideMap(box) {
         if(nodeData == null) { return true; }
         var def = getNodeDef(nodeData.itemstring);
         
-        if(def.boundingBox != null) {
-          for(var i = 0; i < def.boundingBox.length; i++) {
-            var newBox = def.boundingBox[i].clone().translate(pos);
-            if(collide(newBox, box)) {
-              return true;
+        if(!def.walkable) {
+          if(def.boundingBox != null) {
+            for(var i = 0; i < def.boundingBox.length; i++) {
+              var newBox = def.boundingBox[i].clone().translate(pos);
+              if(collide(newBox, box)) {
+                return true;
+              }
             }
+          } else {
+            return true;
           }
-        } else if(!def.walkable) {
-          return true;
         }
       }
     }

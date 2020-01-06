@@ -1,9 +1,12 @@
 //TODO: scrap and rewrite this file
 
-var RENDER_MAX_WORKERS = 4;
+var RENDER_MAX_WORKERS = 2; //4
+var RENDER_MAX_LIGHTING_UPDATES = 2;
+
+var sunAmount = 1;
 
 //renderDist *must* be greater that unrenderDist in all dimensions
-var renderDist = new THREE.Vector3(4, 2, 4);
+var renderDist = new THREE.Vector3(2, 2, 2); //4, 2, 4
 var unrenderDist = new THREE.Vector3(7, 4, 7);
 
 var renderCurrentMeshes = {};
@@ -13,6 +16,8 @@ var renderWorkers = [];
 
 var renderWorkersActual = [];
 
+var renderLightingUpdateQueue = [];
+
 function initRenderer() {
   for(var i = 0; i < RENDER_MAX_WORKERS; i++) {
     var _worker = new Worker("meshgen-worker.js");
@@ -20,19 +25,6 @@ function initRenderer() {
     renderWorkersActual.push(_worker);
   }
 }
-
-/*function mapBlockNeedsUpdate(pos) {
-  var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString();
-  if(index in renderCurrentMeshes) {
-    var mapBlock = server.getMapBlock(pos);
-    if(mapBlock != null) {
-      if(mapBlock.updateNum != renderCurrentMeshes[index].updateNum) {
-        return true;
-      }
-    }
-  }
-  return false;
-}*/
 
 class RenderWorker {
   constructor(mapBlock, worker) {
@@ -55,12 +47,12 @@ class RenderWorker {
     var data = [];
     var blocks = {
       "0,0,0": mapBlock,
-      "-1,0,0": server.getMapBlock(new THREE.Vector3(pos.x - 1, pos.y, pos.z)),
-      "1,0,0": server.getMapBlock(new THREE.Vector3(pos.x + 1, pos.y, pos.z)),
-      "0,-1,0": server.getMapBlock(new THREE.Vector3(pos.x, pos.y - 1, pos.z)),
-      "0,1,0": server.getMapBlock(new THREE.Vector3(pos.x, pos.y + 1, pos.z)),
-      "0,0,-1": server.getMapBlock(new THREE.Vector3(pos.x, pos.y, pos.z - 1)),
-      "0,0,1": server.getMapBlock(new THREE.Vector3(pos.x, pos.y, pos.z + 1))
+      "-1,0,0": server.getMapBlock(new THREE.Vector3(pos.x - 1, pos.y, pos.z), true),
+      "1,0,0": server.getMapBlock(new THREE.Vector3(pos.x + 1, pos.y, pos.z), true),
+      "0,-1,0": server.getMapBlock(new THREE.Vector3(pos.x, pos.y - 1, pos.z), true),
+      "0,1,0": server.getMapBlock(new THREE.Vector3(pos.x, pos.y + 1, pos.z), true),
+      "0,0,-1": server.getMapBlock(new THREE.Vector3(pos.x, pos.y, pos.z - 1), true),
+      "0,0,1": server.getMapBlock(new THREE.Vector3(pos.x, pos.y, pos.z + 1), true)
     };
     
     this.ok = true;
@@ -99,39 +91,6 @@ class RenderWorker {
       data.push(s1);
     }
     
-    /*var ldata = [];
-    if(mapBlock.lightNeedsUpdate) {
-      //mapblock data to recalculate lighting
-      for(var x = -1; x <= 1; x++) {
-        for(var y = -1; y <= 1; y++) {
-          for(var z = -1; z <= 1; z++) {
-            var index = x + "," + y + "," + z;
-            if(!(index in blocks)) {
-              blocks[index] = server.getMapBlock(new THREE.Vector3(pos.x + x, pos.y + y, pos.z + z));
-            }
-          }
-        }
-      }
-      
-      for(var x = -mapBlock.size.x; x < mapBlock.size.x * 2; x++) {
-        var s1 = [];
-          for(var y = -mapBlock.size.y; y < mapBlock.size.y * 2; y++) {
-          var s2 = [];
-          for(var z = -mapBlock.size.z; z < mapBlock.size.z * 2; z++) {
-            var mbPos = new THREE.Vector3(Math.floor(x / mapBlock.size.x), Math.floor(y / mapBlock.size.y), Math.floor(z / mapBlock.size.z));
-            var index = mbPos.x + "," + mbPos.y + "," + mbPos.z;
-            var localPos = new THREE.Vector3(
-              ((x % mapBlock.size.x) + mapBlock.size.x) % mapBlock.size.x,
-              ((y % mapBlock.size.y) + mapBlock.size.y) % mapBlock.size.y,
-              ((z % mapBlock.size.z) + mapBlock.size.z) % mapBlock.size.z);
-            s2.push(blocks[index].data[localPos.x][localPos.y][localPos.z] & 0x7fffff);
-          }
-          s1.push(s2);
-        }
-        ldata.push(s1);
-      }
-    }*/
-    
     var nodeDefAdj = {};
     for(var key in blocks) {
       if(key == "0,0,0") { continue; }
@@ -155,7 +114,8 @@ class RenderWorker {
       nodeDef: nodeDef,
       nodeDefAdj: nodeDefAdj,
       data: data,
-      lightNeedsUpdate: mapBlock.lightNeedsUpdate
+      lightNeedsUpdate: mapBlock.lightNeedsUpdate,
+      sunAmount: sunAmount
       //ldata: ldata
     });
   }
@@ -166,10 +126,13 @@ class RenderMesh {
     this.pos = pos;
     this.updateNum = updateNum;
     this.obj = obj;
+    this.facePos = null;
   }
 }
 
 function renderUpdateMap(centerPos) {
+  var schedCount = 0;
+  
   for(var x = centerPos.x - renderDist.x; x <= centerPos.x + renderDist.x; x++) {
     for(var y = centerPos.y - renderDist.y; y <= centerPos.y + renderDist.y; y++) {
       for(var z = centerPos.z - renderDist.z; z <= centerPos.z + renderDist.z; z++) {
@@ -178,33 +141,21 @@ function renderUpdateMap(centerPos) {
         var index = x.toString() + "," + y.toString() + "," + z.toString();
         if(index in renderCurrentMeshes) {
           //calling getMapBlock should cache the block, so it's not a waste of resources
-          var mapBlock = server.getMapBlock(pos);
+          var mapBlock = server.getMapBlock(pos, true);
           if(mapBlock != null) {
             /*if(mapBlock.updateNum != renderCurrentMeshes[index].updateNum) {
               renderQueueUpdate(pos);
             }*/
             if(mapBlock.renderNeedsUpdate > 0) {
-              //cascade
-              if(mapBlock.renderNeedsUpdate > 1) {
-                function flagAdj(pos, level) {
-                  var mb = server.getMapBlock(pos);
-                  if(mb != null) { mb.renderNeedsUpdate = Math.max(mb.renderNeedsUpdate, level); }
-                  
-                  if(level <= 1) { return; }
-                  
-                  for(var face = 0; face < 6; face++) {
-                    var adj = new THREE.Vector3(stdFaces[face].x, stdFaces[face].y, stdFaces[face].z).add(pos);
-                    flagAdj(adj, level - 1);
-                  }
-                }
-                flagAdj(mapBlock.pos, mapBlock.renderNeedsUpdate);
-              }
-              
-              renderQueueUpdate(pos);
+              renderQueueUpdate(pos, true);
+              schedCount++;
             }
           }
         } else {
-          renderQueueUpdate(pos);
+          if(schedCount < RENDER_MAX_WORKERS) { //FIXME
+            renderQueueUpdate(pos);
+            schedCount++;
+          }
         }
       }
     }
@@ -240,7 +191,7 @@ function renderUpdateMap(centerPos) {
     
     if(targetPos == null) { break; }
     
-    var mapBlock = server.getMapBlock(targetPos);
+    var mapBlock = server.getMapBlock(targetPos, true);
     if(mapBlock == null) { break; }
     
     var targetWorker = null;
@@ -262,20 +213,49 @@ function renderUpdateMap(centerPos) {
     
     var worker = new RenderWorker(mapBlock, targetWorker);
     if(worker.ok) {
+      if(mapBlock.renderNeedsUpdate > 1) {
+        //FIXME bodge
+        for(var lx = -1; lx <= 1; lx++) {
+          for(var ly = -1; ly <= 1; ly++) {
+            for(var lz = -1; lz <= 1; lz++) {
+              var adj = new THREE.Vector3(lx, ly, lz).add(mapBlock.pos);
+              var mb = server.getMapBlock(adj);
+              if(mb == null) { continue; }
+              if(mb.renderNeedsUpdate == 0) {
+                renderQueueLightingUpdate(adj);
+              }
+            }
+          }
+        }
+      }
+      
       renderWorkers.push(worker);
     } else {
       break;
     }
   }
+  
+  //FIXME
+  for(var i = 0; i < RENDER_MAX_LIGHTING_UPDATES; i++) {
+    if(renderLightingUpdateQueue.length > 0) {
+      var pos = renderLightingUpdateQueue[0];
+      renderLightingUpdateQueue.splice(0, 1);
+      renderUpdateLighting(pos);
+    }
+  }
 }
 
-function renderQueueUpdate(pos) {
+function renderQueueUpdate(pos, priority=false) {
   for(var i = 0; i < renderUpdateQueue.length; i++) {
     if(renderUpdateQueue[i].equals(pos)) {
       return;
     }
   }
-  renderUpdateQueue.push(pos);
+  if(priority) {
+    renderUpdateQueue.unshift(pos);
+  } else {
+    renderUpdateQueue.push(pos);
+  }
 }
 
 function renderWorkerCallback(message) {
@@ -312,6 +292,7 @@ function renderWorkerCallback(message) {
   var verts = message.data.verts;
   var uvs = message.data.uvs;
   var colors = message.data.colors;
+  var facePos = message.data.facePos;
   
   var geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(verts), 3));
@@ -326,23 +307,79 @@ function renderWorkerCallback(message) {
   renderMapGroup.add(mesh);
   
   var renderObj = new RenderMesh(pos, updateNum, mesh);
+  renderObj.facePos = facePos;
   var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString();
   renderCurrentMeshes[index] = renderObj;
-  
-  /*var mapBlock = server.getMapBlock(pos);
-  if(mapBlock.lightNeedsUpdate) {
-    for(var x = 0; x < mapBlock.size.x; x++) {
-      for(var y = 0; y < mapBlock.size.y; y++) {
-        for(var z = 0; z < mapBlock.size.z; z++) {
-          mapBlock.data[x][y][z] = message.data.data[x + 1][y + 1][z + 1];
-        }
-      }
-    }
-    server.setMapBlock(pos, mapBlock);
-  }*/
   
   var mapBlock = server.getMapBlock(pos);
   if(updateNum == mapBlock.updateNum) {
     mapBlock.renderNeedsUpdate = 0;
   }
+}
+
+function renderQueueLightingUpdate(pos) {
+  for(var i = 0; i < renderLightingUpdateQueue.length; i++) {
+    if(renderLightingUpdateQueue[i].equals(pos)) {
+      return;
+    }
+  }
+  renderLightingUpdateQueue.push(pos);
+}
+
+function renderUpdateLighting(pos) {
+  var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString();
+  if(!(index in renderCurrentMeshes)) { return false; }
+  
+  var renderObj = renderCurrentMeshes[index];
+  
+  var mapBlock = server.getMapBlock(pos, true);
+  if(mapBlock == null) { return false; }
+  if(mapBlock.updateNum != renderObj.updateNum) { return false; }
+  
+  var blocks = {
+    "0,0,0": mapBlock
+  };
+  for(var i = 0; i < stdFaces.length; i++) {
+    var index = stdFaces[i].x + "," + stdFaces[i].y + "," + stdFaces[i].z;
+    blocks[index] = server.getMapBlock(new THREE.Vector3(stdFaces[i].x, stdFaces[i].y, stdFaces[i].z).add(pos));
+    if(blocks[index] == null) { return false; }
+  }
+  
+  var attr = renderObj.obj.geometry.getAttribute("color");
+  
+  var facePos = renderObj.facePos;
+  for(var i = 0; i < facePos.length; i++) {
+    var rx = facePos[i][0];
+    var ry = facePos[i][1];
+    var rz = facePos[i][2];
+    
+    var d;
+    if(rx < 0) { d = blocks["-1,0,0"].data[mapBlock.size.x - 1][ry][rz]; } else
+    if(ry < 0) { d = blocks["0,-1,0"].data[rx][mapBlock.size.y - 1][rz]; } else
+    if(rz < 0) { d = blocks["0,0,-1"].data[rx][ry][mapBlock.size.z - 1]; } else
+    if(rx >= mapBlock.size.x) { d = blocks["1,0,0"].data[0][ry][rz]; } else
+    if(ry >= mapBlock.size.y) { d = blocks["0,1,0"].data[rx][0][rz]; } else
+    if(rz >= mapBlock.size.z) { d = blocks["0,0,1"].data[rx][ry][0]; } else
+    { d = blocks["0,0,0"].data[rx][ry][rz]; }
+    
+    var id = d & 65535;
+    var lightRaw = (d >> 23) & 255;
+    var light = Math.max(lightRaw & 15, ((lightRaw >> 4) & 15) * sunAmount);
+    light = Math.max(light, 2);
+    
+    var tint = facePos[i][3];
+    
+    var colorR = Math.round((light * 17) * tint);
+    var colorG = colorR;
+    var colorB = colorR;
+    
+    attr.array[i * 3] = colorR;
+    attr.array[i * 3 + 1] = colorG;
+    attr.array[i * 3 + 2] = colorB;
+  }
+  
+  attr.needsUpdate = true;
+  renderObj.obj.geometry.setAttribute("color", attr);
+  
+  return true;
 }
