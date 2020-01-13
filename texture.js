@@ -17,7 +17,7 @@ function textureLoc(name) {
 
 function texturesLoaded() {
   for(var i = 0; i < allTextures.length; i++) {
-    if(!allTextures[i].loaded) {
+    if(!allTextures[i].loaded && !allTextures[i].error) { //FIXME
       return false;
     }
   }
@@ -49,7 +49,12 @@ class TextureImage {
     this.img = document.createElement("img");
     this.img.src = file;
     this.img.onload = this.onload.bind(this);
+    this.img.onerror = function() {
+      debug("loader", "warning", "unable to load '" + this.file + "' as texture '" + this.name + "'");
+      this.error = true;
+    }.bind(this);
     this.loaded = false;
+    this.error = false;
     this.w = 0;
     this.h = 0;
   }

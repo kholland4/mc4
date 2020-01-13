@@ -58,6 +58,8 @@ function initMenu() {
 document.addEventListener("DOMContentLoaded", initMenu);
 
 function init() {
+  debug("main", "status", "starting...");
+  
   viewport.w = window.innerWidth;
   viewport.h = window.innerHeight;
   
@@ -206,6 +208,8 @@ function loadLoop() {
 }
 
 function afterLoad() {
+  debug("main", "status", "ready");
+  
   //---
   player.inventory.give("main", new ItemStack("default:pick_diamond"));
   player.inventory.give("main", new ItemStack("default:axe_diamond"));

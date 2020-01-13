@@ -171,6 +171,8 @@ class Inventory {
     }
     
     if(needed > 0) {
+      //FIXME: mutilates original stack
+      //FIXME: canGive vs give behavior differs on stacks where size > maxStack
       stack.count = needed;
       for(var i = 0; i < list.length; i++) {
         if(list[i] == null) {

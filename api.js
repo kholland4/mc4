@@ -13,5 +13,11 @@ api.registerOnFrame = function(f) {
 };
 
 api.registerKey = function(f) {
-  document.body.addEventListener("keydown", function(e) { this(e.key); }.bind(f));
+  document.body.addEventListener("keydown", function(e) {
+    var res = this(e.key);
+    if(res === false) {
+      e.preventDefault();
+      return false;
+    }
+  }.bind(f));
 };

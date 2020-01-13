@@ -1,5 +1,12 @@
 function initUI() {
-  controls.addEventListener("lock", uiHideWindow);
+  controls.addEventListener("lock", function() {
+    uiHideWindow();
+    
+    for(var i = 0; i < uiVWCloseHandlers.length; i++) {
+      uiVWCloseHandlers[i]();
+    }
+    uiVirtualWindows = 0; //FIXME
+  });
 }
 
 //---
@@ -86,7 +93,14 @@ api.uiShowWindow = uiShowWindow;
 api.uiHideWindow = uiHideWindow;
 api.UIWindow = UIWindow;
 api.uiElement = uiElement;
-api.uiWindowOpen = function() { return uiWindowOpen; }
+
+//FIXME
+var uiVirtualWindows = 0;
+api.uiVWOpen = function() { uiVirtualWindows++; if(controls) { controls.unlock(); } }
+api.uiVWClose = function() { uiVirtualWindows--; if(controls) { controls.lock(); } }
+var uiVWCloseHandlers = [];
+api.registerVWCloseHandler = function(f) { uiVWCloseHandlers.push(f); };
+api.uiWindowOpen = function() { return uiWindowOpen || uiVirtualWindows > 0; }
 
 api.registerHUD = function(dom) {
   document.body.appendChild(dom);

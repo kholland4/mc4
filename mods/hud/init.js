@@ -13,15 +13,15 @@
   mods.hud.lastWieldIndex = 0;
   var wieldSel = document.createElement("div");
   wieldSel.style.display = "none";
-  wieldSel.style.position = "fixed";
+  wieldSel.style.position = "absolute";
   wieldSel.style.border = "4px solid #999";
   wieldSel.style.pointerEvents = "none";
   mods.hud.wieldSel = wieldSel;
-  api.registerHUD(wieldSel);
+  hudContainer.appendChild(wieldSel);
   
   mods.hud.update = function() {
     var inv = api.player.inventory;
-    var el = mods.hud.dom.children[0];
+    var el = mods.hud.domInvList;
     api.uiUpdateInventoryList(inv, "main", {count: 8, interactive: false}, el);
     
     mods.hud.lastInv = [];
@@ -36,10 +36,11 @@
   };
   mods.hud.updateWield = function() {
     var wieldIndex = api.player.wieldIndex;
-    var wieldEl = mods.hud.dom.children[0].querySelectorAll(".uiIL_square")[wieldIndex];
+    var wieldEl = mods.hud.domInvList.querySelectorAll(".uiIL_square")[wieldIndex];
     var rect = wieldEl.getBoundingClientRect();
-    mods.hud.wieldSel.style.left = (rect.left - 4) + "px";
-    mods.hud.wieldSel.style.top = (rect.top - 4) + "px";
+    var containerRect = mods.hud.dom.getBoundingClientRect();
+    mods.hud.wieldSel.style.left = (rect.left - 4 - containerRect.left) + "px";
+    mods.hud.wieldSel.style.top = (rect.top - 4 - containerRect.top) + "px";
     mods.hud.wieldSel.style.width = rect.width + "px";
     mods.hud.wieldSel.style.height = rect.height + "px";
     mods.hud.wieldSel.style.display = "block";
@@ -48,7 +49,8 @@
   
   var inv = api.player.inventory;
   var el = api.uiRenderInventoryList(inv, "main", {count: 8, interactive: false});
-  while(mods.hud.dom.firstChild) { mods.hud.dom.removeChild(mods.hud.dom.firstChild); }
+  mods.hud.domInvList = el;
+  //while(mods.hud.dom.firstChild) { mods.hud.dom.removeChild(mods.hud.dom.firstChild); }
   mods.hud.dom.appendChild(el);
   
   mods.hud.update();
@@ -82,6 +84,8 @@
   });
   
   api.registerKey(function(key) {
+    if(api.uiWindowOpen()) { return; }
+    
     key = key.toLowerCase();
     
     if(!isNaN(parseInt(key))) {

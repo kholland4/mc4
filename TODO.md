@@ -1,24 +1,41 @@
 ## Rendering
 
 * Textures - composite textures similar to MT
-* Custom mesh support
+* Textures - fix registration/use race condition
 * Rotation support (also for hitboxes)
+* Regenerate minimum number of meshes instead of 7
 
 
 ## Lighting
+
 * Faster lighting
 * Fix sunlight
+* Better brightness (color) curve
+* Smooth not blocky lighting
+* Bleed in light from edges after recompute
+
+
+## Physics
+
+* Fix jump/gravity/speed/etc.
+* Fix stick to ceiling
+* Auto walk on stairs/slab/etc.
 
 
 ## UI (ingame)
 
 * Formspec-inspired UI
-* Fix icon display (pixel art)
+
+
+## Interact
+
+* Select and break boxes should match boundingBox
+* Restart digging when wield changed
 
 
 ## UI (menu)
 
-* Loading screen (show if files not found)
+* Loading screen?
 * Better menu screen
 
 
@@ -30,7 +47,7 @@
 
 ## Inventory
 
-* Fix give to respect maxStack
+* Fix give to respect maxStack?
 
 
 ## mods/default
@@ -40,13 +57,12 @@
 
 ## mods/hud
 
-* Fix wield selector position on resize
-
 
 ## Server / map
 
 * Metadata system
 * Further work on networked server support
+* Random tick system (grass growth/spread, farming, etc.)
 
 
 ## Server (remote)
@@ -70,8 +86,9 @@
 
 ## Other
 
-* Make destroy selector look like node def's boundingBox
 * Entities
 * Creative mode
 * Configurable keybindings
 * Farming
+* Leaf degeneration
+* Fix oddly_breakable_by_hand (torches)

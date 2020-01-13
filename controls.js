@@ -44,6 +44,8 @@ class KeyboardControls extends BaseControls {
   }
   
   keyDown(e) {
+    if(api.uiWindowOpen()) { return; }
+    
     var key = e.key;
     if(key.length == 1) { key = key.toLowerCase(); }
     if(key in this.keymap) {
@@ -53,6 +55,8 @@ class KeyboardControls extends BaseControls {
     }
   }
   keyUp(e) {
+    if(api.uiWindowOpen()) { return; }
+    
     var key = e.key;
     if(key.length == 1) { key = key.toLowerCase(); }
     if(key in this.keymap) {

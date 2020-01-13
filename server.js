@@ -65,6 +65,9 @@ class ServerBase {
     if(player.inventory.canGive("main", stack)) {
       player.inventory.give("main", stack);
       this.setNode(sel, new NodeData("default:air"));
+      
+      debug("server", "log", "dig " + nodeData.itemstring + " at " + fmtXYZ(sel));
+      
       return true;
     }
     
@@ -85,6 +88,9 @@ class ServerBase {
     if(player.inventory.canTakeIndex("main", player.wieldIndex, stack)) {
       player.inventory.takeIndex("main", player.wieldIndex, stack);
       this.setNode(sel, NodeData.fromItemStack(stack));
+      
+      debug("server", "log", "place " + stack.itemstring + " at " + fmtXYZ(sel));
+      
       return true;
     }
     
@@ -184,6 +190,18 @@ class ServerRemote extends ServerBase {
     this._invReady = true;
     this.socket.onopen = function() {
       this._socketReady = true;
+      
+      debug("client", "status", "connected to " + this.socket.url);
+    }.bind(this);
+    this.socket.onclose = function() {
+      this._socketReady = false;
+      
+      debug("client", "status", "disconnected from " + this.socket.url);
+    }.bind(this);
+    this.socket.onerror = function() {
+      this._socketReady = true;
+      
+      debug("client", "error", "unable to connect to " + this.socket.url);
     }.bind(this);
     
     this.socket.onmessage = function(e) {

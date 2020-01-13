@@ -10,7 +10,7 @@ function getModMeta(name) {
 
 function modsLoaded() {
   for(var key in allModMeta) {
-    if(!allModMeta[key].loaded) {
+    if(!allModMeta[key].loaded && !allModMeta[key].error) { //FIXME
       return false;
     }
   }
@@ -24,6 +24,7 @@ class ModMeta {
     this.deps = [];
     if(deps != null) { this.deps = deps; }
     this.loaded = false;
+    this.error = false;
   }
 }
 
@@ -34,6 +35,11 @@ function loadMod(meta) {
   script.dataset.name = meta.name;
   script.onload = function() {
     allModMeta[this.dataset.name].loaded = true;
+  };
+  script.onerror = function() {
+    var meta = allModMeta[this.dataset.name];
+    debug("loader", "error", "unable to load mod '" + meta.path + "' as '" + meta.name + "'");
+    meta.error = true;
   };
   script.src = meta.path + "/init.js";
   document.head.appendChild(script);

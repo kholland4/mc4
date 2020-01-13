@@ -11,6 +11,8 @@
 }
 .uiIS_iconImg {
   width: 100%;
+  
+  image-rendering: pixelated;
 }
 .uiIS_count {
   font-family: sans-serif;
