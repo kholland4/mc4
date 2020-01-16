@@ -1,3 +1,5 @@
+var VERSION = "0.1.0";
+
 var scene;
 var camera;
 var renderer;

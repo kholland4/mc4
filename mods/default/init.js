@@ -392,6 +392,45 @@
         var time = mods.default.timeOfDay();
         return "time of day set to " + time.h + ":" + time.m.toString().padStart(2, "0");
       }
-    }, "/time [hh:mm] : get or set the time of day"));
+    }, "/time [<hh>:<mm>] : get or set the time of day"));
+  });
+  
+  
+  //---EXTRA KEYS---
+  //FIXME
+  mods.default._fast = false;
+  mods.default._sprint = false;
+  api.registerKey(function(key) {
+    if(!api.ingameKey()) { return; }
+    key = key.toLowerCase();
+    
+    if(key == "k") { api.player.fly = !api.player.fly; }
+    if(key == "j") {
+      if(mods.default._fast) {
+        api.player.controls.speed = 4;
+        mods.default._fast = false;
+      } else {
+        api.player.controls.speed = 10;
+        mods.default._fast = true;
+      }
+    }
+    
+    if(key == "r") { //FIXME - ease in/out
+      api.player.controls.speed = 10;
+      mods.default._sprint = true;
+    }
+  });
+  api.registerKeyUp(function(key) {
+    if(!api.ingameKey()) { return; }
+    key = key.toLowerCase();
+    
+    if(key == "r" && mods.default._sprint) {
+      if(mods.default._fast) {
+        api.player.controls.speed = 10;
+      } else {
+        api.player.controls.speed = 4;
+      }
+      mods.default._sprint = false;
+    }
   });
 })();

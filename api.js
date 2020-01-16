@@ -21,3 +21,18 @@ api.registerKey = function(f) {
     }
   }.bind(f));
 };
+api.registerKeyUp = function(f) {
+  document.body.addEventListener("keyup", function(e) {
+    var res = this(e.key);
+    if(res === false) {
+      e.preventDefault();
+      return false;
+    }
+  }.bind(f));
+};
+
+api.ingameKey = function() {
+  return !api.uiWindowOpen();
+};
+
+api.version = function() { return VERSION; }

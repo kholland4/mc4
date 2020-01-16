@@ -182,6 +182,12 @@
     }
   }, "/tp <x>,<y>,<z> : teleport to a given position"));
   
+  
+  
+  mods.chat.registerCommand(new mods.chat.ChatCommand("/about", function(args) {
+    return "mc4 v" + api.version() + " -- https://github.com/kholland4/mc4/";
+  }, "/about : show version and author information"));
+  
   var handler = new api.DebugHandler(["status", "warning", "error"], function(msg) {
     mods.chat.print(msg.fmt());
   });

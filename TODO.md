@@ -15,13 +15,11 @@
 * Smooth not blocky lighting
 * Bleed in light from edges after recompute
 * Semitransparency
-* Daytime/nighttime
 
 
 ## Physics
 
 * Fix jump/gravity/speed/etc.
-* Fix stick to ceiling
 * Auto walk on stairs/slab/etc.
 
 

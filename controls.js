@@ -44,7 +44,7 @@ class KeyboardControls extends BaseControls {
   }
   
   keyDown(e) {
-    if(api.uiWindowOpen()) { return; }
+    if(!api.ingameKey()) { return; }
     
     var key = e.key;
     if(key.length == 1) { key = key.toLowerCase(); }
@@ -55,7 +55,7 @@ class KeyboardControls extends BaseControls {
     }
   }
   keyUp(e) {
-    if(api.uiWindowOpen()) { return; }
+    if(!api.ingameKey()) { return; }
     
     var key = e.key;
     if(key.length == 1) { key = key.toLowerCase(); }

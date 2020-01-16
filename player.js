@@ -36,7 +36,11 @@ class Player {
       this.pos[d] += this.vel[d] * tscale;
       if(this.collide()) {
         this.pos[d] = oldN;
-        this.vel[d] = 0;
+        if(d == "y" && this.vel[d] > 0) { //FIXME bodge
+          this.vel[d] = -0.0001;
+        } else {
+          this.vel[d] = 0;
+        }
       }
     }
     /*var dim = ["x", "y", "z"];

@@ -94,7 +94,7 @@
   };
   
   api.registerKey(function(key) {
-    if((key.toLowerCase() == "e" && !api.uiWindowOpen()) || (mods.inventory.isOpen && (key == "e" || key == "Escape"))) {
+    if((key.toLowerCase() == "e" && api.ingameKey()) || (mods.inventory.isOpen && (key == "e" || key == "Escape"))) {
       mods.inventory.show();
     }
   });
