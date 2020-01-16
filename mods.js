@@ -25,6 +25,22 @@ class ModMeta {
     if(deps != null) { this.deps = deps; }
     this.loaded = false;
     this.error = false;
+    this._onload = [];
+  }
+  
+  registerOnload(f) {
+    if(this.loaded) {
+      f();
+    } else {
+      this._onload.push(f);
+    }
+  }
+  
+  onload() {
+    this.loaded = true;
+    for(var i = 0; i < this._onload.length; i++) {
+      this._onload[i]();
+    }
   }
 }
 
@@ -34,7 +50,7 @@ function loadMod(meta) {
   var script = document.createElement("script");
   script.dataset.name = meta.name;
   script.onload = function() {
-    allModMeta[this.dataset.name].loaded = true;
+    allModMeta[this.dataset.name].onload();
   };
   script.onerror = function() {
     var meta = allModMeta[this.dataset.name];
@@ -44,5 +60,13 @@ function loadMod(meta) {
   script.src = meta.path + "/init.js";
   document.head.appendChild(script);
 }
+
+//FIXME: allow passing an array of names
+api.onModLoaded = function(name, f) {
+  var meta = getModMeta(name);
+  if(meta == null) { return false; }
+  meta.registerOnload(f);
+  return true;
+};
 
 api.getModMeta = getModMeta;

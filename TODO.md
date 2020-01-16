@@ -4,6 +4,7 @@
 * Textures - fix registration/use race condition
 * Rotation support (also for hitboxes)
 * Regenerate minimum number of meshes instead of 7
+* Skybox
 
 
 ## Lighting
@@ -13,6 +14,8 @@
 * Better brightness (color) curve
 * Smooth not blocky lighting
 * Bleed in light from edges after recompute
+* Semitransparency
+* Daytime/nighttime
 
 
 ## Physics
@@ -71,6 +74,8 @@
 * Server-side dig/place handling (anticheat)
 * Store player inventories
 * Track player position and generate entities
+* Lighting
+* Chat/commands
 
 
 ## Mapgen
@@ -92,3 +97,4 @@
 * Farming
 * Leaf degeneration
 * Fix oddly_breakable_by_hand (torches)
+* Privelege system (fast, fly, teleport, etc.)

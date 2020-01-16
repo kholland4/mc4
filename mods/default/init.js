@@ -1,6 +1,8 @@
 (function() {
   var modpath = api.getModMeta("default").path;
   
+  mods.default = {};
+  
   function registerNodeHelper(itemstring, args) {
     args = Object.assign({desc: "", tex: null, icon: null, item: {}, node: {}}, args);
     
@@ -343,4 +345,53 @@
       ]
     }
   ));
+  
+  
+  //---TIME---
+  mods.default.timeOffset = 1440 / 2;
+  mods.default.timeOfDay = function() {
+    var time = api.debugTimestamp() + mods.default.timeOffset;
+    return {d: Math.floor(time / 1440), h: Math.floor((time % 1440) / 60), m: Math.floor(time % 60)};
+  };
+  mods.default.setTimeOfDay = function(h, m) {
+    var currentTime = mods.default.timeOfDay();
+    
+    mods.default.timeOffset += (h - currentTime.h) * 60 + (m - currentTime.m);
+  };
+  
+  mods.default._sunUpdateCount = 0;
+  api.registerOnFrame(function(tscale) {
+    mods.default._sunUpdateCount++;
+    if(mods.default._sunUpdateCount > 100) {
+      var tRaw = mods.default.timeOfDay();
+      var t = (tRaw.h * 60 + tRaw.m) / 1440;
+      
+      var sun = Math.min(Math.max(-Math.cos(6.283 * t) + 0.5, 0), 1);
+      api.setSun(sun);
+      
+      mods.default._sunUpdateCount = 0;
+    }
+  });
+  
+  api.onModLoaded("chat", function() {
+    mods.chat.registerCommand(new mods.chat.ChatCommand("/time", function(args) {
+      if(args.length == 1) {
+        var time = mods.default.timeOfDay();
+        return "time of day is " + time.h + ":" + time.m.toString().padStart(2, "0");
+      } else {
+        var str = args[1];
+        var c = str.split(":");
+        if(c.length < 2) { return "invalid time '" + str + "'"; }
+        var h = parseInt(c[0]);
+        var m = parseInt(c[1]);
+        if(isNaN(h) || isNaN(m)) { return "invalid time '" + str + "'"; }
+        if(!(h >= 0 && h < 24 && m >= 0 && m < 60)) { return "invalid time '" + str + "'"; }
+        
+        mods.default.setTimeOfDay(h, m);
+        
+        var time = mods.default.timeOfDay();
+        return "time of day set to " + time.h + ":" + time.m.toString().padStart(2, "0");
+      }
+    }, "/time [hh:mm] : get or set the time of day"));
+  });
 })();
