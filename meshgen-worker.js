@@ -34,7 +34,7 @@ onmessage = function(e) {
           var relD = data[rx][ry][rz];
           var relID = relD & 65535;
           var relLightRaw = (relD >> 23) & 255;
-          var relLight = Math.max(relLightRaw & 15, ((relLightRaw >> 4) & 15) * sunAmount);
+          var relLight = Math.max(relLightRaw & 15, Math.round(((relLightRaw >> 4) & 15) * sunAmount));
           relLight = Math.max(relLight, 1);
           //relLight = Math.max(relLight, def.lightLevel);
           //FIXME - not desired behavior but needed to accomodate renderUpdateLighting

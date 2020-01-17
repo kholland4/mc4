@@ -364,7 +364,7 @@ function renderUpdateLighting(pos) {
     
     var id = d & 65535;
     var lightRaw = (d >> 23) & 255;
-    var light = Math.max(lightRaw & 15, ((lightRaw >> 4) & 15) * sunAmount);
+    var light = Math.max(lightRaw & 15, Math.round(((lightRaw >> 4) & 15) * sunAmount));
     light = Math.max(light, 1);
     
     var tint = facePos[i][3];
