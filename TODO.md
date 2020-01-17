@@ -10,7 +10,6 @@
 ## Lighting
 
 * Faster lighting
-* Fix sunlight
 * Better brightness (color) curve
 * Smooth not blocky lighting
 * Bleed in light from edges after recompute

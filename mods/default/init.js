@@ -79,7 +79,7 @@
     desc: "Leaves",
     tex: {texAll: "default_leaves.png"},
     icon: "default_leaves.png",
-    node: {groups: {snappy: 1}, transparent: true},
+    node: {groups: {snappy: 1}, transparent: true, passSunlight: false},
     item: {groups: {leaves: null}}
   });
   

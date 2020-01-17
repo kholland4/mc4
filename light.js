@@ -132,6 +132,7 @@ class LightWorker {
     }
     
     var lightSources = [];
+    var sunlightSources = [];
     for(var x = updateBox.min.x * size.x; x < updateBox.max.x * size.x + size.x; x++) {
       for(var z = updateBox.min.z * size.z; z < updateBox.max.z * size.z + size.z; z++) {
         var hasSun = false;
@@ -174,17 +175,23 @@ class LightWorker {
           
           var sunlight = 0;
           if(hasSun) {
-            sunlight = 15;
+            sunlight = 14;
+            sunlightSources.push({pos: {x: x, y: y, z: z}, lightLevel: 15});
           }
           
-          light = sunlight << 4;
+          var l = 0;
+          if(def.transparent) {
+            l = 1;
+          }
+          
+          light = (sunlight << 4) | l;
           
           blocks[blockIndex].data[rx][ry][rz] = id | (rot << 16) | (light << 23);
         }
       }
     }
     
-    function lightCascade(pos, lightLevel) {
+    /*function lightCascade(pos, lightLevel) {
       if(lightLevel <= 0) { return; }
       
       var mbPos = new THREE.Vector3(Math.floor(pos.x / mapBlock.size.x), Math.floor(pos.y / mapBlock.size.y), Math.floor(pos.z / mapBlock.size.z));
@@ -215,10 +222,75 @@ class LightWorker {
           }
         }
       }
+    }*/
+    
+    var blocksArr = [];
+    for(var x = dataBox.min.x; x <= dataBox.max.x; x++) {
+      var s1 = [];
+      for(var y = dataBox.min.y; y <= dataBox.max.y; y++) {
+        var s2 = [];
+        for(var z = dataBox.min.z; z <= dataBox.max.z; z++) {
+          var mbPos = new THREE.Vector3(x, y, z);
+          var blockIndex = mbPos.x + "," + mbPos.y + "," + mbPos.z;
+          s2.push(blocks[blockIndex].data);
+        }
+        s1.push(s2);
+      }
+      blocksArr.push(s1);
+    }
+    
+    function lightCascade(pos, lightLevel, type=0) {
+      if(lightLevel <= 0) { return; }
+      
+      var mbPos = new THREE.Vector3(Math.floor(pos.x / mapBlock.size.x), Math.floor(pos.y / mapBlock.size.y), Math.floor(pos.z / mapBlock.size.z));
+      if(mbPos.x < dataBox.min.x || mbPos.x > dataBox.max.x || mbPos.y < dataBox.min.y || mbPos.y > dataBox.max.y || mbPos.z < dataBox.min.z || mbPos.z > dataBox.max.z) { return; }
+      
+      var rx = pos.x - mbPos.x * MAPBLOCK_SIZE.x;
+      var ry = pos.y - mbPos.y * MAPBLOCK_SIZE.y;
+      var rz = pos.z - mbPos.z * MAPBLOCK_SIZE.z;
+      
+      var mx = mbPos.x - dataBox.min.x;
+      var my = mbPos.y - dataBox.min.y;
+      var mz = mbPos.z - dataBox.min.z;
+      
+      var d = blocksArr[mx][my][mz][rx][ry][rz];
+      var id = d & 65535;
+      var rot = (d >> 16) & 127;
+      var light = (d >> 23) & 255;
+      
+      if((light & 15) >= 1) { //initialized to 1 for transparent, 0 for opaque
+        var sv = false;
+        if(type == 0) {
+          if(lightLevel > (light & 0xF)) {
+            light &= 0xF0;
+            light |= lightLevel & 0xF;
+            sv = true;
+          }
+        } else if(type == 1) {
+          if(lightLevel > ((light >> 4) & 0xF)) {
+            light &= 0xF;
+            light |= (lightLevel << 4) & 0xF0;
+            sv = true;
+          }
+        }
+        
+        if(sv) {
+          blocksArr[mx][my][mz][rx][ry][rz] = id | (rot << 16) | (light << 23);
+          
+          if(lightLevel - 1 > 1) {
+            for(var face = 0; face < 6; face++) {
+              lightCascade({x: pos.x + stdFaces[face].x, y: pos.y + stdFaces[face].y, z: pos.z + stdFaces[face].z}, lightLevel - 1, type);
+            }
+          }
+        }
+      }
     }
     
     for(var i = 0; i < lightSources.length; i++) {
       lightCascade(lightSources[i].pos, lightSources[i].lightLevel);
+    }
+    for(var i = 0; i < sunlightSources.length; i++) {
+      lightCascade(sunlightSources[i].pos, sunlightSources[i].lightLevel, 1);
     }
     
     (lightWorkerCallback.bind(this.worker))(null);
