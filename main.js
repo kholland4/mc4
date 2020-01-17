@@ -1,4 +1,4 @@
-var VERSION = "0.1.1";
+var VERSION = "0.1.2";
 
 var scene;
 var camera;
@@ -69,6 +69,8 @@ function init() {
   camera = new THREE.PerspectiveCamera(75, viewport.w / viewport.h, 0.1, 1000);
   renderer = new THREE.WebGLRenderer();
   renderer.setSize(viewport.w, viewport.h);
+  //renderer.gammaOutput = true;
+  //renderer.gammaFactor = 2.2;
   document.body.appendChild(renderer.domElement);
   
   controls = new THREE.PointerLockControls(camera, document.body);

@@ -31,7 +31,7 @@
     }));
     api.registerNode(new api.Node("stairs:slab_stone", {
       texAll: "default:stone:texAll",
-      groups: {cracky: 1}, transparent: true, customMesh: true,
+      groups: {cracky: 1}, transparent: false, customMesh: true,
         customMeshVerts: [
           [
             -0.5, 0, -0.5,

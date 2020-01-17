@@ -152,7 +152,7 @@ class LightWorker {
         }
         
         for(var y = updateBox.max.y * size.y + size.y - 1; y >= updateBox.min.y * size.y; y--) {
-          var mbPos = new THREE.Vector3(Math.floor(x / size.x), Math.floor(y / size.y), Math.floor(z / size.z));
+          var mbPos = {x: Math.floor(x / size.x), y: Math.floor(y / size.y), z: Math.floor(z / size.z)};
           var blockIndex = mbPos.x + "," + mbPos.y + "," + mbPos.z;
           
           var rx = x - mbPos.x * size.x;
@@ -242,18 +242,21 @@ class LightWorker {
     function lightCascade(pos, lightLevel, type=0) {
       if(lightLevel <= 0) { return; }
       
-      var mbPos = new THREE.Vector3(Math.floor(pos.x / mapBlock.size.x), Math.floor(pos.y / mapBlock.size.y), Math.floor(pos.z / mapBlock.size.z));
-      if(mbPos.x < dataBox.min.x || mbPos.x > dataBox.max.x || mbPos.y < dataBox.min.y || mbPos.y > dataBox.max.y || mbPos.z < dataBox.min.z || mbPos.z > dataBox.max.z) { return; }
+      var mbx = Math.floor(pos.x / mapBlock.size.x) | 0;
+      var mby = Math.floor(pos.y / mapBlock.size.y) | 0;
+      var mbz = Math.floor(pos.z / mapBlock.size.z) | 0;
       
-      var rx = pos.x - mbPos.x * MAPBLOCK_SIZE.x;
-      var ry = pos.y - mbPos.y * MAPBLOCK_SIZE.y;
-      var rz = pos.z - mbPos.z * MAPBLOCK_SIZE.z;
+      if(mbx < dataBox.min.x || mbx > dataBox.max.x || mby < dataBox.min.y || mby > dataBox.max.y || mbz < dataBox.min.z || mbz > dataBox.max.z) { return; }
       
-      var mx = mbPos.x - dataBox.min.x;
-      var my = mbPos.y - dataBox.min.y;
-      var mz = mbPos.z - dataBox.min.z;
+      var rx = (pos.x - mbx * MAPBLOCK_SIZE.x) | 0;
+      var ry = (pos.y - mby * MAPBLOCK_SIZE.y) | 0;
+      var rz = (pos.z - mbz * MAPBLOCK_SIZE.z) | 0;
       
-      var d = blocksArr[mx][my][mz][rx][ry][rz];
+      var mx = (mbx - dataBox.min.x) | 0;
+      var my = (mby - dataBox.min.y) | 0;
+      var mz = (mbz - dataBox.min.z) | 0;
+      
+      var d = blocksArr[mx][my][mz][rx][ry][rz] | 0;
       var id = d & 65535;
       var rot = (d >> 16) & 127;
       var light = (d >> 23) & 255;

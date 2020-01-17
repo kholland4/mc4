@@ -35,7 +35,7 @@ onmessage = function(e) {
           var relID = relD & 65535;
           var relLightRaw = (relD >> 23) & 255;
           var relLight = Math.max(relLightRaw & 15, ((relLightRaw >> 4) & 15) * sunAmount);
-          relLight = Math.max(relLight, 2);
+          relLight = Math.max(relLight, 1);
           //relLight = Math.max(relLight, def.lightLevel);
           //FIXME - not desired behavior but needed to accomodate renderUpdateLighting
           if(def.lightLevel > 0) { relLight = light; }
@@ -53,10 +53,11 @@ onmessage = function(e) {
           
           var tint = 1;
           if(faceIndex == 3) { tint = 1; } else
-          if(faceIndex == 2) { tint = 0.5; } else
-          { tint = 0.8; }
+          if(faceIndex == 2) { tint = 0.6; } else
+          if(faceIndex == 0 || faceIndex == 1) { tint = 0.75; } else
+          { tint = 0.875; }
           
-          var colorR = Math.round((relLight * 17) * tint);
+          var colorR = Math.round(lightCurve[relLight] * tint);
           var colorG = colorR;
           var colorB = colorR;
           

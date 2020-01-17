@@ -79,6 +79,7 @@ function initTextures() {
   texmap = new THREE.CanvasTexture(textureCanvas);
   texmap.minFilter = THREE.NearestFilter;
   texmap.magFilter = THREE.NearestFilter;
+  //texmap.encoding = THREE.sRGBEncoding;
   
   updateTextureMap();
 }

@@ -20,6 +20,7 @@
 
 * Fix jump/gravity/speed/etc.
 * Auto walk on stairs/slab/etc.
+* Sneak
 
 
 ## UI (ingame)
