@@ -261,6 +261,10 @@ class LightWorker {
       var rot = (d >> 16) & 127;
       var light = (d >> 23) & 255;
       
+      //--- FIXME
+      //var def = nodeDef[mbx + "," + mby + "," + mbz][id];
+      //---
+      
       if((light & 15) >= 1) { //initialized to 1 for transparent, 0 for opaque
         var sv = false;
         if(type == 0) {
@@ -282,6 +286,7 @@ class LightWorker {
           
           if(lightLevel - 1 > 1) {
             for(var face = 0; face < 6; face++) {
+              //if(!def.transFaces[face]) { continue; } //---
               lightCascade({x: pos.x + stdFaces[face].x, y: pos.y + stdFaces[face].y, z: pos.z + stdFaces[face].z}, lightLevel - 1, type);
             }
           }
@@ -295,6 +300,8 @@ class LightWorker {
     for(var i = 0; i < sunlightSources.length; i++) {
       lightCascade(sunlightSources[i].pos, sunlightSources[i].lightLevel, 1);
     }
+    
+    console.log(performance.now() - this.startTime);
     
     (lightWorkerCallback.bind(this.worker))(null);
   }

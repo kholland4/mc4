@@ -34,7 +34,7 @@ class KeyboardControls extends BaseControls {
     this.camera = camera;
     
     this.speed = 4;
-    this.jumpSpeed = 5;
+    this.jumpSpeed = 4.5;
     this.fly = false;
     
     this.kvel = new THREE.Vector3(0, 0, 0);

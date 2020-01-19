@@ -23,7 +23,7 @@ onmessage = function(e) {
         var rot = (d >> 16) & 127;
         var lightRaw = (d >> 23) & 255;
         var light = Math.max(lightRaw & 15, ((lightRaw >> 4) & 15) * sunAmount);
-        light = Math.max(light, 2);
+        light = Math.max(light, 1);
         
         var def = nodeDef[id];
         if(!def.visible) { continue; }
@@ -38,7 +38,8 @@ onmessage = function(e) {
           relLight = Math.max(relLight, 1);
           //relLight = Math.max(relLight, def.lightLevel);
           //FIXME - not desired behavior but needed to accomodate renderUpdateLighting
-          if(def.lightLevel > 0) { relLight = light; }
+          var tLight = false;
+          if(def.lightLevel > 0) { relLight = light; tLight = true; }
           
           var relDef;
           if(rx < 1) { relDef = nodeDefAdj["-1,0,0"][relID]; } else
@@ -50,6 +51,11 @@ onmessage = function(e) {
           { relDef = nodeDef[relID]; }
           
           if(!def.transparent && !relDef.transparent) { continue; }
+          //if(!def.renderAdj && !relDef.renderAdj) { continue; }
+          
+          //TODO: use transFaces?
+          //if(def.transparent && def.transFaces[faceIndex] && light > relLight) { relLight = light; tLight = true; }
+          if(def.transparent && light > relLight) { relLight = light; tLight = true; }
           
           var tint = 1;
           if(faceIndex == 3) { tint = 1; } else
@@ -77,7 +83,7 @@ onmessage = function(e) {
             colors.push(colorB);
             
             //FIXME - see above
-            if(def.lightLevel > 0) {
+            if(tLight) {
               facePos.push([x - 1, y - 1, z - 1, tint]);
             } else {
               facePos.push([rx - 1, ry - 1, rz - 1, tint]);

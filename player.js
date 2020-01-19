@@ -23,7 +23,7 @@ class Player {
       if(this.vel.y > 0 && vy == 0) {
         
       } else {
-        this.vel.y = vy - 10 * tscale;
+        this.vel.y = vy - 9.8 * tscale;
       }
     }
     this.rot.copy(this.controls.rot);

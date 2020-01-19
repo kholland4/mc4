@@ -22,7 +22,7 @@ class ItemBase {
     this.iconFile = null;
     this.icon = null;
     
-    //wood, tree, stone, sand, flora, leaves
+    //wood, tree, stone, sand, sandstone, flora, leaves
     this.groups = {};
     this.toolGroups = {}; //node groups that a tool "helps" with
     
