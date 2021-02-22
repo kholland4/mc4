@@ -35,6 +35,7 @@
 .uiInvList {
   
 }
+/* Height also used in ui-inv.js for scrolling */
 .uiIL_square {
   display: inline-block;
   vertical-align: top;
@@ -107,4 +108,7 @@
 }
 .uiEl_input_text {
   background-color: white;
+}
+.uiEl_scrollbox {
+  overflow-y: scroll;
 }

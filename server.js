@@ -62,8 +62,16 @@ class ServerBase {
     var nodeData = this.getNode(sel);
     var stack = ItemStack.fromNodeData(nodeData);
     
-    if(player.inventory.canGive("main", stack)) {
-      player.inventory.give("main", stack);
+    var canGive = player.inventory.canGive("main", stack);
+    if(player.creativeDigPlace && player.inventory.canTake("main", stack)) {
+      canGive = true;
+    }
+    if(canGive) {
+      if(player.creativeDigPlace && player.inventory.canTake("main", stack)) {
+        //player already has this item, no need to give them more
+      } else {
+        player.inventory.give("main", stack);
+      }
       this.setNode(sel, new NodeData("default:air"));
       
       debug("server", "log", "dig " + nodeData.itemstring + " at " + fmtXYZ(sel));
@@ -86,7 +94,9 @@ class ServerBase {
     if(!def.isNode) { return false; }
     
     if(player.inventory.canTakeIndex("main", player.wieldIndex, stack)) {
-      player.inventory.takeIndex("main", player.wieldIndex, stack);
+      if(!player.creativeDigPlace) {
+        player.inventory.takeIndex("main", player.wieldIndex, stack);
+      }
       this.setNode(sel, NodeData.fromItemStack(stack));
       
       debug("server", "log", "place " + stack.itemstring + " at " + fmtXYZ(sel));
@@ -213,7 +223,7 @@ class ServerRemote extends ServerBase {
         
         var mapBlock = new MapBlock(new THREE.Vector3(mdata.pos.x, mdata.pos.y, mdata.pos.z));
         mapBlock.updateNum = mdata.updateNum;
-        mapBlock.lightingNeedsUpdate = mdata.lightingNeedsUpdate;
+        mapBlock.lightNeedsUpdate = mdata.lightNeedsUpdate;
         if(index in this.cache) {
           if(mapBlock.updateNum != this.cache[index].updateNum) {
             mapBlock.renderNeedsUpdate = 2;
@@ -227,6 +237,10 @@ class ServerRemote extends ServerBase {
         mapBlock.data = mdata.data;
         
         this.cache[index] = mapBlock;
+        
+        //if(mapBlock.lightNeedsUpdate > 0 && needLight) {
+        //  lightQueueUpdate(mapBlock.pos);
+        //}
       }
     }.bind(this);
     

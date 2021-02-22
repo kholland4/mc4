@@ -1,4 +1,4 @@
-var VERSION = "0.1.4";
+var VERSION = "0.1.5";
 
 var scene;
 var camera;
@@ -102,7 +102,7 @@ function init() {
   initMenu();
   
   if(menuConfig.gameType == "local") {
-    server = new ServerLocal(new MapLocal(new MapgenDefault()));
+    server = new ServerLocal(new MapLocal(new MapgenDefault(Math.random())));
   } else if(menuConfig.gameType == "remote") {
     server = new ServerRemote(menuConfig.remoteServer);
     
@@ -191,6 +191,7 @@ function init() {
   loadMod(new ModMeta("hud", "mods/hud"));
   loadMod(new ModMeta("inventory", "mods/inventory"));
   loadMod(new ModMeta("chat", "mods/chat"));
+  loadMod(new ModMeta("gamemode", "mods/gamemode"));
   
   loadLoop();
 }

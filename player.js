@@ -10,6 +10,7 @@ class Player {
     
     this.inventory = server.getInventory(this);
     this.wieldIndex = 0;
+    this.creativeDigPlace = false;
     
     this.boundingBox = new THREE.Box3(new THREE.Vector3(-0.3, -1.5, -0.3), new THREE.Vector3(0.3, 0.3, 0.3));
   }

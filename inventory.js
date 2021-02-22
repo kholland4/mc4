@@ -269,6 +269,7 @@ class Inventory {
 }
 
 api.ItemStack = ItemStack;
+api.Inventory = Inventory;
 
 api.createTempInventory = function() {
   var inv = new Inventory();

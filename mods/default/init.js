@@ -85,6 +85,45 @@
   
   
   
+  //---ORES---
+  registerNodeHelper("default:ore_coal", {
+    desc: "Coal Ore",
+    tex: {texAll: "default_ore_coal.png"},
+    icon: "default_ore_coal.png",
+    node: {groups: {cracky: 2}, drops: "default:lump_coal"}
+  });
+  api.registerItem(new api.Item("default:lump_coal", {desc: "Coal Lump", iconFile: modpath + "/icons/default_lump_coal.png"}));
+  
+  registerNodeHelper("default:ore_iron", {
+    desc: "Iron Ore",
+    tex: {texAll: "default_ore_iron.png"},
+    icon: "default_ore_iron.png",
+    node: {groups: {cracky: 2}, drops: "default:lump_iron"}
+  });
+  api.registerItem(new api.Item("default:lump_iron", {desc: "Iron Lump", iconFile: modpath + "/icons/default_lump_iron.png"}));
+  api.registerItem(new api.Item("default:ingot_iron", {desc: "Iron Ingot", iconFile: modpath + "/icons/default_ingot_iron.png"}));
+  api.registerCraft(new api.CraftEntry("default:ingot_iron", ["default:lump_iron"], {shape: null, type: "cook", cookTime: 4}));
+  
+  registerNodeHelper("default:ore_gold", {
+    desc: "Gold Ore",
+    tex: {texAll: "default_ore_gold.png"},
+    icon: "default_ore_gold.png",
+    node: {groups: {cracky: 2}, drops: "default:lump_gold"}
+  });
+  api.registerItem(new api.Item("default:lump_gold", {desc: "Gold Lump", iconFile: modpath + "/icons/default_lump_gold.png"}));
+  api.registerItem(new api.Item("default:ingot_gold", {desc: "Gold Ingot", iconFile: modpath + "/icons/default_ingot_gold.png"}));
+  api.registerCraft(new api.CraftEntry("default:ingot_gold", ["default:lump_gold"], {shape: null, type: "cook", cookTime: 4}));
+  
+  registerNodeHelper("default:ore_diamond", {
+    desc: "Diamond Ore",
+    tex: {texAll: "default_ore_diamond.png"},
+    icon: "default_ore_diamond.png",
+    node: {groups: {cracky: 3}, drops: "default:diamond"}
+  });
+  api.registerItem(new api.Item("default:diamond", {desc: "Diamond", iconFile: modpath + "/icons/default_diamond.png"}));
+  
+  
+  
   //---ITEMS---
   api.registerItem(new api.Item("default:stick", {desc: "Stick", iconFile: modpath + "/icons/default_stick.png"}));
   api.registerCraft(new api.CraftEntry(
@@ -92,9 +131,6 @@
     ["group:wood"],
     {shape: null}
   ));
-  api.registerItem(new api.Item("default:diamond", {desc: "Diamond", iconFile: modpath + "/icons/default_diamond.png"}));
-  api.registerItem(new api.Item("default:iron_lump", {desc: "Iron Lump", iconFile: modpath + "/icons/default_iron_lump.png"}));
-  api.registerItem(new api.Item("default:steel_ingot", {desc: "Steel Ingot", iconFile: modpath + "/icons/default_steel_ingot.png"}));
   
   //hand tool
   api.registerItem(new Item(":", {isTool: true, toolWear: null, toolGroups: {
@@ -103,7 +139,7 @@
     choppy: {times: [0, 2, 4], maxlevel: 2},
     snappy: {times: [0, 1.0], maxlevel: 1},
     oddly_breakable_by_hand: {times: [0, 0.2, 0.5], maxlevel: 2}
-  }}));
+  }, inCreativeInventory: false}));
   
   //---PICKAXES---
   api.registerItem(new api.Item("default:pick_wood", {
@@ -187,7 +223,7 @@
   var craftMaterials = {
     "wood": "group:wood",
     "stone": "group:stone",
-    "steel": "default:steel_ingot",
+    "steel": "default:ingot_iron",
     "diamond": "default:diamond"
   };
   
@@ -432,5 +468,14 @@
       }
       mods.default._sprint = false;
     }
+  });
+  
+  
+  //---WATER---
+  registerNodeHelper("default:water_source", {
+    desc: "Water Source",
+    tex: {texAll: "default_water_source.png"},
+    icon: "default_water_source.png",
+    node: {transparent: true, walkable: true, isFluid: true, joined: true}
   });
 })();

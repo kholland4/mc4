@@ -71,6 +71,13 @@ def getMapblock(pos):
 def setMapblock(mapblock):
     index = (mapblock.pos["x"], mapblock.pos["y"], mapblock.pos["z"])
     cache[index] = mapblock
+    
+    mapblock.updateNum += 1
+    
+    to_send.append(Message(json.dumps({
+        "type": "req_mapblock",
+        "data": mapblock.__dict__
+    }), [websocket]))
 
 def xyzToTuple(data):
     return (data["x"], data["y"], data["z"])
@@ -89,7 +96,8 @@ def setNode(pos, data):
     if data["itemstring"] != "default:air":
         current.props["sunlit"] = False
     
-    cache[mb_pos] = current
+    #cache[mb_pos] = current
+    setMapblock(current)
 
 users = set()
 to_send = []
@@ -146,18 +154,8 @@ async def consumer(websocket, message):
         }))
     elif data["type"] == "set_mapblock":
         setMapblock(Mapblock(data["data"]))
-        to_send.append(Message(json.dumps({
-            "type": "req_mapblock",
-            "data": getMapblock(xyzToTuple(data["data"]["pos"])).__dict__
-        }), [websocket]))
     elif data["type"] == "set_node":
         setNode(xyzToTuple(data["pos"]), data["data"])
-        getMapblock(mbPos(xyzToTuple(data["pos"]))).updateNum += 1
-        
-        to_send.append(Message(json.dumps({
-            "type": "req_mapblock",
-            "data": getMapblock(mbPos(xyzToTuple(data["pos"]))).__dict__
-        }), [websocket]))
 
 async def consumer_handler(websocket, path):
     async for message in websocket:

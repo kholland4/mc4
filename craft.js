@@ -76,6 +76,7 @@ class CraftEntry {
     
     this.shape = null; // or {x: <x>, y: <y>}
     this.type = "craft"; // or cook
+    this.cookTime = null;
     
     Object.assign(this, props);
   }

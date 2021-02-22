@@ -71,3 +71,4 @@ api.debugTimestamp = debugTimestamp;
 api.DebugMessage = DebugMessage;
 api.DebugHandler = DebugHandler;
 api.registerDebugHandler = registerDebugHandler;
+api.modDebug = function(modName, level, str) { debug("mod " + modName, level, str); };

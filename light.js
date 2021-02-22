@@ -301,8 +301,6 @@ class LightWorker {
       lightCascade(sunlightSources[i].pos, sunlightSources[i].lightLevel, 1);
     }
     
-    console.log(performance.now() - this.startTime);
-    
     (lightWorkerCallback.bind(this.worker))(null);
   }
 }

@@ -2,6 +2,16 @@
   var modpath = api.getModMeta("inventory").path;
   mods.inventory = {};
   
+  mods.inventory.creative = false;
+  api.onModLoaded("gamemode", function() {
+    mods.gamemode.registerChangeHook(function() {
+      mods.inventory.creative = mods.gamemode.creative;
+      if(mods.inventory.isOpen) {
+        mods.inventory.show(); //FIXME will close instead of refresh
+      }
+    });
+  });
+  
   mods.inventory.craftOutput = api.createTempInventory();
   mods.inventory.craftOutput.setList("main", [null]);
   mods.inventory.craftOutputEl = null;
@@ -73,16 +83,65 @@
     } else {
       var win = new api.UIWindow();
       
-      mods.inventory.craftListEl = api.uiRenderInventoryList(api.player.inventory, "craft", {width: 3, interactive: true, onUpdate: mods.inventory.updateCraftOutput});
-      win.add(mods.inventory.craftListEl);
-      
-      win.add(api.uiElement("spacer"));
-      
-      mods.inventory.craftOutputEl = api.uiRenderInventoryList(mods.inventory.craftOutput, "main", {interactive: true, onUpdate: mods.inventory.onCraftOutputTake});
-      win.add(mods.inventory.craftOutputEl);
-      mods.inventory.updateCraftOutput();
-      
-      win.add(api.uiElement("spacer"));
+      if(mods.inventory.creative) {
+        mods.inventory.creativeDatastore = {"creative": []};
+        
+        var allItemStrings = api.listAllItems();
+        for(var i = 0; i < allItemStrings.length; i++) {
+          var itemstring = allItemStrings[i];
+          var def = api.getItemDef(itemstring);
+          if(def == null) {
+            api.modDebug("inventory", "warn", "creative inventory: unable to retrieve definition for '" + itemstring + "'");
+            continue;
+          }
+          if(!def.inCreativeInventory) { continue; }
+          
+          var stack = new api.ItemStack(itemstring);
+          mods.inventory.creativeDatastore["creative"].push(stack);
+        }
+        
+        mods.inventory.creativeInv = new api.Inventory();
+        var cinv = mods.inventory.creativeInv;
+        cinv._getList = function(name) {
+          if(name in mods.inventory.creativeDatastore) {
+            return mods.inventory.creativeDatastore[name];
+          }
+          return [];
+        };
+        cinv._setList = function(name, data) { return false; };
+        
+        cinv._getStack = function(name, index) {
+          if(name in mods.inventory.creativeDatastore) {
+            var list = mods.inventory.creativeDatastore[name];
+            if(index < list.length) {
+              if(list[index] instanceof ItemStack) {
+                return list[index].clone();
+              } else {
+                return list[index];
+              }
+            }
+          }
+          return null;
+        };
+        cinv._setStack = function(name, index, data) { return false; };
+        
+        mods.inventory.creativeInvEl = api.uiRenderInventoryList(mods.inventory.creativeInv, "creative", {width: 8, interactive: true, scrollHeight: 3});
+        
+        win.add(mods.inventory.creativeInvEl);
+        
+        win.add(api.uiElement("spacer"));
+      } else {
+        mods.inventory.craftListEl = api.uiRenderInventoryList(api.player.inventory, "craft", {width: 3, interactive: true, onUpdate: mods.inventory.updateCraftOutput});
+        win.add(mods.inventory.craftListEl);
+        
+        win.add(api.uiElement("spacer"));
+        
+        mods.inventory.craftOutputEl = api.uiRenderInventoryList(mods.inventory.craftOutput, "main", {interactive: true, onUpdate: mods.inventory.onCraftOutputTake});
+        win.add(mods.inventory.craftOutputEl);
+        mods.inventory.updateCraftOutput();
+        
+        win.add(api.uiElement("spacer"));
+      }
       
       var invList = api.uiRenderInventoryList(api.player.inventory, "main", {width: 8, interactive: true});
       win.add(invList);

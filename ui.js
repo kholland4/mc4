@@ -87,6 +87,16 @@ function uiElement(name, opts) {
     if(opts != undefined) { el.value = opts; }
     return el;
   }
+  if(name == "scrollbox") {
+    var el = document.createElement("div");
+    el.className = "uiEl_scrollbox";
+    if(opts != undefined) {
+      if("height" in opts) {
+        el.height = opts.height;
+      }
+    }
+    return el;
+  }
 }
 
 api.uiShowWindow = uiShowWindow;

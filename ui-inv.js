@@ -3,6 +3,9 @@ function uiRenderItemStack(stack) {
   
   var container = document.createElement("div");
   container.className = "uiItemStack";
+  if(def.desc != "" && def.desc != null) {
+    container.title = def.desc;
+  }
   
   var iconContainer = document.createElement("div");
   iconContainer.className = "uiIS_iconContainer";
@@ -40,7 +43,7 @@ function uiRenderItemStack(stack) {
 function uiRenderInventoryList(inv, listName, kwargs) {
   var list = inv.getList(listName);
   
-  var args = Object.assign({start: 0, count: list.length, width: list.length, interactive: true, onUpdate: function() {}}, kwargs);
+  var args = Object.assign({start: 0, count: list.length, width: list.length, interactive: true, onUpdate: function() {}, scrollHeight: null}, kwargs);
   
   var container = document.createElement("div");
   container.className = "uiInvList";
@@ -78,6 +81,21 @@ function uiRenderInventoryList(inv, listName, kwargs) {
     if(i % args.width == args.width - 1) {
       container.appendChild(document.createElement("br"));
     }
+  }
+  
+  if(args.scrollHeight != null) {
+    container.style.overflowY = "auto";
+    
+    /*var sqSample = document.createElement("div");
+    sqSample.className = "uiIL_square";
+    sqSample.style.visibility = "hidden";
+    sqSample.style.position = "fixed";
+    document.body.appendChild(sqSample);
+    var height = sqSample.getBoundingClientRect().height;
+    document.body.removeChild(sqSample);*/
+    var height = 66;
+    
+    container.style.maxHeight = (args.scrollHeight * height) + "px";
   }
   
   return container;

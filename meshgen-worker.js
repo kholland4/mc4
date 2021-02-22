@@ -53,6 +53,9 @@ onmessage = function(e) {
           if(!def.transparent && !relDef.transparent) { continue; }
           //if(!def.renderAdj && !relDef.renderAdj) { continue; }
           
+          //joined nodes (ie water)
+          if(def.itemstring == relDef.itemstring && def.joined) { continue; }
+          
           //TODO: use transFaces?
           //if(def.transparent && def.transFaces[faceIndex] && light > relLight) { relLight = light; tLight = true; }
           if(def.transparent && light > relLight) { relLight = light; tLight = true; }

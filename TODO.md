@@ -2,6 +2,8 @@
 
 * Textures - composite textures similar to MT
 * Textures - fix registration/use race condition
+* Water
+  * Textures - partial transparency (ie water)
 * Rotation support (also for hitboxes)
 * Regenerate minimum number of meshes instead of 7
 * Skybox
@@ -26,6 +28,8 @@
 ## UI (ingame)
 
 * Formspec-inspired UI
+* Mouseover text for items
+* Instructions and such
 
 
 ## Interact
@@ -54,9 +58,16 @@
 ## mods/default
 
 * Comprehensive nodes/items/crafts
+  * Sand, clay, glass
+  * Bricks
 
 
 ## mods/hud
+
+
+## mods/stairs
+
+* Stairs
 
 
 ## Server / map

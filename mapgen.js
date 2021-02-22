@@ -118,10 +118,21 @@ class MapgenDefault extends MapgenBase {
     var dirtID = block.getNodeID("default:dirt");
     var stoneID = block.getNodeID("default:stone");
     
+    var oreC = [2, 3];
+    var ores = [
+      {id: block.getNodeID("default:ore_coal"), maxY: 0, minN: 0.51, maxN: 1.0, c: 3},
+      {id: block.getNodeID("default:ore_iron"), maxY: -32, minN: -1.0, maxN: -0.64, c: 3},
+      {id: block.getNodeID("default:ore_diamond"), maxY: -128, minN: 0.74, maxN: 1.0, c: 2}
+    ];
+    
     for(var x = 0; x < block.size.x; x++) {
+      var ax = x + pos.x * block.size.x;
       for(var y = 0; y < block.size.y; y++) {
-        var h = y + (pos.y * block.size.y);
+        var ay = y + pos.y * block.size.y;
+        var h = ay;
         for(var z = 0; z < block.size.z; z++) {
+          var az = z + pos.z * block.size.z;
+          
           var hmap = heightMap[x][z];
           if(h > hmap) {
             
@@ -130,7 +141,28 @@ class MapgenDefault extends MapgenBase {
           } else if(h >= hmap - 2) {
             block.data[x][y][z] = dirtID;
           } else if(h < hmap - 2) {
-            block.data[x][y][z] = stoneID;
+            var id = stoneID;
+            
+            for(var ci = 0; ci < oreC.length; ci++) {
+              var c = oreC[ci];
+              
+              var oreNoise = noise.perlin3(ax / c, ay / c, az / c);
+              
+              for(var i = 0; i < ores.length; i++) {
+                var ore = ores[i];
+                if(ore.c != c) { continue; }
+                if("minY" in ore) { if(ay < ore.minY) { continue; } }
+                if("maxY" in ore) { if(ay > ore.maxY) { continue; } }
+                
+                if(ore.minN < oreNoise && oreNoise < ore.maxN) {
+                  id = ore.id;
+                  break;
+                }
+              }
+              if(id != stoneID) { break; }
+            }
+            
+            block.data[x][y][z] = id;
           }
         }
       }

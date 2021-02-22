@@ -22,6 +22,8 @@ class ItemBase {
     this.iconFile = null;
     this.icon = null;
     
+    this.inCreativeInventory = true;
+    
     //wood, tree, stone, sand, sandstone, flora, leaves
     this.groups = {};
     this.toolGroups = {}; //node groups that a tool "helps" with
@@ -58,3 +60,10 @@ api.registerItem = function(item) {
   allItems[item.itemstring] = item;
 };
 api.getItemDef = getItemDef;
+api.listAllItems = function() {
+  var out = [];
+  for(var itemstring in allItems) {
+    out.push(itemstring);
+  }
+  return out;
+};

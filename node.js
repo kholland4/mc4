@@ -22,6 +22,9 @@ class NodeBase {
     this.transFaces = [true, true, true, true, true, true]; //not yet used consistently for performance reasons
     this.passSunlight = false;
     this.lightLevel = 0;
+    this.joined = false;
+    
+    this.isFluid = false;
     
     this.tex = [null, null, null, null, null, null];
     this.texAll = null;
