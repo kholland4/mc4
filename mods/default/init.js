@@ -41,6 +41,18 @@
     api.registerItem(new api.Item(itemstring, Object.assign({isNode: true, desc: args.desc}, args.item)));
     api.registerNode(new api.Node(itemstring, Object.assign(texOverlay, args.node)));
   }
+  function itemstringGuessName(str) {
+    if(str.indexOf(":") != -1) {
+      str = str.substring(str.indexOf(":") + 1);
+    }
+    var words = str.split("_");
+    var out = [];
+    for(var i = 0; i < words.length; i++) {
+      out.push(words[i].charAt(0).toUpperCase() + words[i].slice(1));
+    }
+    
+    return out.join(" ");
+  }
   
   //---NODES---
   registerNodeHelper("default:dirt", {
@@ -57,48 +69,72 @@
     node: {groups: {crumbly: 1}, drops: "default:dirt"}
   });
   
-  registerNodeHelper("default:stone", {
-    desc: "Stone",
-    tex: {texAll: "default_stone.png"},
-    icon: "default_stone.png",
-    node: {groups: {cracky: 1}, drops: "default:cobble"},
-    item: {groups: {stone: null}}
-  });
-  registerNodeHelper("default:cobble", {
-    desc: "Cobblestone",
-    tex: {texAll: "default_cobble.png"},
-    icon: "default_cobble.png",
-    node: {groups: {cracky: 1}},
-    item: {groups: {stone: null}}
+  [
+    ["stone", "cobble", "stone_block", "stone_brick"],
+    ["desert_stone", "desert_cobble", "desert_stone_block", "desert_stone_brick"]
+  ].forEach(function(names) {
+    registerNodeHelper("default:" + names[0], {
+      desc: itemstringGuessName(names[0]),
+      tex: {texAll: "default_" + names[0] + ".png"},
+      icon: "default_" + names[0] + ".png",
+      node: {groups: {cracky: 1}, drops: "default:" + names[1]},
+      item: {groups: {stone: null}}
+    });
+    registerNodeHelper("default:" + names[1], {
+      desc: itemstringGuessName(names[1]) + "stone",
+      tex: {texAll: "default_" + names[1] + ".png"},
+      icon: "default_" + names[1] + ".png",
+      node: {groups: {cracky: 1}},
+      item: {groups: {stone: null}}
+    });
+    api.registerCraft(new api.CraftEntry("default:" + names[0], ["default:" + names[1]], {shape: null, type: "cook", cookTime: 4}));
+    registerNodeHelper("default:" + names[2], {
+      desc: itemstringGuessName(names[2]),
+      tex: {texAll: "default_" + names[2] + ".png"},
+      icon: "default_" + names[2] + ".png",
+      node: {groups: {cracky: 2}}
+    });
+    api.registerCraft(new api.CraftEntry("default:" + names[2] + " 9", Array(9).fill("default:" + names[0]), {shape: {x: 3, y: 3}}));
+    registerNodeHelper("default:" + names[3], {
+      desc: itemstringGuessName(names[3]),
+      tex: {texAll: "default_" + names[3] + ".png"},
+      icon: "default_" + names[3] + ".png",
+      node: {groups: {cracky: 2}}
+    });
+    api.registerCraft(new api.CraftEntry("default:" + names[3] + " 4", Array(4).fill("default:" + names[0]), {shape: {x: 2, y: 2}}));
   });
   
-  registerNodeHelper("default:wood", {
-    desc: "Wood Planks",
-    tex: {texAll: "default_wood.png"},
-    icon: "default_wood.png",
-    node: {groups: {choppy: 1}},
-    item: {groups: {wood: null}}
-  });
-  
-  registerNodeHelper("default:tree", {
-    desc: "Tree",
-    tex: {texTop: "default_tree_top.png", texBottom: "default_tree_top.png", texSides: "default_tree.png"},
-    icon: "default_tree.png",
-    node: {groups: {choppy: 2}},
-    item: {groups: {tree: null}}
-  });
-  api.registerCraft(new api.CraftEntry(
-    "default:wood 4",
-    ["default:tree"],
-    {shape: null}
-  ));
-  
-  registerNodeHelper("default:leaves", {
-    desc: "Leaves",
-    tex: {texAll: "default_leaves.png"},
-    icon: "default_leaves.png",
-    node: {groups: {snappy: 1}, transparent: true, passSunlight: false},
-    item: {groups: {leaves: null}}
+  [
+    ["wood", "tree", "leaves"],
+    ["acacia_wood", "acacia_tree", "acacia_leaves"],
+    ["aspen_wood", "aspen_tree", "aspen_leaves"],
+    ["jungle_wood", "jungle_tree", "jungle_leaves"],
+    ["pine_wood", "pine_tree", "pine_needles"]
+  ].forEach(function(names) {
+    registerNodeHelper("default:" + names[0], {
+      desc: itemstringGuessName(names[0]) + " Planks",
+      tex: {texAll: "default_" + names[0] + ".png"},
+      icon: "default_" + names[0] + ".png",
+      node: {groups: {choppy: 1}},
+      item: {groups: {wood: null}}
+    });
+    
+    registerNodeHelper("default:" + names[1], {
+      desc: itemstringGuessName(names[1]),
+      tex: {texTop: "default_" + names[1] + "_top.png", texBottom: "default_" + names[1] + "_top.png", texSides: "default_" + names[1] + ".png"},
+      icon: "default_" + names[1] + ".png",
+      node: {groups: {choppy: 2}},
+      item: {groups: {tree: null}}
+    });
+    api.registerCraft(new api.CraftEntry("default:" + names[0] + " 4", ["default:" + names[1]], {shape: null}));
+    
+    registerNodeHelper("default:" + names[2], {
+      desc: itemstringGuessName(names[2]),
+      tex: {texAll: "default_" + names[2] + ".png"},
+      icon: "default_" + names[2] + ".png",
+      node: {groups: {snappy: 1}, transparent: true, passSunlight: false},
+      item: {groups: {leaves: null}}
+    });
   });
   
   
@@ -111,6 +147,14 @@
     node: {groups: {cracky: 2}, drops: "default:lump_coal"}
   });
   api.registerItem(new api.Item("default:lump_coal", {desc: "Coal Lump", iconFile: modpath + "/icons/default_lump_coal.png"}));
+  registerNodeHelper("default:coal_block", {
+    desc: "Coal Block",
+    tex: {texAll: "default_coal_block.png"},
+    icon: "default_coal_block.png",
+    node: {groups: {cracky: 2}}
+  });
+  api.registerCraft(new api.CraftEntry("default:coal_block", Array(9).fill("default:lump_coal"), {shape: {x: 3, y: 3}}));
+  api.registerCraft(new api.CraftEntry("default:lump_coal 9", ["default:coal_block"], {shape: null}));
   
   registerNodeHelper("default:ore_iron", {
     desc: "Iron Ore",
@@ -121,6 +165,14 @@
   api.registerItem(new api.Item("default:lump_iron", {desc: "Iron Lump", iconFile: modpath + "/icons/default_lump_iron.png"}));
   api.registerItem(new api.Item("default:ingot_iron", {desc: "Iron Ingot", iconFile: modpath + "/icons/default_ingot_iron.png"}));
   api.registerCraft(new api.CraftEntry("default:ingot_iron", ["default:lump_iron"], {shape: null, type: "cook", cookTime: 4}));
+  registerNodeHelper("default:iron_block", {
+    desc: "Iron Block",
+    tex: {texAll: "default_iron_block.png"},
+    icon: "default_iron_block.png",
+    node: {groups: {cracky: 3}}
+  });
+  api.registerCraft(new api.CraftEntry("default:iron_block", Array(9).fill("default:ingot_iron"), {shape: {x: 3, y: 3}}));
+  api.registerCraft(new api.CraftEntry("default:ingot_iron 9", ["default:iron_block"], {shape: null}));
   
   registerNodeHelper("default:ore_gold", {
     desc: "Gold Ore",
@@ -131,6 +183,14 @@
   api.registerItem(new api.Item("default:lump_gold", {desc: "Gold Lump", iconFile: modpath + "/icons/default_lump_gold.png"}));
   api.registerItem(new api.Item("default:ingot_gold", {desc: "Gold Ingot", iconFile: modpath + "/icons/default_ingot_gold.png"}));
   api.registerCraft(new api.CraftEntry("default:ingot_gold", ["default:lump_gold"], {shape: null, type: "cook", cookTime: 4}));
+  registerNodeHelper("default:gold_block", {
+    desc: "Gold Block",
+    tex: {texAll: "default_gold_block.png"},
+    icon: "default_gold_block.png",
+    node: {groups: {cracky: 3}}
+  });
+  api.registerCraft(new api.CraftEntry("default:gold_block", Array(9).fill("default:ingot_gold"), {shape: {x: 3, y: 3}}));
+  api.registerCraft(new api.CraftEntry("default:ingot_gold 9", ["default:gold_block"], {shape: null}));
   
   registerNodeHelper("default:ore_diamond", {
     desc: "Diamond Ore",
@@ -139,6 +199,14 @@
     node: {groups: {cracky: 3}, drops: "default:diamond"}
   });
   api.registerItem(new api.Item("default:diamond", {desc: "Diamond", iconFile: modpath + "/icons/default_diamond.png"}));
+  registerNodeHelper("default:diamond_block", {
+    desc: "Diamond Block",
+    tex: {texAll: "default_diamond_block.png"},
+    icon: "default_diamond_block.png",
+    node: {groups: {cracky: 3}}
+  });
+  api.registerCraft(new api.CraftEntry("default:diamond_block", Array(9).fill("default:diamond"), {shape: {x: 3, y: 3}}));
+  api.registerCraft(new api.CraftEntry("default:diamond 9", ["default:diamond_block"], {shape: null}));
   
   
   
@@ -496,4 +564,57 @@
     icon: "default_water_source.png",
     node: {transparent: true, walkable: true, isFluid: true, joined: true}
   });
+  
+  
+  //---sand, sandstone, sandstone block, sandstone brick (+ same for silver sand)---
+  ["sand", "silver_sand", "desert_sand"].forEach(nodeName => registerNodeHelper("default:" + nodeName, {
+    desc: itemstringGuessName(nodeName),
+    tex: {texAll: "default_" + nodeName + ".png"},
+    icon: "default_" + nodeName + ".png",
+    node: {groups: {crumbly: 1}},
+    item: {groups: {sand: null}}
+  }));
+  
+  var sandBlocks1 = [
+    "sandstone", "silver_sandstone", "desert_sandstone"
+  ];
+  sandBlocks1.forEach(nodeName => registerNodeHelper("default:" + nodeName, {
+    desc: itemstringGuessName(nodeName),
+    tex: {texAll: "default_" + nodeName + ".png"},
+    icon: "default_" + nodeName + ".png",
+    node: {groups: {crumbly: 3, cracky: 1}},
+    item: {groups: {sandstone: null}}
+  }));
+  var sandBlocks2 = [
+    "sandstone_block", "sandstone_brick",
+    "silver_sandstone_block", "silver_sandstone_brick",
+    "desert_sandstone_block", "desert_sandstone_brick"
+  ];
+  sandBlocks2.forEach(nodeName => registerNodeHelper("default:" + nodeName, {
+    desc: itemstringGuessName(nodeName),
+    tex: {texAll: "default_" + nodeName + ".png"},
+    icon: "default_" + nodeName + ".png",
+    node: {groups: {crumbly: 3, cracky: 1}}
+  }));
+  api.registerCraft(new api.CraftEntry("default:sandstone", Array(4).fill("default:sand"), {shape: {x: 2, y: 2}}));
+  api.registerCraft(new api.CraftEntry("default:sand 4", ["default:sandstone"], {shape: null}));
+  api.registerCraft(new api.CraftEntry("default:sandstone_block 9", Array(9).fill("default:sandstone"), {shape: {x: 3, y: 3}}));
+  api.registerCraft(new api.CraftEntry("default:sandstone_brick 4", Array(4).fill("default:sandstone"), {shape: {x: 2, y: 2}}));
+  api.registerCraft(new api.CraftEntry("default:silver_sandstone", Array(4).fill("default:silver_sand"), {shape: {x: 2, y: 2}}));
+  api.registerCraft(new api.CraftEntry("default:silver_sand 4", ["default:silver_sandstone"], {shape: null}));
+  api.registerCraft(new api.CraftEntry("default:silver_sandstone_block 9", Array(9).fill("default:silver_sandstone"), {shape: {x: 3, y: 3}}));
+  api.registerCraft(new api.CraftEntry("default:silver_sandstone_brick 4", Array(4).fill("default:silver_sandstone"), {shape: {x: 2, y: 2}}));
+  api.registerCraft(new api.CraftEntry("default:desert_sandstone", Array(4).fill("default:desert_sand"), {shape: {x: 2, y: 2}}));
+  api.registerCraft(new api.CraftEntry("default:desert_sand 4", ["default:desert_sandstone"], {shape: null}));
+  api.registerCraft(new api.CraftEntry("default:desert_sandstone_block 9", Array(9).fill("default:desert_sandstone"), {shape: {x: 3, y: 3}}));
+  api.registerCraft(new api.CraftEntry("default:desert_sandstone_brick 4", Array(4).fill("default:desert_sandstone"), {shape: {x: 2, y: 2}}));
+  
+  //---glass---
+  registerNodeHelper("default:glass", {
+    desc: "Glass",
+    tex: {texAll: "default_glass.png"},
+    icon: "default_glass.png",
+    node: {groups: {cracky: 1}, transparent: true, joined: true}
+  });
+  api.registerCraft(new api.CraftEntry("default:glass", ["group:sand"], {shape: null, type: "cook", cookTime: 3}));
 })();

@@ -46,12 +46,12 @@
 
 ## Crafting
 
-* Arbitrary-shape recipies
 * Shapeless recipies
 
 
 ## Inventory
 
+* Shift-click/shift-right-click/scroll/etc.
 * Fix give to respect maxStack?
 
 

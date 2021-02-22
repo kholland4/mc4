@@ -133,6 +133,9 @@ class Inventory {
   setList(name, data) {
     return this._setList(name, data);
   }
+  getListLength(name) {
+    return this.getList(name).length;
+  }
   
   getStack(name, index) {
     return this._getStack(name, index);

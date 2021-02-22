@@ -54,6 +54,55 @@ function craftConsumeEntry(entry, inv, listName, listShape) {
           }
         }
       }
+    } else if(entry.shape.x <= listShape.x && entry.shape.y <= listShape.y) {
+      var done = false;
+      for(var xoff = 0; xoff <= (listShape.x - entry.shape.x); xoff++) {
+        for(var yoff = 0; yoff <= (listShape.y - entry.shape.y); yoff++) {
+          var fit = true;
+          for(var x = 0; x < listShape.x; x++) {
+            for(var y = 0; y < listShape.y; y++) {
+              if(x < xoff || y < yoff || x >= (xoff + entry.shape.x) || y >= (yoff + entry.shape.y)) {
+                //out of bounds of area being checked
+                if(list[y * listShape.x + x] != null) {
+                  fit = false;
+                  break;
+                }
+                continue;
+              }
+              var recipieStack = entry.list[(y - yoff) * entry.shape.x + (x - xoff)];
+              var listStack = list[y * listShape.x + x];
+              
+              if(recipieStack == null && listStack == null) { continue; }
+              if(recipieStack == null || listStack == null) { fit = false; break; }
+              if(!listStack.softTypeMatch(recipieStack)) { fit = false; break; }
+              if(listStack.count < recipieStack.count) { fit = false; break; }
+            }
+          }
+          
+          if(fit) {
+            for(var x = 0; x < entry.shape.x; x++) {
+              for(var y = 0; y < entry.shape.y; y++) {
+                var recipieStack = entry.list[y * entry.shape.x + x];
+                var listStack = list[(y + yoff) * listShape.x + x + xoff];
+                
+                if(recipieStack != null) {
+                  listStack.count -= recipieStack.count;
+                  if(listStack.count <= 0) {
+                    list[(y + yoff) * listShape.y + x + xoff] = null;
+                  }
+                }
+              }
+            }
+            
+            done = true;
+            break;
+          }
+        }
+        if(done) { break; }
+      }
+      if(!done) {
+        throw new Error("craft recipie fit not found, even though it should've been");
+      }
     }
   }
     
@@ -99,7 +148,6 @@ class CraftEntry {
     Object.assign(this, props);
   }
   
-  //TODO: arbitrary list shapes
   match(list, listShape) {
     if(this.shape != null && listShape != null) {
       if(this.shape.x == listShape.x && this.shape.y == listShape.y) {
@@ -111,6 +159,37 @@ class CraftEntry {
         }
         
         return true;
+      } else if(this.shape.x <= listShape.x && this.shape.y <= listShape.y) {
+        for(var xoff = 0; xoff <= (listShape.x - this.shape.x); xoff++) {
+          for(var yoff = 0; yoff <= (listShape.y - this.shape.y); yoff++) {
+            var fit = true;
+            for(var x = 0; x < listShape.x; x++) {
+              for(var y = 0; y < listShape.y; y++) {
+                if(x < xoff || y < yoff || x >= (xoff + this.shape.x) || y >= (yoff + this.shape.y)) {
+                  //out of bounds of area being checked
+                  if(list[y * listShape.x + x] != null) {
+                    fit = false;
+                    break;
+                  }
+                  continue;
+                }
+                var recipieStack = this.list[(y - yoff) * this.shape.x + (x - xoff)];
+                var listStack = list[y * listShape.x + x];
+                
+                if(recipieStack == null && listStack == null) { continue; }
+                if(recipieStack == null || listStack == null) { fit = false; break; }
+                if(!listStack.softTypeMatch(recipieStack)) { fit = false; break; }
+                if(listStack.count < recipieStack.count) { fit = false; break; }
+              }
+              if(!fit) { break; }
+            }
+            
+            if(fit) {
+              return true;
+            }
+          }
+        }
+        return false;
       }
     }
     

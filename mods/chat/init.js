@@ -163,6 +163,7 @@
       return "available commands: " + commands.join(" ");
     } else if(args.length >= 2) {
       var name = args[1];
+      if(!(name in mods.chat.commands) && !name.startsWith("/")) { name = "/" + name; }
       if(!(name in mods.chat.commands)) { return "unknown command '" + name + "'"; }
       
       var helptext = mods.chat.commands[name].helptext;
@@ -199,6 +200,12 @@
       return "teleported to " + api.util.fmtXYZ(api.player.pos);
     }
   }, "/tp <x>,<y>,<z> : teleport to a given position"));
+  
+  mods.chat.registerCommand(new mods.chat.ChatCommand("/clearinv", function(args) {
+    for(var i = 0; i < api.player.inventory.getListLength("main"); i++) {
+      api.player.inventory.setStack("main", i, null);
+    }
+  }, "/clearinv : remove all items from your main inventory"));
   
   
   

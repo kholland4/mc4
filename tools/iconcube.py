@@ -20,9 +20,9 @@
 
 import sys, pygame, time, math
 
-face1 = pygame.image.load(sys.argv[1])
-face2 = pygame.image.load(sys.argv[2])
-face3 = pygame.image.load(sys.argv[3])
+face1 = pygame.image.load(sys.argv[1]) # top face
+face2 = pygame.image.load(sys.argv[2]) # left face
+face3 = pygame.image.load(sys.argv[3]) # right face
 
 u = 160
 
