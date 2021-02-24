@@ -32,7 +32,7 @@
     
     for(var key in vars) {
       var currentVal = mods.gamemode[key];
-      if(currentVal == undefined) { api.modDebug("gamemode", "warn", "unable to set gamemode variable '" + key + "': does not exist"); continue; }
+      if(currentVal == undefined) { api.modDebug("gamemode", "warning", "unable to set gamemode variable '" + key + "': does not exist"); continue; }
       var newVal = vars[key];
       
       if(currentVal != newVal) {

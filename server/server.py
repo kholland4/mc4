@@ -18,14 +18,35 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import asyncio, websockets, time, json, math
+import asyncio, websockets, time, json, math, random
 
 MAPBLOCK_SIZE = (16, 16, 16)
+
+class Entity:
+    def __init__(self, ident):
+        self.id = ident
+        self.pos = {"x": 0, "y": 0, "z": 0}
+        self.vel = {"x": 0, "y": 0, "z": 0}
+        self.rot = {"x": 0, "y": 0, "z": 0, "w": 0}
+    def serialize(self):
+        return {
+            "id": self.id,
+            "pos": self.pos,
+            "vel": self.vel,
+            "rot": self.rot
+        }
+
+class UserState:
+    def __init__(self, websocket):
+        self.websocket = websocket
+        self.name = "user" + str(random.randint(100, 999))
+        self.entity = Entity(self.name)
 
 class Mapblock:
     def __init__(self, data):
         self.pos = {"x": data["pos"]["x"], "y": data["pos"]["y"], "z": data["pos"]["z"]}
         self.updateNum = data["updateNum"]
+        self.lightUpdateNum = data["lightUpdateNum"]
         self.lightNeedsUpdate = data["lightNeedsUpdate"]
         self.IDtoIS = data["IDtoIS"]
         self.IStoID = data["IStoID"]
@@ -47,7 +68,8 @@ def genMapblock(pos):
     
     res["pos"] = {"x": pos[0], "y": pos[1], "z": pos[2]}
     
-    res["updateNum"] = 0
+    res["updateNum"] = 1
+    res["lightUpdateNum"] = 0
     res["lightNeedsUpdate"] = 1
     
     res["IDtoIS"] = ["default:air", "default:dirt", "default:grass", "default:stone"]
@@ -92,11 +114,12 @@ def setMapblock(mapblock):
     cache[index] = mapblock
     
     mapblock.updateNum += 1
+    mapblock.lightNeedsUpdate = 2
     
     to_send.append(Message(json.dumps({
         "type": "req_mapblock",
         "data": mapblock.__dict__
-    }), [websocket]))
+    }))) #, [websocket]))
 
 def xyzToTuple(data):
     return (data["x"], data["y"], data["z"])
@@ -110,7 +133,7 @@ def setNode(pos, data):
     
     current = getMapblock(mb_pos)
     
-    current.data[local_pos[0]][local_pos[1]][local_pos[2]] = current.getNodeID(data["itemstring"]) #TODO - rotation
+    current.data[local_pos[0]][local_pos[1]][local_pos[2]] = (current.getNodeID(data["itemstring"]) & 65535) + ((data["rot"] & 255) << 16)
     
     if data["itemstring"] != "default:air":
         current.props["sunlit"] = False
@@ -126,17 +149,17 @@ class Message:
         self.data = data
         self.dest = dict.fromkeys(users, False)
         if ignore != None:
-            for websocket in ignore:
-                self.dest[websocket] = True
+            for userdata in ignore:
+                self.dest[userdata] = True
 
-async def producer(websocket):
+async def producer(userdata):
     while True:
         for item in to_send:
-            if websocket not in item.dest:
-                item.dest[websocket] = False
-            if item.dest[websocket]:
+            if userdata not in item.dest:
+                item.dest[userdata] = False
+            if item.dest[userdata]:
                 continue
-            item.dest[websocket] = True
+            item.dest[userdata] = True
             data = item.data
             
             done = True
@@ -150,9 +173,18 @@ async def producer(websocket):
             
             return data
         
-        await asyncio.sleep(0.1)
+        actions = []
+        for user in users:
+            if user.name != userdata.name:
+                actions.append({"type": "update", "data": user.entity.serialize()})
+        await userdata.websocket.send(json.dumps({
+            "type": "update_entities",
+            "actions": actions
+        }))
+        
+        await asyncio.sleep(0.2)
 
-async def consumer(websocket, message):
+async def consumer(userdata, message):
     #print("> " + message)
     
     data = json.loads(message)
@@ -164,10 +196,13 @@ async def consumer(websocket, message):
         s += str(data["data"]["pos"])
     elif data["type"] == "set_node":
         s += str(data["pos"]) + " " + str(data["data"])
-    print("> " + s)
+    elif data["type"] == "send_chat":
+        s += "[#" + data["channel"] + "] <" + userdata.name + "> " + data["message"]
+    if data["type"] != "set_player_pos":
+        print("> " + s)
     
     if data["type"] == "req_mapblock":
-        await websocket.send(json.dumps({
+        await userdata.websocket.send(json.dumps({
             "type": "req_mapblock",
             "data": getMapblock(xyzToTuple(data["pos"])).__dict__
         }))
@@ -175,31 +210,72 @@ async def consumer(websocket, message):
         setMapblock(Mapblock(data["data"]))
     elif data["type"] == "set_node":
         setNode(xyzToTuple(data["pos"]), data["data"])
+    elif data["type"] == "set_player_pos":
+        for c in ["x", "y", "z"]:
+            userdata.entity.pos[c] = data["pos"][c]
+        for c in ["x", "y", "z"]:
+            userdata.entity.vel[c] = data["vel"][c]
+        for c in ["x", "y", "z", "w"]:
+            userdata.entity.rot[c] = data["rot"][c]
+    elif data["type"] == "send_chat":
+        for user in users:
+            #if user.name != userdata.name:
+            await user.websocket.send(json.dumps({
+                "type": "send_chat",
+                "from": userdata.name,
+                "channel": data["channel"],
+                "message": data["message"]
+            }))
 
-async def consumer_handler(websocket, path):
-    async for message in websocket:
-        await consumer(websocket, message)
+async def consumer_handler(userdata, path):
+    async for message in userdata.websocket:
+        await consumer(userdata, message)
 
-async def producer_handler(websocket, path):
+async def producer_handler(userdata, path):
     while True:
-        message = await producer(websocket)
-        await websocket.send(message)
+        message = await producer(userdata)
+        await userdata.websocket.send(message)
 
-async def connect(websocket):
-    users.add(websocket)
+async def connect(userdata):
+    users.add(userdata)
+    entity_data = userdata.entity.serialize()
+    actions = []
+    for user in users:
+        if user.name != userdata.name:
+            await user.websocket.send(json.dumps({
+                "type": "update_entities",
+                "actions": [
+                    {"type": "create", "data": entity_data}
+                ]
+            }))
+            
+            actions.append({"type": "create", "data": user.entity.serialize()})
+    await userdata.websocket.send(json.dumps({
+        "type": "update_entities",
+        "actions": actions
+    }))
 
-async def disconnect(websocket):
-    users.remove(websocket)
+async def disconnect(userdata):
+    users.remove(userdata)
+    entity_data = userdata.entity.serialize()
+    for user in users:
+        if user.name != userdata.name:
+            await user.websocket.send(json.dumps({
+                "type": "update_entities",
+                "actions": [
+                    {"type": "delete", "data": entity_data}
+                ]
+            }))
 
 async def server(websocket, path):
-    await connect(websocket)
-    consumer_task = asyncio.ensure_future(consumer_handler(websocket, path))
-    producer_task = asyncio.ensure_future(producer_handler(websocket, path))
+    userdata = UserState(websocket)
+    await connect(userdata)
+    consumer_task = asyncio.ensure_future(consumer_handler(userdata, path))
+    producer_task = asyncio.ensure_future(producer_handler(userdata, path))
     done, pending = await asyncio.wait([consumer_task, producer_task], return_when=asyncio.FIRST_COMPLETED)
     for task in pending:
         task.cancel()
-    await disconnect(websocket)
-
+    await disconnect(userdata)
 
 start_server = websockets.serve(server, port=8080)
 

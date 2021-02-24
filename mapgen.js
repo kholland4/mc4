@@ -42,6 +42,7 @@ class MapBlock {
     this.props = {sunlit: false};
     
     this.updateNum = 0;
+    this.lightUpdateNum = 0;
     this.lightNeedsUpdate = 1; //0 none, 1 just this, 2 this and surrounding
     this._renderNeedsUpdate = 0;
   }

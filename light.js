@@ -160,7 +160,7 @@ class LightWorker {
           //FIXME
           for(var y = updateBox.max.y * size.y + size.y; y <= updateBox.max.y * size.y + size.y * 4; y++) {
             var p = new THREE.Vector3(x + pos.x * size.x, y + pos.y * size.y, z + pos.z * size.z);
-            var def = server.getNode(p).getDef();
+            var def = server.getNode(p).getDef(); //FIXME may return null
             if(!def.passSunlight) { break; }
             if(((y % size.y) + size.y) % size.y == 0) {
               var mb = server.getMapBlock(globalToMapBlock(p));

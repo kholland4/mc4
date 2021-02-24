@@ -109,7 +109,7 @@
           var itemstring = allItemStrings[i];
           var def = api.getItemDef(itemstring);
           if(def == null) {
-            api.modDebug("inventory", "warn", "creative inventory: unable to retrieve definition for '" + itemstring + "'");
+            api.modDebug("inventory", "warning", "creative inventory: unable to retrieve definition for '" + itemstring + "'");
             continue;
           }
           if(!def.inCreativeInventory) { continue; }

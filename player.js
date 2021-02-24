@@ -31,6 +31,8 @@ class Player {
     this.creativeDigPlace = false;
     
     this.boundingBox = new THREE.Box3(new THREE.Vector3(-0.3, -1.5, -0.3), new THREE.Vector3(0.3, 0.3, 0.3));
+    
+    this.updateHooks = [];
   }
   
   tick(tscale) {
@@ -85,6 +87,14 @@ class Player {
         }
       }
     }*/
+    
+    this.updateHooks.forEach(function(hook) {
+      hook(this.pos, this.vel, this.rot);
+    }.bind(this));
+  }
+  
+  registerUpdateHook(hook) {
+    this.updateHooks.push(hook);
   }
   
   collide(box) {

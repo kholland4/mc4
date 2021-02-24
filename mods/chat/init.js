@@ -54,7 +54,15 @@
   mods.chat.inputbox.spellcheck = false;
   mods.chat.inputbox.onkeydown = function(e) {
     if(e.key == "Enter") {
-      mods.chat.execCommand(this.value);
+      if(this.value.startsWith("/")) {
+        mods.chat.execCommand(this.value);
+      } else {
+        server.sendMessage({
+          type: "send_chat",
+          channel: "main",
+          message: this.value
+        });
+      }
       mods.chat.hideInput();
     }
   };
@@ -63,7 +71,7 @@
   mods.chat.updateDom = function() {
     //TODO: config
     var res = [];
-    var cutoff = api.debugTimestamp() - 10;
+    var cutoff = api.debugTimestamp() - 25;
     for(var i = mods.chat.displayBuf.length - 1; i >= 0 && res.length < 7; i--) {
       if(mods.chat.displayBuf[i].time > cutoff) {
         res.unshift(mods.chat.displayBuf[i].str);
@@ -224,4 +232,10 @@
     //TODO: awareness of time?
     mods.chat.print(backlog[i].fmt());
   }
+  
+  
+  
+  api.server.registerMessageHook("send_chat", function(data) {
+    mods.chat.print("[#" + data["channel"] + "] <" + data["from"] + "> " + data["message"]);
+  });
 })();

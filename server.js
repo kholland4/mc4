@@ -16,9 +16,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+var SERVER_REMOTE_UPDATE_INTERVAL = 0.2; //how often to send updates about, i. e., the player position to the remote server
+
 class ServerBase {
   constructor() {
-    
+    this.entities = {};
+    this.messageHooks = {};
   }
   
   addPlayer(player) {
@@ -136,7 +139,28 @@ class ServerBase {
     return new Inventory();
   }
   
+  onFrame(tscale) {}
+  
   get ready() { return true; }
+  
+  addEntity(entity) {
+    this.entities[entity.id] = entity;
+  }
+  removeEntity(entity) {
+    delete this.entities[entity.id];
+  }
+  getEntityById(id) {
+    return this.entities[id];
+  }
+  
+  registerMessageHook(type, hook) {
+    if(!(type in this.messageHooks)) {
+      this.messageHooks[type] = [];
+    }
+    this.messageHooks[type].push(hook);
+  }
+  
+  sendMessage(obj) {}
 }
 
 class ServerLocal extends ServerBase {
@@ -155,6 +179,11 @@ class ServerLocal extends ServerBase {
     inv.setList("main", new Array(32).fill(null));
     inv.setList("craft", new Array(9).fill(null));
     inv.setList("hand", new Array(1).fill(null));
+    
+    var playerEntity = new Entity();
+    playerEntity.updatePosVelRot(player.pos, player.vel, player.rot);
+    player.registerUpdateHook(playerEntity.updatePosVelRot.bind(playerEntity));
+    server.addEntity(playerEntity);
   }
   
   getMapBlock(pos, needLight=false) {
@@ -241,10 +270,14 @@ class ServerRemote extends ServerBase {
         
         var mapBlock = new MapBlock(new THREE.Vector3(mdata.pos.x, mdata.pos.y, mdata.pos.z));
         mapBlock.updateNum = mdata.updateNum;
+        mapBlock.lightUpdateNum = mdata.lightUpdateNum;
         mapBlock.lightNeedsUpdate = mdata.lightNeedsUpdate;
         if(index in this.cache) {
           if(mapBlock.updateNum != this.cache[index].updateNum) {
-            mapBlock.renderNeedsUpdate = 2;
+            mapBlock.renderNeedsUpdate = 2; //getMapBlock will force the lighting to be updated (if lightNeedsUpdate is set) before the render update can happen
+          } else if(mapBlock.lightUpdateNum != this.cache[index].lightUpdateNum) {
+            //FIXME
+            renderQueueLightingUpdate(mapBlock.pos);
           }
         } else {
           mapBlock.renderNeedsUpdate = 1;
@@ -259,6 +292,24 @@ class ServerRemote extends ServerBase {
         //if(mapBlock.lightNeedsUpdate > 0 && needLight) {
         //  lightQueueUpdate(mapBlock.pos);
         //}
+      } else if(data.type == "update_entities") {
+        data.actions.forEach(function(action) {
+          if(action.type == "create") {
+            this.addEntity(new Entity(action.data));
+          } else if(action.type == "delete") {
+            var entity = this.getEntityById(action.data.id);
+            this.removeEntity(entity);
+            entity.destroy();
+          } else if(action.type == "update") {
+            this.getEntityById(action.data.id).update(action.data);
+          }
+        }.bind(this));
+      }
+      
+      if(data.type in this.messageHooks) {
+        for(var i = 0; i < this.messageHooks[data.type].length; i++) {
+          this.messageHooks[data.type][i](data);
+        }
       }
     }.bind(this);
     
@@ -268,23 +319,43 @@ class ServerRemote extends ServerBase {
     this.saved = {};
     
     this.requests = [];
+    
+    this.player = null;
+    this.timeSinceUpdateSent = 0;
   }
   
   //TODO: support multiple players
   addPlayer(player) {
+    this.player = player;
+    
     var inv = this.getInventory(player);
     
     inv.setList("main", new Array(32).fill(null));
     inv.setList("craft", new Array(9).fill(null));
     inv.setList("hand", new Array(1).fill(null));
+    
+    var playerEntity = new Entity();
+    playerEntity.updatePosVelRot(player.pos, player.vel, player.rot);
+    player.registerUpdateHook(playerEntity.updatePosVelRot.bind(playerEntity));
+    server.addEntity(playerEntity);
   }
   
   getMapBlock(pos, needLight=false) {
     var index = pos.x + "," + pos.y + "," + pos.z;
     if(index in this.saved) {
-      return this.saved[index];
+      var mapBlock = this.saved[index];
+      if(mapBlock.lightNeedsUpdate > 0 && needLight) {
+        lightQueueUpdate(mapBlock.pos);
+        return null;
+      }
+      return mapBlock;
     } else if(index in this.cache) {
-      return this.cache[index];
+      var mapBlock = this.cache[index];
+      if(mapBlock.lightNeedsUpdate > 0 && needLight) {
+        lightQueueUpdate(mapBlock.pos);
+        return null;
+      }
+      return mapBlock;
     } else {
       if(!this._socketReady) { return null; }
       
@@ -322,7 +393,7 @@ class ServerRemote extends ServerBase {
     var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot);
     mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
     if(nodeData.itemstring != "default:air") { mapBlock.props.sunlit = false; }
-    mapBlock.markDirty();
+    //mapBlock.markDirty(); FIXME -- not using this increases latency
     //FIXME
     /*if(localPos.x == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0))).markDirty(); } else
     if(localPos.x == MAPBLOCK_SIZE.x - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(1, 0, 0))).markDirty(); }
@@ -382,6 +453,28 @@ class ServerRemote extends ServerBase {
   
   get ready() {
     return this._socketReady && this._invReady;
+  }
+  
+  onFrame(tscale) {
+    this.timeSinceUpdateSent += tscale;
+    if(this.timeSinceUpdateSent > SERVER_REMOTE_UPDATE_INTERVAL) {
+      if(this._socketReady) {
+        if(this.player != null) {
+          this.socket.send(JSON.stringify({
+            type: "set_player_pos",
+            pos: {x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z},
+            vel: {x: this.player.vel.x, y: this.player.vel.y, z: this.player.vel.z},
+            rot: {x: this.player.rot.x, y: this.player.rot.y, z: this.player.rot.z, w: this.player.rot.w}
+          }));
+        }
+      }
+      
+      this.timeSinceUpdateSent = 0;
+    }
+  }
+  
+  sendMessage(obj) {
+    this.socket.send(JSON.stringify(obj));
   }
 }
 

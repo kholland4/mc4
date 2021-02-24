@@ -129,6 +129,8 @@ function init() {
     //whoops
   }
   
+  api.server = server;
+  
   player = new Player();
   server.addPlayer(player);
   
@@ -370,6 +372,8 @@ function animate() {
   
   player.tick(frameTime);
   camera.position.copy(player.pos);
+  
+  server.onFrame(frameTime);
   
   lightUpdate();
   renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
