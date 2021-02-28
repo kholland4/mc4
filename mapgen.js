@@ -19,12 +19,12 @@
 var MAPBLOCK_SIZE = new THREE.Vector3(16, 16, 16);
 
 class MapBlock {
-  constructor(pos) {
+  constructor(pos, content="air") {
     this.pos = pos;
     this.size = MAPBLOCK_SIZE;
     
-    this.IDtoIS = ["default:air"];
-    this.IStoID = {"default:air": 0};
+    this.IDtoIS = [content];
+    this.IStoID = {content: 0};
     
     this.data = [];
     for(var x = 0; x < this.size.x; x++) {

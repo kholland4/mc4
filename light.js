@@ -178,7 +178,7 @@ class LightWorker {
           var rz = z - mbPos.z * size.z;
           
           var d = blocks[blockIndex].data[rx][ry][rz];
-          var id = d & 65535;
+          var id = d & 32767;
           
           var def = nodeDef[blockIndex][id];
           
@@ -188,7 +188,7 @@ class LightWorker {
           
           if(!def.passSunlight) { hasSun = false; }
           
-          var rot = (d >> 16) & 127;
+          var rot = (d >> 15) & 255;
           var light = (d >> 23) & 255;
           
           var sunlight = 0;
@@ -204,7 +204,7 @@ class LightWorker {
           
           light = (sunlight << 4) | l;
           
-          blocks[blockIndex].data[rx][ry][rz] = id | (rot << 16) | (light << 23);
+          blocks[blockIndex].data[rx][ry][rz] = id | (rot << 15) | (light << 23);
         }
       }
     }
@@ -221,19 +221,19 @@ class LightWorker {
       var rz = pos.z - mbPos.z * MAPBLOCK_SIZE.z;
       
       var d = blocks[blockIndex].data[rx][ry][rz];
-      var id = d & 65535;
+      var id = d & 32767;
       
       var def = nodeDef[blockIndex][id];
       
       if(def.transparent) {
-        var rot = (d >> 16) & 127;
+        var rot = (d >> 15) & 255;
         var light = (d >> 23) & 255;
         
         if(lightLevel > (light & 0xF)) {
           light &= 0xF0;
           light |= lightLevel & 0xF;
           
-          blocks[blockIndex].data[rx][ry][rz] = id | (rot << 16) | (light << 23);
+          blocks[blockIndex].data[rx][ry][rz] = id | (rot << 15) | (light << 23);
           
           for(var face = 0; face < 6; face++) {
             lightCascade({x: pos.x + stdFaces[face].x, y: pos.y + stdFaces[face].y, z: pos.z + stdFaces[face].z}, lightLevel - 1);
@@ -275,8 +275,8 @@ class LightWorker {
       var mz = (mbz - dataBox.min.z) | 0;
       
       var d = blocksArr[mx][my][mz][rx][ry][rz] | 0;
-      var id = d & 65535;
-      var rot = (d >> 16) & 127;
+      var id = d & 32767;
+      var rot = (d >> 15) & 255;
       var light = (d >> 23) & 255;
       
       //--- FIXME
@@ -300,7 +300,7 @@ class LightWorker {
         }
         
         if(sv) {
-          blocksArr[mx][my][mz][rx][ry][rz] = id | (rot << 16) | (light << 23);
+          blocksArr[mx][my][mz][rx][ry][rz] = id | (rot << 15) | (light << 23);
           
           if(lightLevel - 1 > 1) {
             for(var face = 0; face < 6; face++) {

@@ -1,5 +1,5 @@
 class Entity {
-  #object
+  //#object
   
   constructor(data) {
     if(!data) { data = {}; }
@@ -15,8 +15,8 @@ class Entity {
     }
     
     var geometry = new THREE.SphereGeometry(0.4, 12, 12);
-    this.#object = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({color: Math.random() * 0xffffff}));
-    scene.add(this.#object);
+    this.object = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({color: Math.random() * 0xffffff}));
+    scene.add(this.object);
     
     this.update(data);
   }
@@ -26,7 +26,7 @@ class Entity {
     this.vel.copy(vel);
     this.rot.copy(rot);
     
-    this.#updateObject();
+    this.updateObject();
   }
   
   update(data) {
@@ -49,15 +49,15 @@ class Entity {
       this.rot.w = data.rot.w;
     }
     
-    this.#updateObject();
+    this.updateObject();
   }
   
   destroy() {
-    scene.remove(this.#object);
+    scene.remove(this.object);
   }
   
-  #updateObject() {
-    this.#object.position.copy(this.pos);
-    this.#object.quaternion.copy(this.rot);
+  updateObject() {
+    this.object.position.copy(this.pos);
+    this.object.quaternion.copy(this.rot);
   }
 }

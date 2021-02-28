@@ -62,8 +62,8 @@ class MapLocal extends MapBase {
   }
 }
 
-//Packed node data format:
-//| light||  rot||            id|
+//Packed node data format (8 bits for light, 8 for rot, and 15 for id):
+//| light||  rot ||           id|
 //322222222221111111111
 //0987654321098765432109876543210
 
@@ -72,16 +72,16 @@ class MapLocal extends MapBase {
 // 7 6 5 4 3 2 1 0
 
 function nodeID(n) {
-  return n & 65535;
+  return n & 32767;
 }
 function nodeRot(n) {
-  return (n >> 16) & 127;
+  return (n >> 15) & 255;
 }
 function nodeLight(n) {
   return (n >> 23) & 255;
 }
 function nodeN(id, rot=0, light=0) {
-  return (id & 65535) + ((rot & 127) << 16) + ((light & 255) << 23);
+  return (id & 32767) + ((rot & 255) << 15) + ((light & 255) << 23);
 }
 
 function globalToMapBlock(pos) {

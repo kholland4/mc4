@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.1.5";
+var VERSION = "0.1.6";
 
 var scene;
 var camera;
@@ -111,7 +111,8 @@ function init() {
     api.mouse.y = e.clientY;
   });
   
-  api.registerNode(new Node("default:air", {transparent: true, passSunlight: true, visible: false, walkable: true}));
+  api.registerNode(new Node("air", {transparent: true, passSunlight: true, visible: false, walkable: true}));
+  api.registerNode(new Node("ignore", {transparent: false, passSunlight: false, visible: false}));
   
   initTextures();
   initRenderer();
@@ -179,7 +180,7 @@ function init() {
             }
           }
           if(ok) {
-            if(server.getNode(placeSel).itemstring == "default:air") {
+            if(server.getNode(placeSel).itemstring == "air") {
               server.placeNode(player, placeSel);
               needsRaycast = true;
             }
@@ -331,7 +332,7 @@ function animate() {
       if(!destroySel.equals(digSel)) {
         digTimer = null;
         digSel = null;
-      } else if(server.getNode(digSel).itemstring == "default:air") {
+      } else if(server.getNode(digSel).itemstring == "air") {
         digTimer = null;
         digSel = null;
       }
@@ -339,7 +340,7 @@ function animate() {
   }
   if(isDigging && destroySel != null && digSel == null) {
     var nodeData = server.getNode(destroySel);
-    if(nodeData.itemstring != "default:air") {
+    if(nodeData.itemstring != "air") {
       digTimer = calcDigTime(nodeData, player.wield);
       if(digTimer != null) {
         digTimerStart = digTimer;
@@ -350,7 +351,7 @@ function animate() {
   if(digTimer != null) {
     digTimer -= frameTime;
     var nodeData = server.getNode(digSel);
-    if(digTimer <= DIG_PREEMPT_TIME && nodeData.itemstring != "default:air") {
+    if(digTimer <= DIG_PREEMPT_TIME && nodeData.itemstring != "air") {
       useTool(nodeData, player.inventory, "main", player.wieldIndex)
       server.digNode(player, digSel);
     } else if(digTimer <= 0) {

@@ -233,7 +233,7 @@ function renderUpdateMap(centerPos) {
     if(worker.ok) {
       if(mapBlock.renderNeedsUpdate > 1) {
         //FIXME bodge
-        for(var lx = -1; lx <= 1; lx++) {
+        /*for(var lx = -1; lx <= 1; lx++) {
           for(var ly = -1; ly <= 1; ly++) {
             for(var lz = -1; lz <= 1; lz++) {
               var adj = new THREE.Vector3(lx, ly, lz).add(mapBlock.pos);
@@ -243,6 +243,14 @@ function renderUpdateMap(centerPos) {
                 renderQueueLightingUpdate(adj);
               }
             }
+          }
+        }*/
+        for(var i = 0; i < 6; i++) {
+          var adj = new THREE.Vector3(mapBlock.pos.x + stdFaces[i].x, mapBlock.pos.y + stdFaces[i].y, mapBlock.pos.z + stdFaces[i].z);
+          var mb = server.getMapBlock(adj);
+          if(mb == null) { continue; }
+          if(mb.renderNeedsUpdate == 0) {
+            renderQueueUpdate(adj);
           }
         }
       }
@@ -380,7 +388,7 @@ function renderUpdateLighting(pos) {
     if(rz >= mapBlock.size.z) { d = blocks["0,0,1"].data[rx][ry][0]; } else
     { d = blocks["0,0,0"].data[rx][ry][rz]; }
     
-    var id = d & 65535;
+    var id = d & 32767;
     var lightRaw = (d >> 23) & 255;
     var light = Math.max(lightRaw & 15, Math.round(((lightRaw >> 4) & 15) * sunAmount));
     light = Math.max(light, 1);

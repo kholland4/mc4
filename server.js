@@ -60,7 +60,7 @@ class ServerBase {
     
     var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot);
     mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
-    if(nodeData.itemstring != "default:air") { mapBlock.props.sunlit = false; }
+    if(nodeData.itemstring != "air") { mapBlock.props.sunlit = false; }
     mapBlock.markDirty();
     //FIXME
     /*if(localPos.x == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0))).markDirty(); } else
@@ -93,7 +93,7 @@ class ServerBase {
       } else {
         player.inventory.give("main", stack);
       }
-      this.setNode(sel, new NodeData("default:air"));
+      this.setNode(sel, new NodeData("air"));
       
       debug("server", "log", "dig " + nodeData.itemstring + " at " + fmtXYZ(sel));
       
@@ -292,6 +292,8 @@ class ServerRemote extends ServerBase {
         //if(mapBlock.lightNeedsUpdate > 0 && needLight) {
         //  lightQueueUpdate(mapBlock.pos);
         //}
+        
+        console.log("recv_mapblock (" + index + ") updateNum=" + mdata.updateNum + " lightUpdateNum=" + mdata.lightUpdateNum + " lightNeedsUpdate=" + mdata.lightNeedsUpdate);
       } else if(data.type == "update_entities") {
         data.actions.forEach(function(action) {
           if(action.type == "create") {
@@ -304,6 +306,9 @@ class ServerRemote extends ServerBase {
             this.getEntityById(action.data.id).update(action.data);
           }
         }.bind(this));
+      } else if(data.type == "set_player_pos") {
+        this.player.pos.set(data.pos.x, data.pos.y, data.pos.z);
+        this.player.rot.set(data.rot.x, data.rot.y, data.rot.z, data.rot.w);
       }
       
       if(data.type in this.messageHooks) {
@@ -392,7 +397,7 @@ class ServerRemote extends ServerBase {
     
     var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot);
     mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
-    if(nodeData.itemstring != "default:air") { mapBlock.props.sunlit = false; }
+    if(nodeData.itemstring != "air") { mapBlock.props.sunlit = false; }
     //mapBlock.markDirty(); FIXME -- not using this increases latency
     //FIXME
     /*if(localPos.x == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0))).markDirty(); } else

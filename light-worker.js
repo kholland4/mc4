@@ -33,8 +33,8 @@ onmessage = function(e) {
         var rz = z + size.z;
         
         var d = data[rx][ry][rz];
-        var id = d & 65535;
-        var rot = (d >> 16) & 127;
+        var id = d & 32767;
+        var rot = (d >> 15) & 255;
         var light = (d >> 23) & 255;
         
         light = 0;
@@ -42,7 +42,7 @@ onmessage = function(e) {
           light = 10;
         }
         
-        data[rx][ry][rz] = id | (rot << 16) | (light << 23);
+        data[rx][ry][rz] = id | (rot << 15) | (light << 23);
       }
     }
   }
