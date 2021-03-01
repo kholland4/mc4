@@ -38,6 +38,7 @@ class Map {
     void update_mapblock_light(MapblockUpdateInfo info);
     void update_mapblock_light(Vector3<int> min_pos, Vector3<int> max_pos);
     void update_mapblock_light(std::set<Vector3<int>>);
+    void update_mapblock_light_optimized_singlenode_transparent(Vector3<int> mb_pos, Vector3<int> rel_pos);
     Vector3<int> containing_mapblock(Vector3<int> pos);
     MapblockUpdateInfo get_mapblockupdateinfo(Vector3<int> mb_pos);
   

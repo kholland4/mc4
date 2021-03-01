@@ -28,6 +28,7 @@
 #include <sstream>
 #include <set>
 #include <regex>
+#include <chrono>
 
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
@@ -389,7 +390,15 @@ class Server {
         } else if(type == "set_node") {
           Vector3<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"));
           Node node(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
+          
+          auto start = std::chrono::steady_clock::now();
+          
           map.set_node(pos, node);
+          
+          auto end = std::chrono::steady_clock::now();
+          auto diff = end - start;
+          
+          std::cout << "set_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
           
           log("Player '" + player->get_name() + "' places '" + node.itemstring + "' at " + pos.to_string());
           
