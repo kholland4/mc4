@@ -162,7 +162,7 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
     if(data_raw_len != MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z * sizeof(uint64_t)) {
       std::cerr << "Error in SQLiteDB::get_mapblock: unexpected mapblock data size" << std::endl;
       sqlite3_finalize(statement);
-      return new Mapblock(pos);
+      return mb;
     }
     const unsigned char *IDtoIS_raw = sqlite3_column_text(statement, 1);
     const unsigned char *IStoID_raw = sqlite3_column_text(statement, 2);
@@ -209,6 +209,10 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
     if(mb->light_needs_update == 0) {
       mb->light_needs_update = 1;
     }
+    
+    //Save to read cache.
+    Mapblock *mb_store = new Mapblock(*mb);
+    read_cache[pos] = mb_store;
   } else if(sqlite3_step(statement) != SQLITE_DONE) {
     std::cerr << "Error in SQLiteDB::get_mapblock: " << sqlite3_errmsg(db) << std::endl;
     sqlite3_finalize(statement);

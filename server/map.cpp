@@ -78,6 +78,8 @@ Mapblock* Map::get_mapblock(Vector3<int> mb_pos) {
   //The resultant mapblock will be sent to the database for caching,
   //but because it isn't marked as 'dirty', it shouldn't be stored to disk (it could be regenerated at any time).
   
+  delete mb;
+  
   Mapblock *new_mb = mapgen.generate_at(mb_pos);
   db.set_mapblock(mb_pos, new_mb);
   return new_mb;
