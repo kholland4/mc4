@@ -263,9 +263,21 @@ function renderUpdateMap(centerPos) {
   
   //FIXME
   for(var i = 0; i < RENDER_MAX_LIGHTING_UPDATES; i++) {
-    if(renderLightingUpdateQueue.length > 0) {
-      var pos = renderLightingUpdateQueue[0];
-      renderLightingUpdateQueue.splice(0, 1);
+    var ok_index = 0;
+    var ok = false;
+    if(ok_index < renderLightingUpdateQueue.length && !ok) {
+      ok = true;
+      for(var n = 0; n < renderWorkers.length; n++) {
+        if(renderWorkers[n].pos.equals(renderLightingUpdateQueue[ok_index])) {
+          ok_index++;
+          ok = false;
+          break;
+        }
+      }
+    }
+    if(ok) {
+      var pos = renderLightingUpdateQueue[ok_index];
+      renderLightingUpdateQueue.splice(ok_index, 1);
       
       var res = renderUpdateLighting(pos);
       if(res == false) {
