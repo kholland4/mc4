@@ -266,7 +266,13 @@ function renderUpdateMap(centerPos) {
     if(renderLightingUpdateQueue.length > 0) {
       var pos = renderLightingUpdateQueue[0];
       renderLightingUpdateQueue.splice(0, 1);
-      renderUpdateLighting(pos);
+      
+      var res = renderUpdateLighting(pos);
+      if(res == false) {
+        //WARNING: if the server never fetches the wanted mapblocks, the queue will become clogged.
+        //FIXME: work on other lighting queue items while waiting
+        renderQueueLightingUpdate(pos);
+      }
     }
   }
 }
