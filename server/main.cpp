@@ -27,6 +27,7 @@
 #include <map>
 #include <sstream>
 #include <set>
+#include <regex>
 
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
@@ -40,6 +41,8 @@
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+
+#include <boost/tokenizer.hpp>
 
 #include "vector.h"
 #include "json.h"
@@ -56,7 +59,7 @@ using websocketpp::lib::placeholders::_2;
 class PlayerState {
   public:
     PlayerState(connection_hdl hdl)
-        : auth(false), m_connection_hdl(hdl), m_tag(boost::uuids::random_generator()())
+        : auth(false), m_connection_hdl(hdl), m_tag(boost::uuids::random_generator()()), m_name(get_tag())
     {
       
     }
@@ -73,7 +76,11 @@ class PlayerState {
     }
     
     std::string get_name() const {
-      return get_tag();
+      return m_name;
+    }
+    
+    void set_name(std::string new_name) {
+      m_name = new_name;
     }
     
     std::string pos_as_json() {
@@ -235,6 +242,7 @@ class PlayerState {
   private:
     connection_hdl m_connection_hdl;
     boost::uuids::uuid m_tag;
+    std::string m_name;
 };
 
 class Server {
@@ -273,17 +281,71 @@ class Server {
     }
     
     std::string status() const {
-      std::string s = "Server v" + std::string(VERSION) + "; " + std::to_string(m_players.size()) + " players {";
+      std::string s = "-- Server v" + std::string(VERSION) + "; " + std::to_string(m_players.size()) + " players {";
       
+      bool first = true;
       for(auto const& x : m_players) {
-        s += x.second->get_tag() + ", ";
+        if(!first) { s += ", "; }
+        first = false;
+        s += x.second->get_name();
       }
       
       s += "}";
       
+      if(motd != "") {
+        s += "\n" + motd;
+      }
+      
       return s;
     }
-  
+    
+    void chat_send(std::string channel, std::string from, std::string message) {
+      log("[#" + channel + "] <" + from + "> " + message);
+      
+      std::ostringstream broadcast;
+      broadcast << "{\"type\":\"send_chat\","
+                << "\"from\":\"" << json_escape(from) << "\","
+                << "\"channel\":\"" << json_escape(channel) << "\","
+                << "\"message\":\"" << json_escape(message) << "\"}";
+      std::string broadcast_str = broadcast.str();
+      
+      for(auto p : m_players) {
+        PlayerState *receiver = p.second;
+        receiver->send(broadcast_str, m_server);
+      }
+    }
+    
+    void chat_send(std::string channel, std::string message) {
+      log("[#" + channel + "] " + message);
+      
+      std::ostringstream broadcast;
+      broadcast << "{\"type\":\"send_chat\","
+                << "\"channel\":\"" << json_escape(channel) << "\","
+                << "\"message\":\"" << json_escape(message) << "\"}";
+      std::string broadcast_str = broadcast.str();
+      
+      for(auto p : m_players) {
+        PlayerState *receiver = p.second;
+        receiver->send(broadcast_str, m_server);
+      }
+    }
+    
+    void chat_send_player(PlayerState *player, std::string channel, std::string message) {
+      log("(to " + player->get_name() + ") [#" + channel + "] " + message);
+      
+      std::ostringstream broadcast;
+      broadcast << "{\"type\":\"send_chat\","
+                << "\"channel\":\"" << json_escape(channel) << "\","
+                << "\"message\":\"" << json_escape(message) << "\","
+                << "\"private\":true}";
+      std::string broadcast_str = broadcast.str();
+      
+      player->send(broadcast_str, m_server);
+    }
+    
+    void set_motd(std::string new_motd) {
+      motd = new_motd;
+    }
   private:
     void on_message(connection_hdl hdl, websocketpp::config::asio::message_type::ptr msg) {
       //std::cout << "on_message: " << msg->get_payload() << std::endl;
@@ -329,7 +391,7 @@ class Server {
           Node node(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
           map.set_node(pos, node);
           
-          log("Player '" + player->get_tag() + "' places '" + node.itemstring + "' at " + pos.to_string());
+          log("Player '" + player->get_name() + "' places '" + node.itemstring + "' at " + pos.to_string());
           
           Vector3<int> mb_pos = map.containing_mapblock(pos);
           Vector3<int> min_pos = mb_pos - Vector3<int>(1, 1, 1);
@@ -354,18 +416,47 @@ class Server {
           //TODO: validate channel, access control, etc.
           //TODO: any other anti-abuse validation (player name and channel character set restrictions, length limits, etc.)
           
-          log("[#" + channel + "] <" + from + "> " + message);
+          chat_send(channel, from, message);
+        } else if(type == "chat_command") {
+          std::string command = pt.get<std::string>("command");
           
-          std::ostringstream broadcast;
-          broadcast << "{\"type\":\"send_chat\","
-                    << "\"from\":\"" << json_escape(from) << "\","
-                    << "\"channel\":\"" << json_escape(channel) << "\","
-                    << "\"message\":\"" << json_escape(message) << "\"}";
-          std::string broadcast_str = broadcast.str();
+          std::vector<std::string> tokens;
+          boost::char_separator<char> sep(" ", "");
+          boost::tokenizer<boost::char_separator<char>> tokenizer(command, sep);
+          for(boost::tokenizer<boost::char_separator<char>>::iterator it = tokenizer.begin(); it != tokenizer.end(); ++it) {
+            tokens.push_back(*it);
+          }
           
-          for(auto p : m_players) {
-            PlayerState *receiver = p.second;
-            receiver->send(broadcast_str, m_server);
+          if(tokens.size() < 1) {
+            chat_send_player(player, "server", "invalid command: empty input");
+            return;
+          }
+          
+          std::string command_name = tokens[0];
+          
+          //TODO use a table of class instances or something
+          
+          if(tokens[0] == "/nick") {
+            if(tokens.size() != 2) {
+              chat_send_player(player, "server", "invalid command: wrong number of args, expected '/nick <new_nickname>'");
+              return;
+            }
+            
+            std::string new_nick = tokens[1];
+            
+            std::regex nick_allow("^[a-zA-Z0-9\\-_]+$");
+            if(!std::regex_match(new_nick, nick_allow)) {
+              chat_send_player(player, "server", "invalid nickname: allowed characters are a-z A-Z 0-9 - _");
+              return;
+            }
+            
+            std::string old_nick = player->get_name();
+            player->set_name(new_nick);
+            chat_send("server", "*** " + old_nick + " changed name to " + new_nick);
+          } else if(tokens[0] == "/status") {
+            chat_send_player(player, "server", status());
+          } else {
+            chat_send_player(player, "server", "unknown command");
           }
         }
       } catch(std::exception const& e) {
@@ -387,6 +478,8 @@ class Server {
       player->prepare_nearby_mapblocks(2, map);
       
       log(player->get_tag() + " connected!");
+      chat_send_player(player, "server", status());
+      chat_send("server", "*** " + player->get_name() + " joined the server!");
     }
 
     void on_close(connection_hdl hdl) {
@@ -413,6 +506,7 @@ class Server {
       }
       
       log(player->get_tag() + " disconnected.");
+      chat_send("server", "*** " + player->get_name() + " left the server.");
       
       delete player;
     }
@@ -493,6 +587,7 @@ class Server {
     boost::asio::steady_timer m_timer;
     Database& db;
     Map map;
+    std::string motd;
 };
 
 int main() {
@@ -500,6 +595,8 @@ int main() {
   //MemoryDB db;
   MapgenDefault mapgen;
   Server server(db, mapgen);
+  
+  server.set_motd("-- Highly Experimental Test Server (tm)\n-- Use '/gamemode creative' for creative, '/nick new_nickname_here' to change your name, '/status' to view this message, '/help' for other commands");
   
   server.run(8080);
 }

@@ -35,7 +35,7 @@
   mods.chat.textbox.style.fontSize = "14px";
   mods.chat.textbox.style.fontFamily = "monospace";
   mods.chat.textbox.style.color = "white";
-  mods.chat.textbox.style.whiteSpace = "pre";
+  mods.chat.textbox.style.whiteSpace = "pre-wrap";
   mods.chat.dom.appendChild(mods.chat.textbox);
   
   mods.chat.inputbox = document.createElement("input");
@@ -157,7 +157,11 @@
       var out = mods.chat.commands[name].exec(s);
       mods.chat.print(out);
     } else {
-      mods.chat.print("unknown command '" + name + "'");
+      //mods.chat.print("unknown command '" + name + "'");
+      server.sendMessage({
+        type: "chat_command",
+        command: str
+      });
     }
   }
   
@@ -236,6 +240,22 @@
   
   
   api.server.registerMessageHook("send_chat", function(data) {
-    mods.chat.print("[#" + data["channel"] + "] <" + data["from"] + "> " + data["message"]);
+    var prefix = "[#" + data["channel"] + "] ";
+    if("private" in data) {
+      if(data["private"]) {
+        prefix = "[PM on #" + data["channel"] + "] ";
+      }
+    }
+    if("from" in data) {
+      prefix += "<" + data["from"] + "> ";
+    }
+    var justify = " ".repeat(prefix.length);
+    var res = prefix;
+    var lines = data["message"].split("\n");
+    for(var i = 0; i < lines.length; i++) {
+      if(i != 0) { res += "\n" + justify; }
+      res += lines[i];
+    }
+    mods.chat.print(res);
   });
 })();
