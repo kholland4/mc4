@@ -50,7 +50,11 @@ var menuConfig = {
   remoteServer: "ws://localhost:8080/"
 };
 
-function initMenu() {
+function initEntryMenu() {
+  if(window.location.hostname != "") {
+    menuConfig.remoteServer = "ws://" + window.location.hostname + ":8080/";
+  }
+  
   var win = new UIWindow();
   
   win.add(uiElement("text", "Local"));
@@ -75,7 +79,7 @@ function initMenu() {
   
   uiShowWindow(win);
 }
-document.addEventListener("DOMContentLoaded", initMenu);
+document.addEventListener("DOMContentLoaded", initEntryMenu);
 
 function init() {
   debug("main", "status", "starting...");
