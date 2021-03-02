@@ -276,10 +276,8 @@ class ServerRemote extends ServerBase {
           if(mapBlock.updateNum != this.cache[index].updateNum) {
             mapBlock.renderNeedsUpdate = 2; //getMapBlock will force the lighting to be updated (if lightNeedsUpdate is set) before the render update can happen
           } else if(mapBlock.lightUpdateNum != this.cache[index].lightUpdateNum) {
-            //FIXME workaround FIXME
-            setTimeout(function() {
-              renderQueueLightingUpdate(this);
-            }.bind(mapBlock.pos.clone()), 500);
+            //FIXME?
+            renderQueueLightingUpdate(mapBlock.pos);
           }
         } else {
           mapBlock.renderNeedsUpdate = 1;

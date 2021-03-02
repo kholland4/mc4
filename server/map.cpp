@@ -320,6 +320,41 @@ void light_cascade(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector
   }
 }
 
+void Map::save_changed_lit_mapblocks(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector3<int>>& mapblocks_to_update, bool do_clear_light_needs_update) {
+  for(auto i : mapblocks_to_update) {
+    Vector3<int> mb_pos = i;
+    Mapblock *mb = mapblocks[mb_pos];
+    bool needs_update = false;
+    
+    Mapblock *old_mb = db.get_mapblock(mb_pos);
+    if(old_mb->is_nil) {
+      needs_update = true;
+    } else {
+      //Compare the mapblock data
+      for(size_t x = 0; x < MAPBLOCK_SIZE_X && !needs_update; x++) {
+        for(size_t y = 0; y < MAPBLOCK_SIZE_Y && !needs_update; y++) {
+          for(size_t z = 0; z < MAPBLOCK_SIZE_Z && !needs_update; z++) {
+            if(old_mb->data[x][y][z] != mb->data[x][y][z]) {
+              needs_update = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+    delete old_mb;
+    
+    if(needs_update) {
+      mb->light_update_num++;
+      if(mb->light_needs_update == 1 && do_clear_light_needs_update) { mb->light_needs_update = 0; }
+      db.set_mapblock(mb_pos, mb);
+    } else {
+      if(mb->light_needs_update == 1 && do_clear_light_needs_update) { mb->light_needs_update = 0; }
+      db.set_mapblockupdateinfo(mb_pos, MapblockUpdateInfo(mb));
+    }
+  }
+}
+
 void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
   std::map<Vector3<int>, Mapblock*> mapblocks;
   std::map<Vector3<int>, std::map<unsigned int, NodeDef>> def_tables;
@@ -456,13 +491,7 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
   }
   
   //Save the affected mapblocks.
-  for(auto i : mapblocks_to_update) {
-    Vector3<int> mb_pos = i;
-    Mapblock *mb = mapblocks[mb_pos];
-    mb->light_update_num++;
-    if(mb->light_needs_update == 1) { mb->light_needs_update = 0; }
-    db.set_mapblock(mb_pos, mb);
-  }
+  save_changed_lit_mapblocks(mapblocks, mapblocks_to_update, true);
   
   //Cleanup
   for(auto p : mapblocks) {
@@ -617,13 +646,7 @@ void Map::update_mapblock_light_optimized_singlenode_transparent(Vector3<int> mb
   
   
   //Save the affected mapblocks.
-  for(auto i : mapblocks_to_update) {
-    Vector3<int> mb_pos = i;
-    Mapblock *mb = mapblocks[mb_pos];
-    mb->light_update_num++;
-    //if(mb->light_needs_update == 1) { mb->light_needs_update = 0; }
-    db.set_mapblock(mb_pos, mb);
-  }
+  save_changed_lit_mapblocks(mapblocks, mapblocks_to_update, false);
   
   //Cleanup
   for(auto p : mapblocks) {

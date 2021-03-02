@@ -38,11 +38,13 @@ class Map {
     void update_mapblock_light(MapblockUpdateInfo info);
     void update_mapblock_light(Vector3<int> min_pos, Vector3<int> max_pos);
     void update_mapblock_light(std::set<Vector3<int>>);
-    void update_mapblock_light_optimized_singlenode_transparent(Vector3<int> mb_pos, Vector3<int> rel_pos);
     Vector3<int> containing_mapblock(Vector3<int> pos);
     MapblockUpdateInfo get_mapblockupdateinfo(Vector3<int> mb_pos);
   
   private:
+    void update_mapblock_light_optimized_singlenode_transparent(Vector3<int> mb_pos, Vector3<int> rel_pos);
+    void save_changed_lit_mapblocks(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector3<int>>& mapblocks_to_update, bool do_clear_light_needs_update);
+    
     Database& db;
     Mapgen& mapgen;
 };

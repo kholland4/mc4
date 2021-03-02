@@ -33,23 +33,35 @@ onmessage = function(e) {
   var colors = [];
   var facePos = [];
   
-  for(var x = 1; x < size.x + 1; x++) {
-    for(var y = 1; y < size.y + 1; y++) {
-      for(var z = 1; z < size.z + 1; z++) {
+  for(var x = 0; x < size.x + 2; x++) {
+    for(var y = 0; y < size.y + 2; y++) {
+      for(var z = 0; z < size.z + 2; z++) {
         var d = data[x][y][z];
+        if(d == -1) { continue; }
         var id = d & 32767;
         var rot = (d >> 15) & 255;
         var lightRaw = (d >> 23) & 255;
         var light = Math.max(lightRaw & 15, ((lightRaw >> 4) & 15) * sunAmount);
         light = Math.max(light, 1);
         
-        var def = nodeDef[id];
+        var def;
+        if(x < 1) { def = nodeDefAdj["-1,0,0"][id]; } else
+        if(y < 1) { def = nodeDefAdj["0,-1,0"][id]; } else
+        if(z < 1) { def = nodeDefAdj["0,0,-1"][id]; } else
+        if(x >= size.x + 1) { def = nodeDefAdj["1,0,0"][id]; } else
+        if(y >= size.y + 1) { def = nodeDefAdj["0,1,0"][id]; } else
+        if(z >= size.z + 1) { def = nodeDefAdj["0,0,1"][id]; } else
+        { def = nodeDef[id]; }
         if(!def.visible) { continue; }
         
         for(var faceIndex = 0; faceIndex < 6; faceIndex++) {
           var face = stdFaces[faceIndex];
           var rx = x + face.x; var ry = y + face.y; var rz = z + face.z;
+          if(rx < 0 || rx >= size.x + 2) { continue; }
+          if(ry < 0 || ry >= size.y + 2) { continue; }
+          if(rz < 0 || rz >= size.z + 2) { continue; }
           var relD = data[rx][ry][rz];
+          if(relD == -1) { continue; }
           var relID = relD & 32767;
           var relLightRaw = (relD >> 23) & 255;
           var relLight = Math.max(relLightRaw & 15, Math.round(((relLightRaw >> 4) & 15) * sunAmount));
@@ -77,6 +89,12 @@ onmessage = function(e) {
           //TODO: use transFaces?
           //if(def.transparent && def.transFaces[faceIndex] && light > relLight) { relLight = light; tLight = true; }
           if(def.transparent && light > relLight) { relLight = light; tLight = true; }
+          
+          //Only show faces that are lit by a node in the current mapblock.
+          //Exclude self-lit nodes outside of the current mapblock.
+          if(tLight && (x < 1 || y < 1 || z < 1 || x >= size.x + 1 || y >= size.y + 1 || z >= size.z + 1)) { continue; }
+          //Exclude non-self-lit nodes where the current face is lit by a node outside of the current mapblock.
+          if(!tLight && (rx < 1 || ry < 1 || rz < 1 || rx >= size.x + 1 || ry >= size.y + 1 || rz >= size.z + 1)) { continue; }
           
           var tint = 1;
           if(faceIndex == 3) { tint = 1; } else

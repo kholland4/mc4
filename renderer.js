@@ -101,7 +101,7 @@ class RenderWorker {
           } else if(z >= 0 && z < mapBlock.size.z && x >= 0 && x < mapBlock.size.x && y >= 0 && y < mapBlock.size.y) {
             s2.push(mapBlock.data[x][y][z]);
           } else {
-            s2.push(0);
+            s2.push(-1);
           }
         }
         s1.push(s2);
@@ -380,14 +380,14 @@ function renderUpdateLighting(pos) {
   if(mapBlock == null) { return false; }
   if(mapBlock.updateNum != renderObj.updateNum) { return false; }
   
-  var blocks = {
+  /*var blocks = {
     "0,0,0": mapBlock
   };
   for(var i = 0; i < stdFaces.length; i++) {
     var index = stdFaces[i].x + "," + stdFaces[i].y + "," + stdFaces[i].z;
     blocks[index] = server.getMapBlock(new THREE.Vector3(stdFaces[i].x, stdFaces[i].y, stdFaces[i].z).add(pos));
     if(blocks[index] == null) { return false; }
-  }
+  }*/
   
   var attr = renderObj.obj.geometry.getAttribute("color");
   
@@ -397,14 +397,15 @@ function renderUpdateLighting(pos) {
     var ry = facePos[i][1];
     var rz = facePos[i][2];
     
-    var d;
+    var d = mapBlock.data[rx][ry][rz];
+    /*var d;
     if(rx < 0) { d = blocks["-1,0,0"].data[mapBlock.size.x - 1][ry][rz]; } else
     if(ry < 0) { d = blocks["0,-1,0"].data[rx][mapBlock.size.y - 1][rz]; } else
     if(rz < 0) { d = blocks["0,0,-1"].data[rx][ry][mapBlock.size.z - 1]; } else
     if(rx >= mapBlock.size.x) { d = blocks["1,0,0"].data[0][ry][rz]; } else
     if(ry >= mapBlock.size.y) { d = blocks["0,1,0"].data[rx][0][rz]; } else
     if(rz >= mapBlock.size.z) { d = blocks["0,0,1"].data[rx][ry][0]; } else
-    { d = blocks["0,0,0"].data[rx][ry][rz]; }
+    { d = blocks["0,0,0"].data[rx][ry][rz]; }*/
     
     var id = d & 32767;
     var lightRaw = (d >> 23) & 255;
