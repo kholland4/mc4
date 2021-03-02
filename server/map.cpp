@@ -359,6 +359,8 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
   std::map<Vector3<int>, Mapblock*> mapblocks;
   std::map<Vector3<int>, std::map<unsigned int, NodeDef>> def_tables;
   
+  std::set<Vector3<int>> mapblocks_to_compute;
+  
   //Load each requested mapblock plus any adjacent ones (adjacent meaning +/- 1 away on any axis).
   //Also fetch mapblocks up to SUNLIGHT_CHECK_DISTANCE above the target (for sunlight).
   //Also precompute tables of definitions.
@@ -366,8 +368,18 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
     Vector3<int> center_pos = i;
     for(int x = center_pos.x - 1; x <= center_pos.x + 1; x++) {
       for(int z = center_pos.z - 1; z <= center_pos.z + 1; z++) {
-        for(int y = center_pos.y - 1; y <= center_pos.y + ((x == center_pos.x && z == center_pos.z) ? SUNLIGHT_CHECK_DISTANCE : 1); y++) {
+        for(int y = center_pos.y - 1; y <= center_pos.y + SUNLIGHT_CHECK_DISTANCE; y++) {
           Vector3<int> pos(x, y, z);
+          if(y <= center_pos.y + 1) {
+            auto search = mapblocks_to_compute.find(pos);
+            if(search == mapblocks_to_compute.end()) {
+              if(mapblocks_to_update.find(pos) != mapblocks_to_update.end()) {
+                mapblocks_to_compute.insert(pos);
+              } else if(get_mapblockupdateinfo(pos).light_needs_update > 0) {
+                mapblocks_to_compute.insert(pos);
+              }
+            }
+          }
           if(mapblocks.find(pos) != mapblocks.end()) { continue; }
           
           mapblocks[pos] = get_mapblock(pos);
@@ -390,7 +402,7 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
   
   //Clear light in the mapblocks being updated.
   //Compute sunlight and find light sources as well.
-  for(auto i : mapblocks_to_update) {
+  for(auto i : mapblocks_to_compute) {
     Vector3<int> mb_pos = i;
     Mapblock *mb = mapblocks[mb_pos];
     std::map<unsigned int, NodeDef> def_table = def_tables[mb_pos];
@@ -451,10 +463,10 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
   }
   
   for(size_t i = 0; i < light_sources.size(); i++) {
-    light_cascade(mapblocks, mapblocks_to_update, light_sources[i].first, light_sources[i].second, LC_NORM);
+    light_cascade(mapblocks, mapblocks_to_compute, light_sources[i].first, light_sources[i].second, LC_NORM);
   }
   for(size_t i = 0; i < sunlight_sources.size(); i++) {
-    light_cascade(mapblocks, mapblocks_to_update, sunlight_sources[i].first, sunlight_sources[i].second, LC_SUN);
+    light_cascade(mapblocks, mapblocks_to_compute, sunlight_sources[i].first, sunlight_sources[i].second, LC_SUN);
   }
   
   //Bleed in light from the edges of adjacent mapblocks.
@@ -471,7 +483,7 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
       Vector3<int> new_pos = mb_pos + faces[n];
       
       //No need to bleed in from mapblocks that were part of this update batch.
-      bool in_update = mapblocks_to_update.find(new_pos) != mapblocks_to_update.end();
+      bool in_update = mapblocks_to_compute.find(new_pos) != mapblocks_to_compute.end();
       if(in_update) { continue; }
       
       //We should have the data on hand, but if not, skip.

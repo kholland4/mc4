@@ -34,6 +34,7 @@ class ServerBase {
   setMapBlock(pos, mapBlock) {
     
   }
+  requestMapBlock(pos) {}
   
   getNode(pos) {
     var mapBlockPos = new THREE.Vector3(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z));
@@ -197,6 +198,7 @@ class ServerLocal extends ServerBase {
   setMapBlock(pos, mapBlock) {
     this.map.dirtyMapBlock(mapBlock.pos);
   }
+  //No need to implement requestMapBlock, as it wouldn't do anything meaningful.
   
   getInventory(thing) {
     if(thing instanceof Player) {
@@ -365,6 +367,7 @@ class ServerRemote extends ServerBase {
       if(!this._socketReady) { return null; }
       
       if(!this.requests.includes(index)) {
+        console.log("req " + index);
         this.socket.send(JSON.stringify({
           type: "req_mapblock",
           pos: {x: pos.x, y: pos.y, z: pos.z}
@@ -383,6 +386,12 @@ class ServerRemote extends ServerBase {
         type: "set_mapblock",
         data: mapBlock
       }));
+    }
+  }
+  requestMapBlock(pos) {
+    var index = pos.x + "," + pos.y + "," + pos.z;
+    if(!(index in this.cache) && !(index in this.saved)) {
+      this.getMapBlock(pos);
     }
   }
   
@@ -461,8 +470,12 @@ class ServerRemote extends ServerBase {
   }
   
   onFrame(tscale) {
+    this.lastPlayerMapblock = this.playerMapblock;
+    this.playerMapblock = new THREE.Vector3(Math.round(this.player.pos.x / MAPBLOCK_SIZE.x), Math.round(this.player.pos.y / MAPBLOCK_SIZE.y), Math.round(this.player.pos.z / MAPBLOCK_SIZE.z));
+    if(this.lastPlayerMapblock == undefined) { this.lastPlayerMapblock = this.playerMapblock; }
+    
     this.timeSinceUpdateSent += tscale;
-    if(this.timeSinceUpdateSent > SERVER_REMOTE_UPDATE_INTERVAL) {
+    if(this.timeSinceUpdateSent > SERVER_REMOTE_UPDATE_INTERVAL || !this.playerMapblock.equals(this.lastPlayerMapblock)) {
       if(this._socketReady) {
         if(this.player != null) {
           this.socket.send(JSON.stringify({

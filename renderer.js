@@ -151,30 +151,60 @@ class RenderMesh {
 function renderUpdateMap(centerPos) {
   var schedCount = 0;
   
-  for(var x = centerPos.x - renderDist.x; x <= centerPos.x + renderDist.x; x++) {
-    for(var y = centerPos.y - renderDist.y; y <= centerPos.y + renderDist.y; y++) {
-      for(var z = centerPos.z - renderDist.z; z <= centerPos.z + renderDist.z; z++) {
-        var pos = new THREE.Vector3(x, y, z);
-        
-        var index = x.toString() + "," + y.toString() + "," + z.toString();
-        if(index in renderCurrentMeshes) {
-          //calling getMapBlock should cache the block, so it's not a waste of resources
-          var mapBlock = server.getMapBlock(pos, true);
-          if(mapBlock != null) {
-            /*if(mapBlock.updateNum != renderCurrentMeshes[index].updateNum) {
-              renderQueueUpdate(pos);
-            }*/
-            if(mapBlock.renderNeedsUpdate > 0) {
-              renderQueueUpdate(pos, true);
-              schedCount++;
+  //FIXME precompute this and only update it when renderDist changes
+  var updatePosList = [];
+  
+  for(var dist = 0; dist <= Math.max(renderDist.x, renderDist.y, renderDist.z); dist++) {
+    var distX = Math.min(dist, renderDist.x);
+    var distY = Math.min(dist, renderDist.y);
+    var distZ = Math.min(dist, renderDist.z);
+    for(var x = centerPos.x - distX; x <= centerPos.x + distX; x++) {
+      for(var y = centerPos.y - distY; y <= centerPos.y + distY; y++) {
+        for(var z = centerPos.z - distZ; z <= centerPos.z + distZ; z++) {
+          var pos = new THREE.Vector3(x, y, z);
+          
+          var inList = false;
+          for(var i = 0; i < updatePosList.length; i++) {
+            if(pos.equals(updatePosList[i])) {
+              inList = true;
+              break;
             }
           }
-        } else {
-          if(schedCount < RENDER_MAX_WORKERS) { //FIXME
-            renderQueueUpdate(pos);
-            schedCount++;
-          }
+          if(inList) { continue; }
+          
+          updatePosList.push(pos);
         }
+      }
+    }
+  }
+  
+  for(var i = 0; i < updatePosList.length; i++) {
+    var pos = updatePosList[i];
+    
+    var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString();
+    if(index in renderCurrentMeshes) {
+      //calling getMapBlock should cache the block, so it's not a waste of resources
+      var mapBlock = server.getMapBlock(pos, true);
+      if(mapBlock != null) {
+        /*if(mapBlock.updateNum != renderCurrentMeshes[index].updateNum) {
+          renderQueueUpdate(pos);
+        }*/
+        if(mapBlock.renderNeedsUpdate > 0) {
+          renderQueueUpdate(pos, true);
+          schedCount++;
+        }
+      }
+    } else {
+      //Request all the data needed to render the mapblock.
+      server.requestMapBlock(pos); //does nothing if we already have the mapblock
+      for(var n = 0; n < 6; n++) {
+        var adj = new THREE.Vector3(pos.x + stdFaces[n].x, pos.y + stdFaces[n].y, pos.z + stdFaces[n].z);
+        server.requestMapBlock(adj);
+      }
+      
+      if(schedCount < RENDER_MAX_WORKERS) { //FIXME
+        renderQueueUpdate(pos);
+        schedCount++;
       }
     }
   }

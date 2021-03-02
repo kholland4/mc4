@@ -105,7 +105,7 @@ MapblockUpdateInfo SQLiteDB::get_mapblockupdateinfo(Vector3<int> pos) {
   //Try database.
   //FIXME: only need to retrieve light_needs_update
   
-  //Mapblock doesn't exist; the default update info will be accurate.
+  //Mapblock doesn't exist or isn't loaded; the default update info will be accurate.
   return MapblockUpdateInfo(pos);
 }
 
@@ -206,9 +206,9 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
     }
     
     //Since it's not cached, the lighting is probably outdated.
-    if(mb->light_needs_update == 0) {
+    //if(mb->light_needs_update == 0) {
       mb->light_needs_update = 1;
-    }
+    //}
     
     //Save to read cache.
     Mapblock *mb_store = new Mapblock(*mb);

@@ -23,12 +23,15 @@
 #define PLAYER_ENTITY_VISIBILE_DISTANCE 200
 #define PLAYER_MAPBLOCK_INTEREST_DISTANCE 2
 
+//#define DEBUG_PERF
+
 #include <iostream>
 #include <map>
 #include <sstream>
 #include <set>
 #include <regex>
 #include <chrono>
+#include <cmath>
 
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
@@ -143,7 +146,16 @@ class PlayerState {
         }
       }
       if(mb_need_light.size() > 0) {
+#ifdef DEBUG_PERF
+        auto start = std::chrono::steady_clock::now();
+#endif
         map.update_mapblock_light(mb_need_light);
+#ifdef DEBUG_PERF
+        auto end = std::chrono::steady_clock::now();
+        auto diff = end - start;
+        double ms = std::chrono::duration<double, std::milli>(diff).count();
+        std::cout << "prepped " << mb_need_light.size() << " mapblocks for " << get_name() << " in " << ms << " ms" << std::endl;
+#endif
       }
     }
     void update_mapblocks(std::vector<Vector3<int>> mapblock_list, Map& map, WsServer& sender) {
@@ -160,21 +172,31 @@ class PlayerState {
       }
     }
     
-    void prepare_nearby_mapblocks(int mb_radius, Map& map) {
-      Vector3<int> abs_pos((int)pos.x, (int)pos.y, (int)pos.z);
+    //mb_radius indicates the radius of a cube of mapblocks to prepare (i. e. mb_radius=2 yields a 5x5x5 cube centered around the player's current mapblock)
+    //mb_radius_outer indicates the radius of a sort of 3-dimensional plus shape extending outward from this cube
+    //  (if at least two dimensions are within the bounds of the inner cube, the mapblocks will be loaded)
+    //  this is used because mapblock rendering on the client requires access all 6 mapblocks immediately adjacent to the one being rendered
+    void prepare_nearby_mapblocks(int mb_radius, int mb_radius_outer, Map& map) {
+      //Vector3<int> abs_pos((int)pos.x, (int)pos.y, (int)pos.z);
       
       Vector3<int> mb_pos(
-          (abs_pos.x < 0 && abs_pos.x % MAPBLOCK_SIZE_X != 0) ? (abs_pos.x / MAPBLOCK_SIZE_X - 1) : (abs_pos.x / MAPBLOCK_SIZE_X),
-          (abs_pos.y < 0 && abs_pos.y % MAPBLOCK_SIZE_Y != 0) ? (abs_pos.y / MAPBLOCK_SIZE_Y - 1) : (abs_pos.y / MAPBLOCK_SIZE_Y),
-          (abs_pos.z < 0 && abs_pos.z % MAPBLOCK_SIZE_Z != 0) ? (abs_pos.z / MAPBLOCK_SIZE_Z - 1) : (abs_pos.z / MAPBLOCK_SIZE_Z));
-      Vector3<int> min_pos(mb_pos.x - mb_radius, mb_pos.y - mb_radius, mb_pos.z - mb_radius);
-      Vector3<int> max_pos(mb_pos.x + mb_radius, mb_pos.y + mb_radius, mb_pos.z + mb_radius);
+          (int)std::round(pos.x / MAPBLOCK_SIZE_X),
+          (int)std::round(pos.y / MAPBLOCK_SIZE_Y),
+          (int)std::round(pos.z / MAPBLOCK_SIZE_Z));
+      Vector3<int> min_inner(mb_pos.x - mb_radius, mb_pos.y - mb_radius, mb_pos.z - mb_radius);
+      Vector3<int> max_inner(mb_pos.x + mb_radius, mb_pos.y + mb_radius, mb_pos.z + mb_radius);
+      Vector3<int> min_outer(mb_pos.x - mb_radius_outer, mb_pos.y - mb_radius_outer, mb_pos.z - mb_radius_outer);
+      Vector3<int> max_outer(mb_pos.x + mb_radius_outer, mb_pos.y + mb_radius_outer, mb_pos.z + mb_radius_outer);
       
       std::vector<Vector3<int>> mb_to_update;
-      for(int x = min_pos.x; x <= max_pos.x; x++) {
-        for(int y = min_pos.y; y <= max_pos.y; y++) {
-          for(int z = min_pos.z; z <= max_pos.z; z++) {
-            mb_to_update.push_back(Vector3<int>(x, y, z));
+      for(int x = min_outer.x; x <= max_outer.x; x++) {
+        for(int y = min_outer.y; y <= max_outer.y; y++) {
+          for(int z = min_outer.z; z <= max_outer.z; z++) {
+            if(((x >= min_inner.x && x <= max_inner.x) && (y >= min_inner.y && y <= max_inner.y)) ||
+               ((y >= min_inner.y && y <= max_inner.y) && (z >= min_inner.z && z <= max_inner.z)) ||
+               ((x >= min_inner.x && x <= max_inner.x) && (z >= min_inner.z && z <= max_inner.z))) {
+              mb_to_update.push_back(Vector3<int>(x, y, z));
+            }
           }
         }
       }
@@ -266,13 +288,7 @@ class Server {
     }
     
     void run(uint16_t port) {
-      Node test = map.get_node(Vector3<int>(0, 15, 0));
-      std::cout << test << std::endl;
-      
-      map.set_node(Vector3<int>(0, 15, 0), Node("default:sandstone"));
-      
-      Node test2 = map.get_node(Vector3<int>(0, 15, 0));
-      std::cout << test2 << std::endl;
+      //TODO: print map info
       
       m_timer.async_wait(boost::bind(&Server::tick, this, boost::asio::placeholders::error));
       
@@ -378,6 +394,9 @@ class Server {
           
           MapblockUpdateInfo info = map.get_mapblockupdateinfo(mb_pos);
           if(info.light_needs_update > 0) {
+#ifdef DEBUG_PERF
+            std::cout << "single mapblock prep for " << player->get_name() << std::endl;
+#endif
             map.update_mapblock_light(info);
           }
           Mapblock *mb = map.get_mapblock(mb_pos);
@@ -387,18 +406,24 @@ class Server {
           player->pos.set(pt.get<double>("pos.x"), pt.get<double>("pos.y"), pt.get<double>("pos.z"));
           player->vel.set(pt.get<double>("vel.x"), pt.get<double>("vel.y"), pt.get<double>("vel.z"));
           player->rot.set(pt.get<double>("rot.x"), pt.get<double>("rot.y"), pt.get<double>("rot.z"), pt.get<double>("rot.w"));
+          
+          player->prepare_nearby_mapblocks(2, 3, map);
         } else if(type == "set_node") {
           Vector3<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"));
           Node node(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
           
+#ifdef DEBUG_PERF
           auto start = std::chrono::steady_clock::now();
+#endif
           
           map.set_node(pos, node);
           
+#ifdef DEBUG_PERF
           auto end = std::chrono::steady_clock::now();
           auto diff = end - start;
           
           std::cout << "set_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
+#endif
           
           log("Player '" + player->get_name() + "' places '" + node.itemstring + "' at " + pos.to_string());
           
@@ -484,7 +509,7 @@ class Server {
       
       m_server.send(hdl, player->pos_as_json(), websocketpp::frame::opcode::text);
       
-      player->prepare_nearby_mapblocks(2, map);
+      player->prepare_nearby_mapblocks(2, 3, map);
       
       log(player->get_tag() + " connected!");
       chat_send_player(player, "server", status());
@@ -525,6 +550,7 @@ class Server {
       
       for(auto p : m_players) {
         PlayerState *player = p.second;
+        
         player->update_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, map, m_server);
       }
       
