@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var SERVER_REMOTE_UPDATE_INTERVAL = 0.2; //how often to send updates about, i. e., the player position to the remote server
+var SERVER_REMOTE_UPDATE_INTERVAL = 0.25; //how often to send updates about, i. e., the player position to the remote server
 
 class ServerBase {
   constructor() {
@@ -36,6 +36,20 @@ class ServerBase {
   }
   requestMapBlock(pos) {}
   
+  getNodeRaw(pos) {
+    var mapBlockPos = new THREE.Vector3(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z));
+    var mapBlock = this.getMapBlock(mapBlockPos);
+    if(mapBlock == null) { return null; }
+    
+    var localPos = new THREE.Vector3(
+      ((pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
+      ((pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
+      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
+    
+    var n = mapBlock.data[localPos.x][localPos.y][localPos.z];
+    
+    return n;
+  }
   getNode(pos) {
     var mapBlockPos = new THREE.Vector3(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z));
     var mapBlock = this.getMapBlock(mapBlockPos);
@@ -47,6 +61,7 @@ class ServerBase {
       ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
     
     var n = mapBlock.data[localPos.x][localPos.y][localPos.z];
+    
     var id = nodeID(n);
     return new NodeData(mapBlock.getItemstring(id), nodeRot(n));
   }
@@ -404,7 +419,27 @@ class ServerRemote extends ServerBase {
       ((pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
       ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
     
-    var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot);
+    var oldLight = nodeLight(mapBlock.data[localPos.x][localPos.y][localPos.z]);
+    var light = 0;
+    
+    //Make a rough prediction of what the light will look like so that it can be shown to the player immediately.
+    var def = nodeData.getDef();
+    if(!def.transparent) {
+      light = 0;
+    } else {
+      var maxNearbyLight = 0;
+      for(var i = 0; i < stdFaces.length; i++) {
+        var l = nodeLight(this.getNodeRaw(new THREE.Vector3(pos.x + stdFaces[i].x, pos.y + stdFaces[i].y, pos.z + stdFaces[i].z)));
+        maxNearbyLight = Math.max(l, maxNearbyLight);
+      }
+      
+      light = Math.max(maxNearbyLight - 1, light);
+    }
+    if(def.lightLevel > 0) {
+      light = Math.max(def.lightLevel, light);
+    }
+    
+    var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot, light);
     mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
     if(nodeData.itemstring != "air") { mapBlock.props.sunlit = false; }
     //mapBlock.markDirty(); FIXME -- not using this increases latency
@@ -417,6 +452,15 @@ class ServerRemote extends ServerBase {
     if(localPos.z == MAPBLOCK_SIZE.z - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1))).markDirty(); }*/
     //---
     //this.setMapBlock(mapBlockPos, mapBlock);
+    
+    
+    if(localPos.x == 0) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0)), true); } else
+    if(localPos.x == MAPBLOCK_SIZE.x - 1) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(1, 0, 0)), true); }
+    if(localPos.y == 0) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(0, -1, 0)), true); } else
+    if(localPos.y == MAPBLOCK_SIZE.y - 1) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(0, 1, 0)), true); }
+    if(localPos.z == 0) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1)), true); } else
+    if(localPos.z == MAPBLOCK_SIZE.z - 1) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1)), true); }
+    renderQueueUpdate(mapBlockPos, true);
       
     if(this._socketReady) {
       this.socket.send(JSON.stringify({
