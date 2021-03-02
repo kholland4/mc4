@@ -415,7 +415,9 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
         } else {
           for(int mb_y = mb_pos.y + 1; mb_y <= mb_pos.y + SUNLIGHT_CHECK_DISTANCE; mb_y++) {
             Vector3<int> check_pos(mb_pos.x, mb_y, mb_pos.z);
-            Mapblock *mb_above = mapblocks[check_pos];
+            auto search = mapblocks.find(check_pos);
+            if(search == mapblocks.end()) { break; }
+            Mapblock *mb_above = search->second;
             if(mb_above->sunlit) {
               has_sun = true;
               break;
@@ -477,7 +479,7 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
   planes[3].first.set(MAPBLOCK_SIZE_X - 1, 0,                   0                  ); planes[3].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1);
   planes[4].first.set(0,                   MAPBLOCK_SIZE_Y - 1, 0                  ); planes[4].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1);
   planes[5].first.set(0,                   0,                   MAPBLOCK_SIZE_Z - 1); planes[5].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1);
-  for(auto i : mapblocks_to_update) {
+  for(auto i : mapblocks_to_compute) {
     Vector3<int> mb_pos = i;
     for(size_t n = 0; n < 6; n++) {
       Vector3<int> new_pos = mb_pos + faces[n];
@@ -486,7 +488,7 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
       bool in_update = mapblocks_to_compute.find(new_pos) != mapblocks_to_compute.end();
       if(in_update) { continue; }
       
-      //We should have the data on hand, but if not, skip.
+      //If we don't have the data on hand, it's irrelevant anyways.
       auto search = mapblocks.find(new_pos);
       if(search == mapblocks.end()) { continue; }
       
