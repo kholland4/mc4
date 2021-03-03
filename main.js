@@ -44,6 +44,7 @@ var player;
 var RAYCAST_DISTANCE = 10;
 
 var DIG_PREEMPT_TIME = 0.04;
+var CREATIVE_DIG_TIME = 0.15;
 
 var menuConfig = {
   gameType: "local", // local, remote
@@ -345,7 +346,11 @@ function animate() {
   if(isDigging && destroySel != null && digSel == null) {
     var nodeData = server.getNode(destroySel);
     if(nodeData.itemstring != "air") {
-      digTimer = calcDigTime(nodeData, player.wield);
+      if(player.creativeDigPlace) {
+        digTimer = CREATIVE_DIG_TIME;
+      } else {
+        digTimer = calcDigTime(nodeData, player.wield);
+      }
       if(digTimer != null) {
         digTimerStart = digTimer;
         digSel = destroySel.clone();
@@ -356,7 +361,9 @@ function animate() {
     digTimer -= frameTime;
     var nodeData = server.getNode(digSel);
     if(digTimer <= DIG_PREEMPT_TIME && nodeData.itemstring != "air") {
-      useTool(nodeData, player.inventory, "main", player.wieldIndex)
+      if(!player.creativeDigPlace) {
+        useTool(nodeData, player.inventory, "main", player.wieldIndex);
+      }
       server.digNode(player, digSel);
     } else if(digTimer <= 0) {
       digTimer = null;
