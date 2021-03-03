@@ -73,7 +73,9 @@ void Map::set_node(Vector3<int> pos, Node node) {
   
   NodeDef def = get_node_def(node.itemstring);
   
-  if(old_def.transparent == def.transparent && old_def.pass_sunlight == def.pass_sunlight && old_def.light_level == def.light_level) {
+  if(node == old_node) {
+    //No change to anything.
+  } else if(old_def.transparent == def.transparent && old_def.pass_sunlight == def.pass_sunlight && old_def.light_level == def.light_level) {
     //No change to lighting.
     mb->update_num++;
     mb->dirty = true;
@@ -99,11 +101,9 @@ Mapblock* Map::get_mapblock(Vector3<int> mb_pos) {
   //The resultant mapblock will be sent to the database for caching,
   //but because it isn't marked as 'dirty', it shouldn't be stored to disk (it could be regenerated at any time).
   
-  delete mb;
-  
-  Mapblock *new_mb = mapgen.generate_at(mb_pos);
-  db.set_mapblock(mb_pos, new_mb);
-  return new_mb;
+  mapgen.generate_at(mb_pos, mb);
+  db.set_mapblock(mb_pos, mb);
+  return mb;
 }
 
 void Map::set_mapblock(Vector3<int> mb_pos, Mapblock *mb) {
@@ -161,7 +161,7 @@ Vector3<int> rev_faces[6] = {
 void light_cascade_fast(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector3<int>>& mapblocks_to_update, Mapblock *mb, Vector3<int> mb_pos, Vector3<int> rel_pos, unsigned int light_level, LightCascadeType type, Vector3<int> skip_face, int bleed_mode = 0) {
   if(light_level == 0 && bleed_mode == 0) { return; }
   
-  uint64_t val = mb->data[rel_pos.x][rel_pos.y][rel_pos.z];
+  uint32_t val = mb->data[rel_pos.x][rel_pos.y][rel_pos.z];
   unsigned int light = (val >> 23) & 255;
   
   //Stop if node is opaque.
@@ -198,7 +198,7 @@ void light_cascade_fast(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<V
   
   if(save || bleed_mode > 0) {
     //if(in_update) {
-    mb->data[rel_pos.x][rel_pos.y][rel_pos.z] = (mb->data[rel_pos.x][rel_pos.y][rel_pos.z] & 0b1111111111111111111111111111111110000000011111111111111111111111UL) | (light << 23);
+    mb->data[rel_pos.x][rel_pos.y][rel_pos.z] = (mb->data[rel_pos.x][rel_pos.y][rel_pos.z] & 0b10000000011111111111111111111111UL) | (light << 23);
     //}
     
     light_level--;
@@ -257,7 +257,7 @@ void light_cascade(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector
       ((pos.y % MAPBLOCK_SIZE_Y) + MAPBLOCK_SIZE_Y) % MAPBLOCK_SIZE_Y,
       ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z);
   
-  uint64_t val = mb->data[rel_pos.x][rel_pos.y][rel_pos.z];
+  uint32_t val = mb->data[rel_pos.x][rel_pos.y][rel_pos.z];
   unsigned int light = (val >> 23) & 255;
   
   //Stop if node is opaque.
@@ -294,7 +294,7 @@ void light_cascade(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector
   
   if(save || bleed_mode > 0) {
     if(in_update || bleed_mode > 1) {
-      mb->data[rel_pos.x][rel_pos.y][rel_pos.z] = (mb->data[rel_pos.x][rel_pos.y][rel_pos.z] & 0b1111111111111111111111111111111110000000011111111111111111111111UL) | (light << 23);
+      mb->data[rel_pos.x][rel_pos.y][rel_pos.z] = (mb->data[rel_pos.x][rel_pos.y][rel_pos.z] & 0b10000000011111111111111111111111UL) | (light << 23);
     }
     
     light_level--;
@@ -458,7 +458,7 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
           
           unsigned long light = (sunlight << 4) | l;
           
-          mb->data[x][y][z] = (mb->data[x][y][z] & 0b1111111111111111111111111111111110000000011111111111111111111111UL) | (light << 23);
+          mb->data[x][y][z] = (mb->data[x][y][z] & 0b10000000011111111111111111111111UL) | (light << 23);
         }
       }
     }
@@ -532,7 +532,7 @@ NodeDef get_node_def_prefetch(std::map<Vector3<int>, Mapblock*>& mapblocks, std:
   }
   std::map<unsigned int, NodeDef> def_table = search_def->second;
   
-  uint64_t val = search->second->data[rel_pos.x][rel_pos.y][rel_pos.z];
+  uint32_t val = search->second->data[rel_pos.x][rel_pos.y][rel_pos.z];
   unsigned int id = val & 32767;
   
   auto search_id = def_table.find(id);
@@ -556,7 +556,7 @@ unsigned int get_light_val_prefetch(std::map<Vector3<int>, Mapblock*>& mapblocks
     return 0;
   }
   
-  uint64_t val = search->second->data[rel_pos.x][rel_pos.y][rel_pos.z];
+  uint32_t val = search->second->data[rel_pos.x][rel_pos.y][rel_pos.z];
   unsigned int light = (val >> 23) & 255;
   return light;
 }
@@ -574,7 +574,7 @@ void set_light_val_prefetch(std::map<Vector3<int>, Mapblock*>& mapblocks, Vector
     return;
   }
   
-  search->second->data[rel_pos.x][rel_pos.y][rel_pos.z] = (search->second->data[rel_pos.x][rel_pos.y][rel_pos.z] & 0b1111111111111111111111111111111110000000011111111111111111111111UL) | (light << 23);
+  search->second->data[rel_pos.x][rel_pos.y][rel_pos.z] = (search->second->data[rel_pos.x][rel_pos.y][rel_pos.z] & 0b10000000011111111111111111111111UL) | (light << 23);
 }
 
 void Map::update_mapblock_light_optimized_singlenode_transparent(Vector3<int> mb_pos, Vector3<int> rel_pos) {

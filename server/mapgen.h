@@ -25,7 +25,7 @@
 class Mapgen {
   public:
     Mapgen() : seed(7) {};
-    virtual Mapblock* generate_at(Vector3<int> pos) = 0;
+    virtual void generate_at(Vector3<int> pos, Mapblock *mb) = 0;
   
   protected:
     uint64_t seed;
@@ -33,7 +33,7 @@ class Mapgen {
 
 class MapgenDefault : public Mapgen {
   public:
-    virtual Mapblock* generate_at(Vector3<int> pos);
+    virtual void generate_at(Vector3<int> pos, Mapblock *mb);
 };
 
 #endif

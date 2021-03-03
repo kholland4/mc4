@@ -30,6 +30,9 @@ class Node {
       out << "Node '" << n.itemstring << "' rot=" << n.rot;
       return out;
     };
+    bool operator==(const Node& other) {
+      return itemstring == other.itemstring && rot == other.rot;
+    };
     
     std::string itemstring;
     unsigned int rot;

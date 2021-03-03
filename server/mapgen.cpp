@@ -19,9 +19,7 @@
 #include "mapgen.h"
 #include <iostream>
 
-Mapblock* MapgenDefault::generate_at(Vector3<int> pos) {
-  Mapblock *mb = new Mapblock(pos);
-  
+void MapgenDefault::generate_at(Vector3<int> pos, Mapblock *mb) {
   if(pos.y > 0) {
     //do nothing, leave it full of air per default
   } else if(pos.y == 0) {
@@ -59,5 +57,4 @@ Mapblock* MapgenDefault::generate_at(Vector3<int> pos) {
   }
   
   mb->is_nil = false;
-  return mb;
 }

@@ -23,13 +23,13 @@
 //#include <simdjson.h>
 
 Mapblock::Mapblock(Vector3<int> _pos)
-    : pos(_pos), update_num(0), light_update_num(0), light_needs_update(1), sunlit(true), is_nil(true), dirty(false), data {}
+    : pos(_pos), update_num(0), light_update_num(0), light_needs_update(1), sunlit(true), is_nil(true), dirty(false), dont_write_to_db(false), data {}
 {
   IDtoIS.push_back("air");
   IStoID["air"] = 0;
 }
 
-//Data for every node in a mapblock is stored as a uint64_t array.
+//Data for every node in a mapblock is stored as a uint32_t array.
 //The bottom 31 bits are defined as follows, with the rest as of yet unused:
 //| light||  rot ||           id|
 //322222222221111111111
@@ -40,7 +40,7 @@ Mapblock::Mapblock(Vector3<int> _pos)
 // 7 6 5 4 3 2 1 0
 
 Node Mapblock::get_node_rel(Vector3<int> rel_pos) {
-  uint64_t val = data[rel_pos.x][rel_pos.y][rel_pos.z];
+  uint32_t val = data[rel_pos.x][rel_pos.y][rel_pos.z];
   unsigned int id = val & 32767;
   unsigned int rot = (val >> 15) & 255;
   return Node(id_to_itemstring(id), rot);
@@ -49,9 +49,9 @@ Node Mapblock::get_node_rel(Vector3<int> rel_pos) {
 void Mapblock::set_node_rel(Vector3<int> rel_pos, Node node) {
   unsigned int id = itemstring_to_id(node.itemstring) & 32767;
   unsigned int rot = node.rot & 255;
-  uint64_t old_val = data[rel_pos.x][rel_pos.y][rel_pos.z];
+  uint32_t old_val = data[rel_pos.x][rel_pos.y][rel_pos.z];
   unsigned int light = (old_val >> 23) & 255;
-  uint64_t val = (light << 23) | (rot << 15) | id;
+  uint32_t val = (light << 23) | (rot << 15) | id;
   data[rel_pos.x][rel_pos.y][rel_pos.z] = val;
   
   is_nil = false;

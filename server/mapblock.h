@@ -58,7 +58,8 @@ class Mapblock {
     
     bool is_nil; //Set to 'false' after directly modifying the data array.
     bool dirty;
-    uint64_t data[MAPBLOCK_SIZE_X][MAPBLOCK_SIZE_Y][MAPBLOCK_SIZE_Z];
+    bool dont_write_to_db; //Will be set to 'true' if there is a database error when loading a mapblock, this ensures that the botched mapblock won't overwrite the existing one.
+    uint32_t data[MAPBLOCK_SIZE_X][MAPBLOCK_SIZE_Y][MAPBLOCK_SIZE_Z];
 };
 
 class MapblockUpdateInfo {
