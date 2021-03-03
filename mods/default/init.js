@@ -500,6 +500,11 @@
       if(args.length == 1) {
         var time = mods.default.timeOfDay();
         return "time of day is " + time.h + ":" + time.m.toString().padStart(2, "0");
+      } else if(api.server.isRemote()) {
+        api.server.sendMessage({
+          type: "chat_command",
+          command: args.join(" ")
+        });
       } else {
         var str = args[1];
         var c = str.split(":");
@@ -515,6 +520,9 @@
         return "time of day set to " + time.h + ":" + time.m.toString().padStart(2, "0");
       }
     }, "/time [<hh>:<mm>] : get or set the time of day"));
+  });
+  api.server.registerMessageHook("set_time", function(data) {
+    mods.default.setTimeOfDay(data["hours"], data["minutes"]);
   });
   
   

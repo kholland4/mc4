@@ -177,6 +177,7 @@ class ServerBase {
   }
   
   sendMessage(obj) {}
+  isRemote() { return false; }
 }
 
 class ServerLocal extends ServerBase {
@@ -310,7 +311,7 @@ class ServerRemote extends ServerBase {
         //  lightQueueUpdate(mapBlock.pos);
         //}
         
-        console.log("recv_mapblock (" + index + ") updateNum=" + mdata.updateNum + " lightUpdateNum=" + mdata.lightUpdateNum + " lightNeedsUpdate=" + mdata.lightNeedsUpdate);
+        //console.log("recv_mapblock (" + index + ") updateNum=" + mdata.updateNum + " lightUpdateNum=" + mdata.lightUpdateNum + " lightNeedsUpdate=" + mdata.lightNeedsUpdate);
       } else if(data.type == "update_entities") {
         data.actions.forEach(function(action) {
           if(action.type == "create") {
@@ -382,7 +383,7 @@ class ServerRemote extends ServerBase {
       if(!this._socketReady) { return null; }
       
       if(!this.requests.includes(index)) {
-        console.log("req " + index);
+        //console.log("req " + index);
         this.socket.send(JSON.stringify({
           type: "req_mapblock",
           pos: {x: pos.x, y: pos.y, z: pos.z}
@@ -552,6 +553,7 @@ class ServerRemote extends ServerBase {
   sendMessage(obj) {
     this.socket.send(JSON.stringify(obj));
   }
+  isRemote() { return true; }
 }
 
 api.getNode = function(pos) { return server.getNode(pos); };

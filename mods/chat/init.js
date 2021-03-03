@@ -57,7 +57,7 @@
       if(this.value.startsWith("/")) {
         mods.chat.execCommand(this.value);
       } else {
-        server.sendMessage({
+        api.server.sendMessage({
           type: "send_chat",
           channel: "main",
           message: this.value
@@ -155,10 +155,12 @@
     var name = s[0];
     if(name in mods.chat.commands) {
       var out = mods.chat.commands[name].exec(s);
-      mods.chat.print(out);
+      if(out != undefined) {
+        mods.chat.print(out);
+      }
     } else {
       //mods.chat.print("unknown command '" + name + "'");
-      server.sendMessage({
+      api.server.sendMessage({
         type: "chat_command",
         command: str
       });

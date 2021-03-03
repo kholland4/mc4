@@ -77,6 +77,8 @@ CREATE TABLE IF NOT EXISTS map ( \
 */
 /* Version 2:
 
+//NOTE: It is recommended to run 'sqlite3 mapfile_name.sqlite vacuum' to clean out old data from the map file after __successfully__ upgrading to version 2.
+
 //Changes:
 //  - add version column.
 //  - removed is_to_id column because it is redundant.

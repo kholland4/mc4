@@ -363,6 +363,20 @@ class Server {
     void set_motd(std::string new_motd) {
       motd = new_motd;
     }
+    
+    void set_time(int hours, int minutes) {
+      //TODO: have the server track the time
+      
+      std::ostringstream out;
+      out << "{\"type\":\"set_time\",\"hours\":" << hours << ",\"minutes\":" << minutes << "}";
+      std::string out_str = out.str();
+      for(auto p : m_players) {
+        PlayerState *receiver = p.second;
+        receiver->send(out_str, m_server);
+      }
+      
+      log("Time set to " + std::to_string(hours) + ":" + (minutes < 10 ? "0" : "") + std::to_string(minutes) + ".");
+    }
   private:
     void on_message(connection_hdl hdl, websocketpp::config::asio::message_type::ptr msg) {
       //std::cout << "on_message: " << msg->get_payload() << std::endl;
@@ -489,6 +503,29 @@ class Server {
             chat_send("server", "*** " + old_nick + " changed name to " + new_nick);
           } else if(tokens[0] == "/status") {
             chat_send_player(player, "server", status());
+          } else if(tokens[0] == "/time") {
+            if(tokens.size() != 2) {
+              chat_send_player(player, "server", "invalid command: wrong number of args, expected '/time hh:mm'");
+              return;
+            }
+            
+            std::string time_spec = tokens[1];
+            
+            std::regex time_allow("^((|0|1)[0-9]|2[0-3]):[0-5][0-9]$");
+            if(!std::regex_match(time_spec, time_allow)) {
+              chat_send_player(player, "server", "invalid /time command: please use '/time hh:mm' in 24-hour format");
+              return;
+            }
+            
+            auto colon_pos = time_spec.find(":");
+            std::string hours_str = time_spec.substr(0, colon_pos);
+            std::string minutes_str = time_spec.substr(colon_pos + 1);
+            
+            int hours = std::stoi(hours_str);
+            int minutes = std::stoi(minutes_str);
+            set_time(hours, minutes);
+            
+            chat_send_player(player, "server", "Time set to " + std::to_string(hours) + ":" + (minutes < 10 ? "0" : "") + std::to_string(minutes) + ".");
           } else {
             chat_send_player(player, "server", "unknown command");
           }
