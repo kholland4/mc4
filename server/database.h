@@ -56,6 +56,7 @@ class SQLiteDB: public Database {
   
   private:
     sqlite3 *db;
+    int db_version;
     std::map<Vector3<int>, Mapblock*> read_cache;
 };
 
