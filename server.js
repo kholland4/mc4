@@ -419,27 +419,41 @@ class ServerRemote extends ServerBase {
       ((pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
       ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
     
-    var oldLight = nodeLight(mapBlock.data[localPos.x][localPos.y][localPos.z]);
-    var light = 0;
+    var oldLightRaw = nodeLight(mapBlock.data[localPos.x][localPos.y][localPos.z]);
+    var sunlight = (oldLightRaw >> 4) & 15;
+    var light = oldLightRaw & 15;;
     
     //Make a rough prediction of what the light will look like so that it can be shown to the player immediately.
     var def = nodeData.getDef();
     if(!def.transparent) {
+      sunlight = 0;
       light = 0;
     } else {
+      var maxNearbySunlight = 0;
       var maxNearbyLight = 0;
+      var hasSunAbove = false;
       for(var i = 0; i < stdFaces.length; i++) {
         var l = nodeLight(this.getNodeRaw(new THREE.Vector3(pos.x + stdFaces[i].x, pos.y + stdFaces[i].y, pos.z + stdFaces[i].z)));
-        maxNearbyLight = Math.max(l, maxNearbyLight);
+        maxNearbySunlight = Math.max((l >> 4) & 15, maxNearbySunlight);
+        maxNearbyLight = Math.max(l & 15, maxNearbyLight);
+        
+        if(stdFaces[i].x == 0 && stdFaces[i].y == 1 && stdFaces[i].z == 0 && ((l >> 4) & 15) == 15) {
+          hasSunAbove = true;
+        }
       }
       
+      if(hasSunAbove) {
+        sunlight = 15;
+      } else {
+        sunlight = Math.max(maxNearbySunlight - 1, sunlight);
+      }
       light = Math.max(maxNearbyLight - 1, light);
     }
     if(def.lightLevel > 0) {
       light = Math.max(def.lightLevel, light);
     }
     
-    var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot, light);
+    var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot, (sunlight << 4) | light);
     mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
     if(nodeData.itemstring != "air") { mapBlock.props.sunlit = false; }
     //mapBlock.markDirty(); FIXME -- not using this increases latency
