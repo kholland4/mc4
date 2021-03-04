@@ -128,7 +128,7 @@ SQLiteDB::SQLiteDB(const char* filename) {
   }
   sqlite3_finalize(pragma_reader);
   
-  //int orig_db_version = db_version;
+  int orig_db_version = db_version;
   
   //If the version is 0, the database is either (a) empty and uninitialized or (b) a version 1 database, from the dark ages before versions were used
   //Find out by checking for the existence of a 'map' table.
@@ -231,11 +231,9 @@ SQLiteDB::SQLiteDB(const char* filename) {
   
   
   //Store the DB user_version, if changed.
-  /*if(db_version != orig_db_version) {
+  if(db_version != orig_db_version) {
     std::string sql_str = "PRAGMA user_version = " + std::to_string(db_version) + ";";
     const char *sql = sql_str.c_str();
-    
-    std::cout << sql << std::endl;
     
     sqlite3_stmt *pragma_writer;
     if(sqlite3_prepare_v2(db, sql, -1, &pragma_writer, NULL) != SQLITE_OK) {
@@ -247,7 +245,7 @@ SQLiteDB::SQLiteDB(const char* filename) {
       exit(1);
     }
     sqlite3_finalize(pragma_writer);
-  }*/
+  }
   
   
   //Get number of stored mapblock rows (to show to the user).
