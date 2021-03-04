@@ -33,6 +33,7 @@ var digTimerStart = null;
 var digSel = null;
 var isDigging = false;
 var digOverlay;
+var destroySelNullCount = 0;
 
 var needsRaycast = false;
 
@@ -345,8 +346,13 @@ function animate() {
   
   if(digTimer > DIG_PREEMPT_TIME) {
     if(destroySel == null) {
-      digTimer = null;
-      digSel = null;
+      //Accounts for very slight delay in updating meshes where the mesh disappears.
+      destroySelNullCount++;
+      if(destroySelNullCount >= 6) {
+        digTimer = null;
+        digSel = null;
+        destroySelNullCount = 0;
+      }
     } else if(digSel != null) {
       if(!destroySel.equals(digSel)) {
         digTimer = null;
@@ -355,7 +361,11 @@ function animate() {
         digTimer = null;
         digSel = null;
       }
+      
+      destroySelNullCount = 0;
     }
+  } else {
+    destroySelNullCount = 0;
   }
   if(isDigging && destroySel != null && digSel == null) {
     var nodeData = server.getNode(destroySel);
