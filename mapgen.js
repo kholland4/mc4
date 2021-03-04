@@ -89,6 +89,11 @@ class MapBlock {
     this.lightNeedsUpdate = 1;
     this.renderNeedsUpdate = 1;
   }
+  
+  getNode(localPos) {
+    var n = this.data[localPos.x][localPos.y][localPos.z];
+    return new NodeData(this.getItemstring(nodeID(n)), nodeRot(n));
+  }
 }
 
 class MapgenBase {

@@ -178,6 +178,7 @@ class ServerBase {
   
   sendMessage(obj) {}
   isRemote() { return false; }
+  connect() {}
 }
 
 class ServerLocal extends ServerBase {
@@ -255,14 +256,128 @@ class ServerLocal extends ServerBase {
   }
 }
 
+class MapBlockPatch {
+  constructor(_server, _pos, _nodeData) {
+    this.pos = _pos;
+    
+    this.mapBlockPos = new THREE.Vector3(Math.floor(this.pos.x / MAPBLOCK_SIZE.x), Math.floor(this.pos.y / MAPBLOCK_SIZE.y), Math.floor(this.pos.z / MAPBLOCK_SIZE.z));
+    this.localPos = new THREE.Vector3(
+      ((this.pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
+      ((this.pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
+      ((this.pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
+    
+    this.server = _server;
+    this.nodeData = _nodeData;
+    
+    var mapBlock = this.server.getMapBlock(this.mapBlockPos);
+    if(mapBlock == null) {
+      throw new Exception("cannot patch an unloaded mapblock");
+    }
+    this.oldNodeData = mapBlock.getNode(this.localPos);
+    this.oldLight = nodeLight(mapBlock.data[this.localPos.x][this.localPos.y][this.localPos.z]);
+  }
+  
+  doApply() {
+    var mapBlock = this.server.getMapBlock(this.mapBlockPos);
+    if(mapBlock == null) {
+      throw new Exception("cannot patch an unloaded mapblock");
+    }
+    
+    var oldLightRaw = nodeLight(mapBlock.data[this.localPos.x][this.localPos.y][this.localPos.z]);
+    var sunlight = (oldLightRaw >> 4) & 15;
+    var light = oldLightRaw & 15;;
+    
+    //Make a rough prediction of what the light will look like so that it can be shown to the player immediately.
+    var def = this.nodeData.getDef();
+    if(!def.transparent) {
+      sunlight = 0;
+      light = 0;
+    } else {
+      var maxNearbySunlight = 0;
+      var maxNearbyLight = 0;
+      var hasSunAbove = false;
+      for(var i = 0; i < stdFaces.length; i++) {
+        var l = nodeLight(this.server.getNodeRaw(new THREE.Vector3(this.pos.x + stdFaces[i].x, this.pos.y + stdFaces[i].y, this.pos.z + stdFaces[i].z)));
+        maxNearbySunlight = Math.max((l >> 4) & 15, maxNearbySunlight);
+        maxNearbyLight = Math.max(l & 15, maxNearbyLight);
+        
+        if(stdFaces[i].x == 0 && stdFaces[i].y == 1 && stdFaces[i].z == 0 && ((l >> 4) & 15) == 15) {
+          hasSunAbove = true;
+        }
+      }
+      
+      if(hasSunAbove) {
+        sunlight = 15;
+      } else {
+        sunlight = Math.max(maxNearbySunlight - 1, sunlight);
+      }
+      light = Math.max(maxNearbyLight - 1, light);
+    }
+    if(def.lightLevel > 0) {
+      light = Math.max(def.lightLevel, light);
+    }
+    
+    var val = nodeN(mapBlock.getNodeID(this.nodeData.itemstring), this.nodeData.rot, (sunlight << 4) | light);
+    mapBlock.data[this.localPos.x][this.localPos.y][this.localPos.z] = val;
+    if(this.nodeData.itemstring != "air") { mapBlock.props.sunlit = false; }
+  }
+  
+  doRevert() {
+    var mapBlock = this.server.getMapBlock(this.mapBlockPos);
+    if(mapBlock == null) {
+      throw new Exception("cannot patch an unloaded mapblock");
+    }
+    var val = nodeN(mapBlock.getNodeID(this.oldNodeData.itemstring), this.oldNodeData.rot, this.oldLight);
+    mapBlock.data[this.localPos.x][this.localPos.y][this.localPos.z] = val;
+  }
+  
+  doQueueUpdates() {
+    if(this.localPos.x == 0) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0)), true); } else
+    if(this.localPos.x == MAPBLOCK_SIZE.x - 1) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(1, 0, 0)), true); }
+    if(this.localPos.y == 0) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(0, -1, 0)), true); } else
+    if(this.localPos.y == MAPBLOCK_SIZE.y - 1) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(0, 1, 0)), true); }
+    if(this.localPos.z == 0) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1)), true); } else
+    if(this.localPos.z == MAPBLOCK_SIZE.z - 1) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1)), true); }
+    renderQueueUpdate(this.mapBlockPos, true);
+  }
+  
+  isAccepted() {
+    var mapBlock = this.server.getMapBlock(this.mapBlockPos);
+    if(mapBlock == null) {
+      throw new Exception("cannot patch an unloaded mapblock");
+    }
+    var actualNode = mapBlock.getNode(this.localPos);
+    if(this.nodeData.itemstring == actualNode.itemstring && this.nodeData.rot == actualNode.rot) {
+      return true;
+    }
+    return false;
+  }
+}
+
 //TODO
 class ServerRemote extends ServerBase {
   constructor(url) {
     super();
     
-    this.socket = new WebSocket(url);
+    this.playerInventory = {};
+    
+    this.cache = {};
+    this.saved = {};
+    
+    this.requests = [];
+    
+    this.patches = [];
+    
+    this.player = null;
+    this.timeSinceUpdateSent = 0;
     this._socketReady = false;
     this._invReady = true;
+    
+    this._url = url;
+  }
+  
+  connect() {
+    this.socket = new WebSocket(this._url);
     this.socket.onopen = function() {
       this._socketReady = true;
       
@@ -307,6 +422,17 @@ class ServerRemote extends ServerBase {
         
         this.cache[index] = mapBlock;
         
+        //Since updates are only queued, they won't happen until after this code runs
+        for(var i = this.patches.length - 1; i >= 0; i--) {
+          if(mapBlock.pos.equals(this.patches[i].mapBlockPos)) {
+            if(this.patches[i].isAccepted()) {
+              this.patches.splice(i, 1);
+            } else {
+              this.patches[i].doApply();
+            }
+          }
+        }
+        
         //if(mapBlock.lightNeedsUpdate > 0 && needLight) {
         //  lightQueueUpdate(mapBlock.pos);
         //}
@@ -335,16 +461,6 @@ class ServerRemote extends ServerBase {
         }
       }
     }.bind(this);
-    
-    this.playerInventory = {};
-    
-    this.cache = {};
-    this.saved = {};
-    
-    this.requests = [];
-    
-    this.player = null;
-    this.timeSinceUpdateSent = 0;
   }
   
   //TODO: support multiple players
@@ -413,69 +529,22 @@ class ServerRemote extends ServerBase {
   
   setNode(pos, nodeData) {
     //FIXME
-    var mapBlockPos = new THREE.Vector3(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z));
-    var mapBlock = this.getMapBlock(mapBlockPos);
-    var localPos = new THREE.Vector3(
-      ((pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
-      ((pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
-      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
+    var patch = new MapBlockPatch(this, pos, nodeData);
     
-    var oldLightRaw = nodeLight(mapBlock.data[localPos.x][localPos.y][localPos.z]);
-    var sunlight = (oldLightRaw >> 4) & 15;
-    var light = oldLightRaw & 15;;
+    patch.doApply();
+    patch.doQueueUpdates();
     
-    //Make a rough prediction of what the light will look like so that it can be shown to the player immediately.
-    var def = nodeData.getDef();
-    if(!def.transparent) {
-      sunlight = 0;
-      light = 0;
-    } else {
-      var maxNearbySunlight = 0;
-      var maxNearbyLight = 0;
-      var hasSunAbove = false;
-      for(var i = 0; i < stdFaces.length; i++) {
-        var l = nodeLight(this.getNodeRaw(new THREE.Vector3(pos.x + stdFaces[i].x, pos.y + stdFaces[i].y, pos.z + stdFaces[i].z)));
-        maxNearbySunlight = Math.max((l >> 4) & 15, maxNearbySunlight);
-        maxNearbyLight = Math.max(l & 15, maxNearbyLight);
-        
-        if(stdFaces[i].x == 0 && stdFaces[i].y == 1 && stdFaces[i].z == 0 && ((l >> 4) & 15) == 15) {
-          hasSunAbove = true;
-        }
+    this.patches.push(patch);
+    
+    //TODO test
+    setTimeout(function(p) {
+      var index = this.patches.indexOf(p);
+      if(index > -1) {
+        patch.doRevert();
+        patch.doQueueUpdates();
+        this.patches.splice(index, 1);
       }
-      
-      if(hasSunAbove) {
-        sunlight = 15;
-      } else {
-        sunlight = Math.max(maxNearbySunlight - 1, sunlight);
-      }
-      light = Math.max(maxNearbyLight - 1, light);
-    }
-    if(def.lightLevel > 0) {
-      light = Math.max(def.lightLevel, light);
-    }
-    
-    var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot, (sunlight << 4) | light);
-    mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
-    if(nodeData.itemstring != "air") { mapBlock.props.sunlit = false; }
-    //mapBlock.markDirty(); FIXME -- not using this increases latency
-    //FIXME
-    /*if(localPos.x == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0))).markDirty(); } else
-    if(localPos.x == MAPBLOCK_SIZE.x - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(1, 0, 0))).markDirty(); }
-    if(localPos.y == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, -1, 0))).markDirty(); } else
-    if(localPos.y == MAPBLOCK_SIZE.y - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 1, 0))).markDirty(); }
-    if(localPos.z == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1))).markDirty(); } else
-    if(localPos.z == MAPBLOCK_SIZE.z - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1))).markDirty(); }*/
-    //---
-    //this.setMapBlock(mapBlockPos, mapBlock);
-    
-    
-    if(localPos.x == 0) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0)), true); } else
-    if(localPos.x == MAPBLOCK_SIZE.x - 1) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(1, 0, 0)), true); }
-    if(localPos.y == 0) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(0, -1, 0)), true); } else
-    if(localPos.y == MAPBLOCK_SIZE.y - 1) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(0, 1, 0)), true); }
-    if(localPos.z == 0) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1)), true); } else
-    if(localPos.z == MAPBLOCK_SIZE.z - 1) { renderQueueUpdate(mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1)), true); }
-    renderQueueUpdate(mapBlockPos, true);
+    }.bind(this, patch), 5000);
       
     if(this._socketReady) {
       this.socket.send(JSON.stringify({

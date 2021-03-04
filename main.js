@@ -225,16 +225,30 @@ function init() {
 function loadLoop() {
   var ready = true;
   
-  if(!server.ready) { ready = false; } //FIXME
+  //if(!server.ready) { ready = false; } //FIXME
   
   if(!texturesLoaded()) { ready = false; }
   if(!iconsLoaded()) { ready = false; }
   if(!modsLoaded()) { ready = false; }
   
   if(ready) {
-    afterLoad();
+    debug("main", "status", "loaded textures, icons, and mods");
+    server.connect();
+    loadLoop2();
   } else {
     requestAnimationFrame(loadLoop);
+  }
+}
+
+function loadLoop2() {
+  var ready = true;
+  
+  if(!server.ready) { ready = false; }
+  
+  if(ready) {
+    afterLoad();
+  } else {
+    requestAnimationFrame(loadLoop2);
   }
 }
 
