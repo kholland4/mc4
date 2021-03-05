@@ -3,7 +3,7 @@
 #include "log.h"
 
 Server::Server(Database& _db, Mapgen& _mapgen)
-    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _mapgen)
+    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _mapgen), slow_tick_counter(0)
 {
   //disable logging
   m_server.clear_access_channels(websocketpp::log::alevel::all);
@@ -336,6 +336,16 @@ void Server::tick(const boost::system::error_code&) {
     player->send(out.str(), m_server);
   }
   
+  slow_tick_counter++;
+  if(slow_tick_counter >= SERVER_SLOW_TICK_RATIO) {
+    slow_tick();
+    slow_tick_counter = 0;
+  }
+  
   m_timer.expires_at(m_timer.expiry() + boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL));
   m_timer.async_wait(boost::bind(&Server::tick, this, boost::asio::placeholders::error));
+}
+
+void Server::slow_tick() {
+  db.clean_cache();
 }

@@ -16,6 +16,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//Target maximun number of mapblocks to cache in memory at a time.
+#define TARGET_CACHE_COUNT 15000
+
 #include "database.h"
 #include "json.h"
 #include "log.h"
@@ -294,6 +297,7 @@ MapblockUpdateInfo SQLiteDB::get_mapblockupdateinfo(Vector3<int> pos) {
   //Try read cache.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
+    read_cache_hits[pos] = std::chrono::steady_clock::now();
     return MapblockUpdateInfo(search->second);
   }
   
@@ -311,6 +315,7 @@ void SQLiteDB::set_mapblockupdateinfo(Vector3<int> pos, MapblockUpdateInfo info)
     return; //not present
   }
   
+  read_cache_hits[pos] = std::chrono::steady_clock::now();
   info.write_to_mapblock(search->second);
 }
 
@@ -318,6 +323,7 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
   //Try read cache.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
+    read_cache_hits[pos] = std::chrono::steady_clock::now();
     return new Mapblock(*(search->second));
   }
   
@@ -453,6 +459,7 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
     //Save to read cache.
     Mapblock *mb_store = new Mapblock(*mb);
     read_cache[pos] = mb_store;
+    read_cache_hits[pos] = std::chrono::steady_clock::now();
   } else if(sqlite3_step(statement) != SQLITE_DONE) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
@@ -480,6 +487,7 @@ void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
   }
   Mapblock *mb_store = new Mapblock(*mb);
   read_cache[pos] = mb_store;
+  read_cache_hits[pos] = std::chrono::steady_clock::now();
   
   if(!mb->dirty) { return; }
   //To avoid hitting the disk for lighting updates.
@@ -594,4 +602,45 @@ void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
     return;
   }
   sqlite3_finalize(statement);
+}
+
+
+
+void SQLiteDB::clean_cache() {
+  size_t target_cache_count = TARGET_CACHE_COUNT;
+  size_t evicted_count = 0;
+  if(read_cache_hits.size() <= target_cache_count) {
+    log(LogSource::SQLITEDB, LogLevel::EXTRA, std::to_string(read_cache_hits.size()) + std::string(" mapblocks in cache."));
+    return;
+  }
+  
+  std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
+  std::chrono::time_point<std::chrono::steady_clock> cutoff = start - std::chrono::hours(2);
+  
+  while(read_cache_hits.size() > target_cache_count && cutoff <= start) {
+    for(auto it = read_cache_hits.cbegin(); it != read_cache_hits.cend();) {
+      if(it->second < cutoff) {
+        Mapblock *mb_to_erase = read_cache[it->first];
+        delete mb_to_erase;
+        read_cache.erase(it->first);
+        it = read_cache_hits.erase(it);
+        evicted_count++;
+      } else {
+        it++;
+      }
+    }
+    
+    auto remaining = start - cutoff;
+    auto try_diff = remaining / 2;
+    
+    if(try_diff >= std::chrono::seconds(10)) {
+      cutoff += try_diff;
+    } else {
+      cutoff += std::chrono::seconds(10);
+    }
+  }
+  
+  
+  
+  log(LogSource::SQLITEDB, LogLevel::EXTRA, std::to_string(read_cache_hits.size()) + std::string(" mapblocks in cache (") + std::to_string(evicted_count) + std::string(" evicted)."));
 }

@@ -20,7 +20,7 @@ std::map<LogLevel, std::string> log_level_messages = {
 };
 
 void log(LogSource src, LogLevel lvl, std::string message) {
-  if(lvl > LogLevel::INFO) { return; } //TODO: make configurable
+  //if(lvl > LogLevel::INFO) { return; } //TODO: make configurable
   
   std::cerr << log_level_messages[lvl] << " [" << log_source_messages[src] << "]   " << message << std::endl;
 }

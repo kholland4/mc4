@@ -20,6 +20,7 @@
 #define __DATABASE_H__
 
 #include <map>
+#include <chrono>
 
 #include <sqlite3.h>
 
@@ -32,6 +33,7 @@ class Database {
     virtual void set_mapblockupdateinfo(Vector3<int> pos, MapblockUpdateInfo info) = 0;
     virtual Mapblock* get_mapblock(Vector3<int> pos) = 0;
     virtual void set_mapblock(Vector3<int> pos, Mapblock *mb) = 0;
+    virtual void clean_cache() = 0;
 };
 
 class MemoryDB : public Database {
@@ -53,11 +55,13 @@ class SQLiteDB: public Database {
     virtual void set_mapblockupdateinfo(Vector3<int> pos, MapblockUpdateInfo info);
     virtual Mapblock* get_mapblock(Vector3<int> pos);
     virtual void set_mapblock(Vector3<int> pos, Mapblock *mb);
+    virtual void clean_cache();
   
   private:
     sqlite3 *db;
     int db_version;
     std::map<Vector3<int>, Mapblock*> read_cache;
+    std::map<Vector3<int>, std::chrono::time_point<std::chrono::steady_clock>> read_cache_hits;
 };
 
 #endif

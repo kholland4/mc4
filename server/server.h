@@ -3,6 +3,7 @@
 
 #define VERSION "0.1.0"
 #define SERVER_TICK_INTERVAL 500
+#define SERVER_SLOW_TICK_RATIO 20 //number of ticks to each slow tick
 #define PLAYER_ENTITY_VISIBILE_DISTANCE 200
 #define PLAYER_MAPBLOCK_INTEREST_DISTANCE 2
 
@@ -70,6 +71,7 @@ class Server {
     void on_close(connection_hdl hdl);
     
     void tick(const boost::system::error_code&);
+    void slow_tick();
     
     typedef std::map<connection_hdl, PlayerState*, std::owner_less<connection_hdl>> player_list;
     
@@ -80,6 +82,8 @@ class Server {
     Database& db;
     Map map;
     std::string motd;
+    
+    int slow_tick_counter;
 };
 
 #endif
