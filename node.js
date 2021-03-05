@@ -37,7 +37,7 @@ class NodeBase {
     //this.customMeshUVs = null;
     this.transparent = false;
     this.renderAdj = false;
-    this.transFaces = [true, true, true, true, true, true]; //not yet used consistently for performance reasons
+    //this.transFaces = [true, true, true, true, true, true]; //not yet used consistently for performance reasons
     this.passSunlight = false;
     this.lightLevel = 0;
     this.joined = false;

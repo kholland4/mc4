@@ -48,6 +48,7 @@ class NodeDef {
     int light_level;
 };
 
+void load_node_defs(std::string filename);
 NodeDef get_node_def(std::string itemstring);
 
 #endif

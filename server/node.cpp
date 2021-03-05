@@ -18,27 +18,42 @@
 
 #include "node.h"
 
+#include "log.h"
+
+#include <map>
+#include <iostream>
+
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+
+std::map<std::string, NodeDef*> all_node_defs;
+
+void load_node_defs(std::string filename) {
+  boost::property_tree::ptree pt;
+  boost::property_tree::read_json(filename, pt);
+  
+  size_t count = 0;
+  
+  for(auto& n : pt.get_child("nodeDefs")) {
+    std::string itemstring = n.first;
+    
+    NodeDef *def = new NodeDef(itemstring);
+    def->transparent = n.second.get<bool>("transparent");
+    def->pass_sunlight = n.second.get<bool>("passSunlight");
+    def->light_level = n.second.get<int>("lightLevel");
+    
+    all_node_defs[itemstring] = def;
+    
+    count++;
+  }
+  
+  log(LogSource::LOADER, LogLevel::INFO, std::string("Loaded " + std::to_string(count) + " node definitions"));
+}
+
 NodeDef get_node_def(std::string itemstring) {
-  if(itemstring == "air") {
-    NodeDef def("air");
-    def.transparent = true;
-    def.pass_sunlight = true;
-    return def;
-  } else if(itemstring == "default:torch") {
-    NodeDef def("default:torch");
-    def.transparent = true;
-    def.pass_sunlight = true;
-    def.light_level = 15;
-    return def;
-  } else if(itemstring == "default:glass") {
-    NodeDef def("default:glass");
-    def.transparent = true;
-    def.pass_sunlight = true;
-    return def;
-  } else if(itemstring == "default:leaves") {
-    NodeDef def("default:leaves");
-    def.transparent = true;
-    return def;
+  auto search = all_node_defs.find(itemstring);
+  if(search != all_node_defs.end()) {
+    return *(search->second);
   }
   
   return NodeDef("nothing");

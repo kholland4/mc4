@@ -17,7 +17,7 @@
 */
 
 //Target maximun number of mapblocks to cache in memory at a time.
-#define TARGET_CACHE_COUNT 15000
+#define TARGET_CACHE_COUNT 9000
 
 #include "database.h"
 #include "json.h"
@@ -610,7 +610,7 @@ void SQLiteDB::clean_cache() {
   size_t target_cache_count = TARGET_CACHE_COUNT;
   size_t evicted_count = 0;
   if(read_cache_hits.size() <= target_cache_count) {
-    log(LogSource::SQLITEDB, LogLevel::EXTRA, std::to_string(read_cache_hits.size()) + std::string(" mapblocks in cache."));
+    log(LogSource::SQLITEDB, LogLevel::DEBUG, std::to_string(read_cache_hits.size()) + std::string(" mapblocks in cache."));
     return;
   }
   

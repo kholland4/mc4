@@ -5,7 +5,8 @@
 
 std::map<LogSource, std::string> log_source_messages = {
   {LogSource::SERVER, "server"},
-  {LogSource::SQLITEDB, "SQLiteDB"}
+  {LogSource::SQLITEDB, "SQLiteDB"},
+  {LogSource::LOADER, "loader"}
 };
 
 std::map<LogLevel, std::string> log_level_messages = {
@@ -20,7 +21,7 @@ std::map<LogLevel, std::string> log_level_messages = {
 };
 
 void log(LogSource src, LogLevel lvl, std::string message) {
-  //if(lvl > LogLevel::INFO) { return; } //TODO: make configurable
+  if(lvl > LogLevel::EXTRA) { return; } //TODO: make configurable
   
   std::cerr << log_level_messages[lvl] << " [" << log_source_messages[src] << "]   " << message << std::endl;
 }

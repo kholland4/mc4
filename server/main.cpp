@@ -21,6 +21,8 @@
 #include "server.h"
 
 int main() {
+  load_node_defs("defs.json");
+  
   SQLiteDB db("test_map.sqlite");
   //MemoryDB db;
   MapgenDefault mapgen;
