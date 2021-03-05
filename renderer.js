@@ -92,7 +92,7 @@ class RenderWorker {
             s2.push(blocks["1,0,0"].data[0][y][z]);
           } else if(y < 0 && x >= 0 && x < mapBlock.size.x && z >= 0 && z < mapBlock.size.z) {
             s2.push(blocks["0,-1,0"].data[x][mapBlock.size.y - 1][z]);
-          } else if(y >= mapBlock.size.y && x >= 0 && x < mapBlock.size.x && z >= 0 && z < mapBlock.size.z) {setSun
+          } else if(y >= mapBlock.size.y && x >= 0 && x < mapBlock.size.x && z >= 0 && z < mapBlock.size.z) {
             s2.push(blocks["0,1,0"].data[x][0][z]);
           } else if(z < 0 && x >= 0 && x < mapBlock.size.x && y >= 0 && y < mapBlock.size.y) {
             s2.push(blocks["0,0,-1"].data[x][y][mapBlock.size.z - 1]);

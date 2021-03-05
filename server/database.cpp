@@ -18,6 +18,7 @@
 
 #include "database.h"
 #include "json.h"
+#include "log.h"
 
 #include <iostream>
 
@@ -106,24 +107,24 @@ CREATE TABLE IF NOT EXISTS map ( \
 SQLiteDB::SQLiteDB(const char* filename) {
   int rc = sqlite3_open(filename, &db);
   if(rc != SQLITE_OK) {
-    std::cerr << "Can't open database: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Can't open database: ") + std::string(sqlite3_errmsg(db)));
     exit(1);
   }
   
   //Read the database version.
   sqlite3_stmt *pragma_reader;
   if(sqlite3_prepare_v2(db, "PRAGMA user_version;", -1, &pragma_reader, NULL) != SQLITE_OK) {
-    std::cerr << "Unable to read pragma 'user_version': " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to read pragma 'user_version': ") + std::string(sqlite3_errmsg(db)));
     exit(1);
   }
   if(sqlite3_step(pragma_reader) == SQLITE_ROW) {
     db_version = sqlite3_column_int(pragma_reader, 0);
   } else {
-    std::cerr << "Unable to read pragma 'user_version': " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to read pragma 'user_version': ") + std::string(sqlite3_errmsg(db)));
     exit(1);
   }
   if(sqlite3_step(pragma_reader) != SQLITE_DONE) {
-    std::cerr << "Unable to read pragma 'user_version': " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to read pragma 'user_version': ") + std::string(sqlite3_errmsg(db)));
     exit(1);
   }
   sqlite3_finalize(pragma_reader);
@@ -135,7 +136,7 @@ SQLiteDB::SQLiteDB(const char* filename) {
   if(db_version == 0) {
     sqlite3_stmt *table_check;
     if(sqlite3_prepare_v2(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='map';", -1, &table_check, NULL) != SQLITE_OK) {
-      std::cerr << "Unable check for existence of 'map' table: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable check for existence of 'map' table: ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     
@@ -146,7 +147,7 @@ SQLiteDB::SQLiteDB(const char* filename) {
     } else if(res == SQLITE_DONE) {
       //No result, must be version 0.
     } else {
-      std::cerr << "Unable check for existence of 'map' table: " << sqlite3_errmsg(db) << std::endl;
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable check for existence of 'map' table: ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     
@@ -173,25 +174,21 @@ SQLiteDB::SQLiteDB(const char* filename) {
     
     sqlite3_stmt *statement;
     if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
-      std::cerr << "Unable to create table 'map': " << sqlite3_errmsg(db) << std::endl;
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to create table 'map': ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     if(sqlite3_step(statement) != SQLITE_DONE) {
-      std::cerr << "Unable to create table 'map': " << sqlite3_errmsg(db) << std::endl;
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to create table 'map': ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     sqlite3_finalize(statement);
     
-    //TODO proper logging
-    std::cout << "Initialized new SQLite database with version " << db_version << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::NOTICE, std::string("Initialized new SQLite database with version ") + std::to_string(db_version));
   }
   
   //Upgrades from version 1 to version 2
   if(db_version == 1) {
-    //TODO proper logging
-    std::cout << "Upgrading database from version 1 to version 2" << std::endl;
-    
-    //FIXME use transactions
+    log(LogSource::SQLITEDB, LogLevel::NOTICE, "Upgrading database from version 1 to version 2");
     
     std::array<std::string, 7> sql_str = {
       "BEGIN EXCLUSIVE TRANSACTION;",
@@ -216,11 +213,11 @@ SQLiteDB::SQLiteDB(const char* filename) {
     for(size_t i = 0; i < sql_str.size(); i++) {
       sqlite3_stmt *statement;
       if(sqlite3_prepare_v2(db, sql_str[i].c_str(), -1, &statement, NULL) != SQLITE_OK) {
-        std::cerr << "Unable to recreate table 'map': " << sqlite3_errmsg(db) << std::endl;
+        log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to migrate table 'map': ") + std::string(sqlite3_errmsg(db)));
         exit(1);
       }
       if(sqlite3_step(statement) != SQLITE_DONE) {
-        std::cerr << "Unable to recreate table 'map': " << sqlite3_errmsg(db) << std::endl;
+        log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to migrate table 'map': ") + std::string(sqlite3_errmsg(db)));
         exit(1);
       }
       sqlite3_finalize(statement);
@@ -237,11 +234,11 @@ SQLiteDB::SQLiteDB(const char* filename) {
     
     sqlite3_stmt *pragma_writer;
     if(sqlite3_prepare_v2(db, sql, -1, &pragma_writer, NULL) != SQLITE_OK) {
-      std::cerr << "Unable write pragma 'user_version': " << sqlite3_errmsg(db) << std::endl;
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable write pragma 'user_version': ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     if(sqlite3_step(pragma_writer) != SQLITE_DONE) {
-      std::cerr << "Unable write pragma 'user_version': " << sqlite3_errmsg(db) << std::endl;
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable write pragma 'user_version': ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     sqlite3_finalize(pragma_writer);
@@ -261,30 +258,31 @@ SQLiteDB::SQLiteDB(const char* filename) {
   for(auto it : sql_str) {
     sqlite3_stmt *count_checker;
     if(sqlite3_prepare_v2(db, it.second.c_str(), -1, &count_checker, NULL) != SQLITE_OK) {
-      std::cerr << "Unable to count rows in 'map' table: " << sqlite3_errmsg(db) << std::endl;
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to count rows in 'map' table: ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     if(sqlite3_step(count_checker) == SQLITE_ROW) {
       row_counts[it.first] = sqlite3_column_int(count_checker, 0);
     } else {
-      std::cerr << "Unable to count rows in 'map' table: " << sqlite3_errmsg(db) << std::endl;
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to count rows in 'map' table: ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     if(sqlite3_step(count_checker) != SQLITE_DONE) {
-      std::cerr << "Unable to count rows in 'map' table: " << sqlite3_errmsg(db) << std::endl;
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to count rows in 'map' table: ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     sqlite3_finalize(count_checker);
   }
   
-  //TODO proper logging
-  std::cout << "Loaded SQLite database with " << row_counts[-1] << " mapblocks (version " << db_version << ")" << std::endl;
+  log(LogSource::SQLITEDB, LogLevel::INFO,
+      std::string("Loaded SQLite database with ") + std::to_string(row_counts[-1]) +
+      std::string(" mapblocks (version ") + std::to_string(db_version) + std::string(")"));
   for(auto it : row_counts) {
     int version = it.first;
     if(version == -1) { continue; }
     int count = it.second;
     if(count == 0) { continue; }
-    std::cout << count << " mapblocks are version " << version << "." << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::INFO, std::to_string(count) + std::string(" mapblocks are version ") + std::to_string(version));
   }
 }
 
@@ -329,25 +327,25 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
   const char *sql = "SELECT data, id_to_is, sunlit, dirty, version FROM map WHERE x=? AND y=? AND z=? LIMIT 1;";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::get_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     mb->dont_write_to_db = true;
     return mb;
   }
   if(sqlite3_bind_int(statement, 1, pos.x) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::get_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     mb->dont_write_to_db = true;
     return mb;
   }
   if(sqlite3_bind_int(statement, 2, pos.y) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::get_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     mb->dont_write_to_db = true;
     return mb;
   }
   if(sqlite3_bind_int(statement, 3, pos.z) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::get_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     mb->dont_write_to_db = true;
     return mb;
@@ -381,7 +379,7 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
     
     if(row_version == 1) {
       if(data_raw_len != MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z * sizeof(uint64_t)) {
-        std::cerr << "Error in SQLiteDB::get_mapblock: unexpected mapblock data size" << std::endl;
+        log(LogSource::SQLITEDB, LogLevel::ALERT, "Error in SQLiteDB::get_mapblock: unexpected mapblock data size");
         sqlite3_finalize(statement);
         mb->dont_write_to_db = true;
         mb->is_nil = true;
@@ -410,7 +408,7 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
         
         for(size_t n = 0; n < run_length; n++) {
           if(full) {
-            std::cerr << "Error in SQLiteDB::get_mapblock: decompressed mapblock is too long" << std::endl;
+            log(LogSource::SQLITEDB, LogLevel::ALERT, "Error in SQLiteDB::get_mapblock: decompressed mapblock is too long");
             sqlite3_finalize(statement);
             mb->dont_write_to_db = true;
             return mb;
@@ -434,7 +432,7 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
       }
       
       if(!full) {
-        std::cerr << "Error in SQLiteDB::get_mapblock: decompressed mapblock is too short" << std::endl;
+        log(LogSource::SQLITEDB, LogLevel::ALERT, "Error in SQLiteDB::get_mapblock: decompressed mapblock is too short");
         sqlite3_finalize(statement);
         mb->dont_write_to_db = true;
         return mb;
@@ -442,7 +440,7 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
       
       mb->is_nil = false;
     } else {
-      std::cerr << "Error in SQLiteDB::get_mapblock: unknown row version '" << row_version << "'" << std::endl;
+      log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: unknown row version '") + std::to_string(row_version) + std::string("'"));
       sqlite3_finalize(statement);
       mb->dont_write_to_db = true;
       mb->is_nil = true;
@@ -456,7 +454,7 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
     Mapblock *mb_store = new Mapblock(*mb);
     read_cache[pos] = mb_store;
   } else if(sqlite3_step(statement) != SQLITE_DONE) {
-    std::cerr << "Error in SQLiteDB::get_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     mb->dont_write_to_db = true;
     return mb;
@@ -488,7 +486,7 @@ void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
   if(found_in_cache && mb->update_num == old_update_num) { return; }
   
   if(mb->dont_write_to_db) {
-    std::cerr << "SQLiteDB::set_mapblock: did not write mapblock at " << pos << " due to prior errors." << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::WARNING, std::string("SQLiteDB::set_mapblock: did not write mapblock at ") + pos.to_string() + std::string(" due to prior errors."));
     return;
   }
   
@@ -496,22 +494,22 @@ void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
   const char *sql = "REPLACE INTO map (x, y, z, data, id_to_is, sunlit, dirty, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::set_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
   if(sqlite3_bind_int(statement, 1, pos.x) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::set_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
   if(sqlite3_bind_int(statement, 2, pos.y) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::set_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
   if(sqlite3_bind_int(statement, 3, pos.z) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::set_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
@@ -551,7 +549,7 @@ void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
     run_length = 0;
   }
   if(sqlite3_bind_blob(statement, 4, data_compressed, out_cursor * sizeof(uint32_t), SQLITE_TRANSIENT) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::set_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
@@ -569,29 +567,29 @@ void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
   std::string IDtoIS_json_str = IDtoIS_json.str();
   const char* IDtoIS_json_cstr = IDtoIS_json_str.c_str();
   if(sqlite3_bind_text(statement, 5, IDtoIS_json_cstr, -1, SQLITE_TRANSIENT) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::set_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
   
   if(sqlite3_bind_int(statement, 6, mb->sunlit) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::set_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
   if(sqlite3_bind_int(statement, 7, mb->dirty) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::set_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
   if(sqlite3_bind_int(statement, 8, row_version) != SQLITE_OK) {
-    std::cerr << "Error in SQLiteDB::set_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
   
   if(sqlite3_step(statement) != SQLITE_DONE) {
-    std::cerr << "Error in SQLiteDB::set_mapblock: " << sqlite3_errmsg(db) << std::endl;
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
