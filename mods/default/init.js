@@ -730,6 +730,61 @@
   });
   
   
+  //---Ladder---
+  registerNodeHelper("default:ladder_wood", {
+    desc: "Wooden Ladder",
+    tex: {texAll: "default_ladder_wood.png"},
+    icon: "default_ladder_wood.png",
+    node: {groups: {choppy: 1}, transparent: true, passSunlight: true, walkable: true, ladderlike: true, customMesh: true,
+      customMeshVerts: [
+        [
+          0.375, 0.5, -0.5,
+          0.375, -0.5, -0.5,
+          0.375, 0.5, 0.5,
+          
+          0.375, -0.5, -0.5,
+          0.375, -0.5, 0.5,
+          0.375, 0.5, 0.5
+        ],
+        [
+          0.376, 0.5, 0.5,
+          0.376, -0.5, 0.5,
+          0.376, 0.5, -0.5,
+          
+          0.376, -0.5, 0.5,
+          0.376, -0.5, -0.5,
+          0.376, 0.5, -0.5
+        ], [], [], [], []
+      ],
+      customMeshUVs: [
+        [
+          0.0, 1.0,
+          0.0, 0.0,
+          1.0, 1.0,
+          
+          0.0, 0.0,
+          1.0, 0.0,
+          1.0, 1.0
+        ],
+        [
+          0.0, 1.0,
+          0.0, 0.0,
+          1.0, 1.0,
+          
+          0.0, 0.0,
+          1.0, 0.0,
+          1.0, 1.0
+        ], [], [], [], []
+      ]}
+  });
+  api.registerCraft(new api.CraftEntry("default:ladder_wood",
+    [
+      "default:stick", null, "default:stick",
+      "default:stick", "default:stick", "default:stick",
+      "default:stick", null, "default:stick"
+    ], {shape: {x: 3, y: 3}}));
+  
+  
   
   //---TIME---
   mods.default.timeOffset = 1440 / 2;

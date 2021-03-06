@@ -38,9 +38,10 @@ class Player {
   tick(tscale) {
     var vy = this.vel.y;
     this.controls.fly = this.fly;
+    this.controls.ladder = this.inLadder();
     this.controls.tick(tscale);
     this.vel.copy(this.controls.vel);
-    if(!this.fly) {
+    if(!this.fly && !this.inLadder()) {
       if(this.vel.y > 0 && vy == 0) {
         
       } else {
@@ -103,6 +104,13 @@ class Player {
     } else {
       return collide(box, this.boundingBox.clone().translate(this.pos));
     }
+  }
+  
+  inLadder() {
+    var nodeStandingIn = server.getNode(new THREE.Vector3(Math.round(this.pos.x), Math.round(this.pos.y - 1.51), Math.round(this.pos.z)));
+    if(nodeStandingIn == null) { return false; }
+    var nodeStandingInDef = nodeStandingIn.getDef();
+    return nodeStandingInDef.ladderlike;
   }
   
   get wield() {

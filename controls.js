@@ -21,6 +21,7 @@ var KBDCTL_PITCH_MOVEMENT = false;
 class BaseControls {
   constructor() {
     this.fly = false;
+    this.ladder = false;
   }
   
   get vel() {
@@ -104,14 +105,17 @@ class KeyboardControls extends BaseControls {
     }
     this.kvel.clamp(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
     
-    if(this.fly) {
+    if(this.fly || this.ladder) {
+      var yamt = amt;
+      if(this.ladder && !this.fly) { yamt = amt * 0.7; }
+      
       if(this.keysPressed.sneak) {
-        this.kvel.y -= amt;
+        this.kvel.y -= yamt;
       } else if(this.keysPressed.jump) {
-        this.kvel.y += amt;
+        this.kvel.y += yamt;
       } else {
-        if(this.kvel.y < 0) { this.kvel.y = Math.min(0, this.kvel.y + amt); }
-        if(this.kvel.y > 0) { this.kvel.y = Math.max(0, this.kvel.y - amt); }
+        if(this.kvel.y < 0) { this.kvel.y = Math.min(0, this.kvel.y + yamt); }
+        if(this.kvel.y > 0) { this.kvel.y = Math.max(0, this.kvel.y - yamt); }
       }
       this.kvel.clamp(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
     } else {
@@ -137,6 +141,7 @@ class KeyboardControls extends BaseControls {
     
     res.y = this.kvel.y;
     if(this.fly) { res.y *= this.speed; }
+    else if(this.ladder) { res.y *= this.speed * 0.75; }
     
     return res;
   }

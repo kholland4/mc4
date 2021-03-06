@@ -33,6 +33,7 @@ class NodeBase {
     this.desc = "";
     
     this.walkable = false;
+    this.ladderlike = false;
     this.boundingBox = null;
     
     this.visible = true;
