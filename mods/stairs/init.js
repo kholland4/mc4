@@ -186,6 +186,11 @@
           ]
         }, tex)
       )); //api.registerNode
+      
+      api.registerCraft(new api.CraftEntry("stairs:slab_" + name + " 6",
+        [
+          "default:" + name, "default:" + name, "default:" + name
+        ], {shape: {x: 3, y: 1}}));
     } //for loop
   }); //api.onModLoaded
 })();
