@@ -153,12 +153,16 @@ onmessage = function(e) {
               var count = 1;
               
               for(var n = 0; n < adjList.length; n++) {
-                if(adjList[n][0] >= 0 && adjList[n][0] < size.x &&
-                   adjList[n][1] >= 0 && adjList[n][1] < size.y &&
-                   adjList[n][2] >= 0 && adjList[n][2] < size.z) {
+                if(adjList[n][0] >= -1 && adjList[n][0] < size.x + 1 &&
+                   adjList[n][1] >= -1 && adjList[n][1] < size.y + 1 &&
+                   adjList[n][2] >= -1 && adjList[n][2] < size.z + 1) {
                   var adjD = data[adjList[n][0] + 1][adjList[n][1] + 1][adjList[n][2] + 1];
+                  if(adjD == -1) { continue; }
                   var adjLightRaw = (adjD >> 23) & 255;
                   var adjLight = Math.max(adjLightRaw & 15, Math.round(((adjLightRaw >> 4) & 15) * sunAmount));
+                  if(adjLight > 0 && adjLight < relLight - 2) { continue; }
+                  if(adjLight > 0 && relLight < adjLight - 2) { continue; }
+                  if(adjLight == 0) { adjLight = Math.floor(relLight / 3); }
                   adjLight = Math.max(adjLight, 1);
                   
                   total += lightCurve[adjLight] * tint;

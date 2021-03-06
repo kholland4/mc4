@@ -412,14 +412,14 @@ function renderUpdateLighting(pos) {
   if(mapBlock == null) { return false; }
   if(mapBlock.updateNum != renderObj.updateNum) { return false; }
   
-  /*var blocks = {
+  var blocks = {
     "0,0,0": mapBlock
   };
   for(var i = 0; i < stdFaces.length; i++) {
     var index = stdFaces[i].x + "," + stdFaces[i].y + "," + stdFaces[i].z;
     blocks[index] = server.getMapBlock(new THREE.Vector3(stdFaces[i].x, stdFaces[i].y, stdFaces[i].z).add(pos));
-    if(blocks[index] == null) { return false; }
-  }*/
+    //if(blocks[index] == null) { return false; }
+  }
   
   var attr = renderObj.obj.geometry.getAttribute("color");
   
@@ -458,12 +458,34 @@ function renderUpdateLighting(pos) {
       
       var adjList = facePos[i][5];
       for(var n = 0; n < adjList.length; n++) {
-        if(adjList[n][0] >= 0 && adjList[n][0] < MAPBLOCK_SIZE.x &&
-           adjList[n][1] >= 0 && adjList[n][1] < MAPBLOCK_SIZE.y &&
-           adjList[n][2] >= 0 && adjList[n][2] < MAPBLOCK_SIZE.z) {
-          var adjD = mapBlock.data[adjList[n][0]][adjList[n][1]][adjList[n][2]];
+        var fx = adjList[n][0];
+        var fy = adjList[n][1];
+        var fz = adjList[n][2];
+        
+        if(fx >= -1 && fx < MAPBLOCK_SIZE.x + 1 &&
+           fy >= -1 && fy < MAPBLOCK_SIZE.y + 1 &&
+           fz >= -1 && fz < MAPBLOCK_SIZE.z + 1) {
+          var dimCount = 0;
+          if(fx < 0 || fx >= mapBlock.size.x) { dimCount++; }
+          if(fy < 0 || fy >= mapBlock.size.y) { dimCount++; }
+          if(fz < 0 || fz >= mapBlock.size.z) { dimCount++; }
+          if(dimCount > 1) { continue; }
+          //var adjD = mapBlock.data[adjList[n][0]][adjList[n][1]][adjList[n][2]];
+          var adjD = -1;
+          if(fx < 0) { if(blocks["-1,0,0"] != null) { adjD = blocks["-1,0,0"].data[mapBlock.size.x - 1][fy][fz]; } } else
+          if(fy < 0) { if(blocks["0,-1,0"] != null) { adjD = blocks["0,-1,0"].data[fx][mapBlock.size.y - 1][fz]; } } else
+          if(fz < 0) { if(blocks["0,0-1"] != null) { adjD = blocks["0,0,-1"].data[fx][fy][mapBlock.size.z - 1]; } } else
+          if(fx >= mapBlock.size.x) { if(blocks["1,0,0"] != null) { adjD = blocks["1,0,0"].data[0][fy][fz]; } } else
+          if(fy >= mapBlock.size.y) { if(blocks["0,1,0"] != null) { adjD = blocks["0,1,0"].data[fx][0][fz]; } } else
+          if(fz >= mapBlock.size.z) { if(blocks["0,0,1"] != null) { adjD = blocks["0,0,1"].data[fx][fy][0]; } } else
+          { adjD = blocks["0,0,0"].data[fx][fy][fz]; }
+          if(adjD == -1) { continue; }
+          
           var adjLightRaw = (adjD >> 23) & 255;
           var adjLight = Math.max(adjLightRaw & 15, Math.round(((adjLightRaw >> 4) & 15) * sunAmount));
+          if(adjLight > 0 && adjLight < light - 2) { continue; }
+          if(adjLight > 0 && light < adjLight - 2) { continue; }
+          if(adjLight == 0) { adjLight = Math.floor(light / 3); }
           adjLight = Math.max(adjLight, 1);
           
           total += lightCurve[adjLight] * tint;

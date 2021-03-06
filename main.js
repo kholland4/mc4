@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.1.10";
+var VERSION = "0.1.11-dev1";
 
 var scene;
 var camera;
