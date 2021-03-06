@@ -23,6 +23,7 @@ onmessage = function(e) {
   var size = e.data.size;
   var nodeDef = e.data.nodeDef;
   var nodeDefAdj = e.data.nodeDefAdj;
+  var unknownDef = e.data.unknownDef;
   var data = e.data.data;
   var lightNeedsUpdate = e.data.lightNeedsUpdate;
   var sunAmount = e.data.sunAmount;
@@ -52,6 +53,7 @@ onmessage = function(e) {
         if(y >= size.y + 1) { def = nodeDefAdj["0,1,0"][id]; } else
         if(z >= size.z + 1) { def = nodeDefAdj["0,0,1"][id]; } else
         { def = nodeDef[id]; }
+        if(def == undefined) { def = unknownDef; }
         if(!def.visible) { continue; }
         
         for(var faceIndex = 0; faceIndex < 6; faceIndex++) {
@@ -79,6 +81,7 @@ onmessage = function(e) {
           if(ry >= size.y + 1) { relDef = nodeDefAdj["0,1,0"][relID]; } else
           if(rz >= size.z + 1) { relDef = nodeDefAdj["0,0,1"][relID]; } else
           { relDef = nodeDef[relID]; }
+          if(relDef == undefined) { relDef = unknownDef; }
           
           if(!def.transparent && !relDef.transparent) { continue; }
           //if(!def.renderAdj && !relDef.renderAdj) { continue; }

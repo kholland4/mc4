@@ -118,7 +118,10 @@ function init() {
   });
   
   api.registerNode(new Node("air", {transparent: true, passSunlight: true, visible: false, walkable: true}));
-  api.registerNode(new Node("ignore", {transparent: false, passSunlight: false, visible: false}));
+  api.registerNode(new Node("ignore", {transparent: false, passSunlight: false, visible: false, breakable: false}));
+  api.registerNode(new Node("nothing", {transparent: false, passSunlight: false, visible: true, breakable: false}));
+  api.loadTexture("unknown:texAll", "textures/unknown_node.png");
+  api.registerNode(new Node("unknown", {breakable: false, texAll: "unknown:texAll"}));
   
   initTextures();
   initRenderer();
@@ -371,7 +374,12 @@ function animate() {
     var nodeData = server.getNode(destroySel);
     if(nodeData.itemstring != "air") {
       if(player.creativeDigPlace) {
-        digTimer = CREATIVE_DIG_TIME;
+        var def = nodeData.getDef();
+        if(def.breakable) {
+          digTimer = CREATIVE_DIG_TIME;
+        } else {
+          digTimer = null;
+        }
       } else {
         digTimer = calcDigTime(nodeData, player.wield);
       }

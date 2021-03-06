@@ -15,6 +15,7 @@ function dumpAllDefs() {
       joined: src.joined,
       isFluid: src.isFluid,
       drops: src.drops,
+      breakable: src.breakable,
       groups: src.groups
     };
   }
@@ -29,7 +30,7 @@ function dumpAllDefs() {
       isNode: src.isNode,
       isTool: src.isTool,
       toolWear: src.toolWear,
-      inCreativeInventory: src. inCreativeInventory,
+      inCreativeInventory: src.inCreativeInventory,
       groups: src.groups,
       toolGroups: src.toolGroups
     };

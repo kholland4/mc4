@@ -156,6 +156,11 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       Vector3<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"));
       Node node(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
       
+      if(get_node_def(node.itemstring).itemstring == "nothing") {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to place nonexistent node '" + node.itemstring + "' at " + pos.to_string());
+        return;
+      }
+      
 #ifdef DEBUG_PERF
       auto start = std::chrono::steady_clock::now();
 #endif

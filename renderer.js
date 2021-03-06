@@ -131,6 +131,7 @@ class RenderWorker {
       size: {x: mapBlock.size.x, y: mapBlock.size.y, z: mapBlock.size.z},
       nodeDef: nodeDef,
       nodeDefAdj: nodeDefAdj,
+      unknownDef: getNodeDef("unknown"),
       data: data,
       lightNeedsUpdate: mapBlock.lightNeedsUpdate,
       sunAmount: sunAmount

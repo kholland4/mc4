@@ -19,7 +19,11 @@
 var allNodes = {};
 
 function getNodeDef(itemstring) {
-  return allNodes[itemstring];
+  if(itemstring in allNodes) {
+    return allNodes[itemstring];
+  } else {
+    return allNodes["unknown"];
+  }
 }
 
 class NodeBase {
@@ -51,6 +55,7 @@ class NodeBase {
     this.texSides = null;
     
     this.drops = null;
+    this.breakable = true;
     
     this.groups = {};
     
@@ -171,6 +176,7 @@ function calcDigTimeActual(node, tool) {
   if(tool == null) { return null; }
   var group = null;
   var nodeDef = node.getDef();
+  if(!nodeDef.breakable) { return null; }
   toolDef = tool.getDef();
   
   if(!toolDef.isTool) { return null; }
