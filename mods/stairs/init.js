@@ -21,7 +21,7 @@
   
   api.onModLoaded("default", function() {
     
-    function registerNodeHelper(itemstring, args) {
+    /*function registerNodeHelper(itemstring, args) {
       args = Object.assign({desc: "", tex: null, icon: null, item: {}, node: {}}, args);
       
       var texOverlay = {};
@@ -40,132 +40,152 @@
       }
       api.registerItem(new api.Item(itemstring, Object.assign({isNode: true, desc: args.desc}, args.item)));
       api.registerNode(new api.Node(itemstring, Object.assign(texOverlay, args.node)));
-    }
+    }*/
     
-    
-    api.registerItem(new api.Item("stairs:slab_stone", {
-      isNode: true, desc: "Stone Slab",
-      iconFile: modpath + "/icons/stairs_slab_stone.png"
-    }));
-    api.registerNode(new api.Node("stairs:slab_stone", {
-      texAll: "default:stone:texAll",
-      groups: {cracky: 1}, transparent: true, passSunlight: false, customMesh: true, //transparent: true, transFaces: [true, true, false, true, true, true]
-        customMeshVerts: [
-          [
-            -0.5, 0, -0.5,
-            -0.5, -0.5, -0.5,
-            -0.5, 0, 0.5,
-            
-            -0.5, -0.5, -0.5,
-            -0.5, -0.5, 0.5,
-            -0.5, 0, 0.5
+    var slabs_stairs_list = [
+      "stone", "cobble", "stone_block", "stone_brick",
+      "desert_stone", "desert_cobble", "desert_stone_block", "desert_stone_brick",
+      "sandstone", "sandstone_block", "sandstone_brick",
+      "desert_sandstone", "desert_sandstone_block", "desert_sandstone_brick",
+      "silver_sandstone", "silver_sandstone_block", "silver_sandstone_brick",
+      "snow",
+      "wood", "acacia_wood", "aspen_wood", "jungle_wood", "pine_wood",
+      "obsidian", "obsidian_block", "obsidian_brick",
+      "coal_block", "iron_block", "gold_block", "diamond_block",
+      "glass",
+      "brick"
+    ];
+    for(var i = 0; i < slabs_stairs_list.length; i++) {
+      var name = slabs_stairs_list[i];
+      
+      var tex = {texAll: "default:" + name + ":texAll"};
+      
+      api.registerItem(new api.Item("stairs:slab_" + name, {
+        isNode: true, desc: api.getItemDef("default:" + name).desc + " Slab",
+        iconFile: modpath + "/icons/stairs_slab_" + name + ".png"
+      }));
+      api.registerNode(new api.Node("stairs:slab_" + name, Object.assign({
+        groups: api.getNodeDef("default:" + name).groups,
+        transparent: true,
+        passSunlight: api.getNodeDef("default:" + name).passSunlight,
+        customMesh: true,
+          customMeshVerts: [
+            [
+              -0.5, 0, -0.5,
+              -0.5, -0.5, -0.5,
+              -0.5, 0, 0.5,
+              
+              -0.5, -0.5, -0.5,
+              -0.5, -0.5, 0.5,
+              -0.5, 0, 0.5
+            ],
+            [
+              0.5, 0, 0.5,
+              0.5, -0.5, 0.5,
+              0.5, 0, -0.5,
+              
+              0.5, -0.5, 0.5,
+              0.5, -0.5, -0.5,
+              0.5, 0, -0.5
+            ],
+            [
+              0.5, -0.5, 0.5,
+              -0.5, -0.5, 0.5,
+              0.5, -0.5, -0.5,
+              
+              -0.5, -0.5, 0.5,
+              -0.5, -0.5, -0.5,
+              0.5, -0.5, -0.5
+            ],
+            [
+              0.5, 0, -0.5,
+              -0.5, 0, -0.5,
+              0.5, 0, 0.5,
+              
+              -0.5, 0, -0.5,
+              -0.5, 0, 0.5,
+              0.5, 0, 0.5
+            ],
+            [
+              0.5, 0, -0.5,
+              0.5, -0.5, -0.5,
+              -0.5, 0, -0.5,
+              
+              0.5, -0.5, -0.5,
+              -0.5, -0.5, -0.5,
+              -0.5, 0, -0.5
+            ],
+            [
+              -0.5, 0, 0.5,
+              -0.5, -0.5, 0.5,
+              0.5, 0, 0.5,
+              
+              -0.5, -0.5, 0.5,
+              0.5, -0.5, 0.5,
+              0.5, 0, 0.5
+            ]
           ],
-          [
-            0.5, 0, 0.5,
-            0.5, -0.5, 0.5,
-            0.5, 0, -0.5,
-            
-            0.5, -0.5, 0.5,
-            0.5, -0.5, -0.5,
-            0.5, 0, -0.5
+          customMeshUVs: [
+            [
+              0.0, 0.5,
+              0.0, 0.0,
+              1.0, 0.5,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, 0.5
+            ],
+            [
+              0.0, 0.5,
+              0.0, 0.0,
+              1.0, 0.5,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, 0.5
+            ],
+            [
+              0.0, 1.0,
+              0.0, 0.0,
+              1.0, 1.0,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, 1.0
+            ],
+            [
+              0.0, 1.0,
+              0.0, 0.0,
+              1.0, 1.0,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, 1.0
+            ],
+            [
+              0.0, 0.5,
+              0.0, 0.0,
+              1.0, 0.5,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, 0.5
+            ],
+            [
+              0.0, 0.5,
+              0.0, 0.0,
+              1.0, 0.5,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, 0.5
+            ]
           ],
-          [
-            0.5, -0.5, 0.5,
-            -0.5, -0.5, 0.5,
-            0.5, -0.5, -0.5,
-            
-            -0.5, -0.5, 0.5,
-            -0.5, -0.5, -0.5,
-            0.5, -0.5, -0.5
-          ],
-          [
-            0.5, 0, -0.5,
-            -0.5, 0, -0.5,
-            0.5, 0, 0.5,
-            
-            -0.5, 0, -0.5,
-            -0.5, 0, 0.5,
-            0.5, 0, 0.5
-          ],
-          [
-            0.5, 0, -0.5,
-            0.5, -0.5, -0.5,
-            -0.5, 0, -0.5,
-            
-            0.5, -0.5, -0.5,
-            -0.5, -0.5, -0.5,
-            -0.5, 0, -0.5
-          ],
-          [
-            -0.5, 0, 0.5,
-            -0.5, -0.5, 0.5,
-            0.5, 0, 0.5,
-            
-            -0.5, -0.5, 0.5,
-            0.5, -0.5, 0.5,
-            0.5, 0, 0.5
+          boundingBox: [
+            new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0, 0.5))
           ]
-        ],
-        customMeshUVs: [
-          [
-            0.0, 0.5,
-            0.0, 0.0,
-            1.0, 0.5,
-            
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 0.5
-          ],
-          [
-            0.0, 0.5,
-            0.0, 0.0,
-            1.0, 0.5,
-            
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 0.5
-          ],
-          [
-            0.0, 1.0,
-            0.0, 0.0,
-            1.0, 1.0,
-            
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 1.0
-          ],
-          [
-            0.0, 1.0,
-            0.0, 0.0,
-            1.0, 1.0,
-            
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 1.0
-          ],
-          [
-            0.0, 0.5,
-            0.0, 0.0,
-            1.0, 0.5,
-            
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 0.5
-          ],
-          [
-            0.0, 0.5,
-            0.0, 0.0,
-            1.0, 0.5,
-            
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 0.5
-          ]
-        ],
-        boundingBox: [
-          new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0, 0.5))
-        ]
-      }
-    ));
-  });
+        }, tex)
+      )); //api.registerNode
+    } //for loop
+  }); //api.onModLoaded
 })();

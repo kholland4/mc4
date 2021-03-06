@@ -75,7 +75,7 @@ function loadMod(meta) {
     debug("loader", "error", "unable to load mod '" + meta.path + "' as '" + meta.name + "'");
     meta.error = true;
   };
-  script.src = meta.path + "/init.js";
+  script.src = meta.path + "/init.js?v=" + VERSION;
   document.head.appendChild(script);
 }
 

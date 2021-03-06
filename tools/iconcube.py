@@ -20,9 +20,27 @@
 
 import sys, pygame, time, math
 
-face1 = pygame.image.load(sys.argv[1]) # top face
-face2 = pygame.image.load(sys.argv[2]) # left face
-face3 = pygame.image.load(sys.argv[3]) # right face
+slab = False
+
+face1 = None
+face2 = None
+face3 = None
+
+if len(sys.argv) == 2 or len(sys.argv) == 3:
+    face1 = pygame.image.load(sys.argv[1])
+    face2 = pygame.image.load(sys.argv[1])
+    face3 = pygame.image.load(sys.argv[1])
+elif len(sys.argv) == 4 or len(sys.argv) == 5:
+    face1 = pygame.image.load(sys.argv[1]) # top face
+    face2 = pygame.image.load(sys.argv[2]) # left face
+    face3 = pygame.image.load(sys.argv[3]) # right face
+else:
+    print("Usage:")
+    print("  %s all-sides-texture.png" % sys.argv[0])
+    print("  %s all-sides-texture.png out.png" % sys.argv[0])
+    print("  %s top-tex.png left-tex.png right-tex.png" % sys.argv[0])
+    print("  %s top-tex.png left-tex.png right-tex.png out.png" % sys.argv[0])
+    sys.exit(1)
 
 u = 160
 
@@ -44,7 +62,10 @@ def skew(src, dest, amt, rh):
     ey = -min(amt, 0)
     for x in range(rw):
         yoff = int((x / rw) * amt)
-        for y in range(rh):
+        m = 0
+        if slab:
+            m = int(rh / 2)
+        for y in range(m, rh):
             dest.set_at((x, y + ey + yoff), src.get_at((int((x / rw) * src_w), int((y / rh) * src_h))))
     
     return dest
@@ -69,15 +90,18 @@ f1 = pygame.Surface((300, 300), pygame.SRCALPHA)
 f1.blit(pygame.transform.scale(face1, (300, 300)), (0, 0))
 f1 = pygame.transform.rotate(f1, 45)
 f1 = pygame.transform.scale(f1, (int(u * math.sqrt(3)), u))
-out_surf.blit(f1, (out_xoff, 0))
+f1_yoff = 0
+if slab:
+    f1_yoff = u / 2
+out_surf.blit(f1, (out_xoff, f1_yoff))
 
 screen.fill((0, 0, 0))
 screen.blit(out_surf, (0, 0))
 
-if len(sys.argv) >= 4:
+if len(sys.argv) == 3 or len(sys.argv) == 5:
     out_small = pygame.transform.smoothscale(out_surf, (100, 100))
-    print("Saving to '%s'..." % sys.argv[4])
-    pygame.image.save(out_small, sys.argv[4])
+    print("Saving to '%s'..." % sys.argv[len(sys.argv) - 1])
+    pygame.image.save(out_small, sys.argv[len(sys.argv) - 1])
 
 pygame.display.flip()
 

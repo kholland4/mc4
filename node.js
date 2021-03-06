@@ -63,6 +63,8 @@ class NodeBase {
     
     //---
     
+    //TODO check for nonexistent textures?
+    
     if(this.customMesh) {
       this.uvs = [];
       var loc = textureLoc(this.texAll);
