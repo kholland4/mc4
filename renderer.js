@@ -38,7 +38,7 @@ var renderLightingUpdateQueue = [];
 
 function initRenderer() {
   for(var i = 0; i < RENDER_MAX_WORKERS; i++) {
-    var _worker = new Worker("meshgen-worker.js");
+    var _worker = new Worker("meshgen-worker.js?v=" + VERSION);
     _worker.onmessage = renderWorkerCallback;
     renderWorkersActual.push(_worker);
   }
