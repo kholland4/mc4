@@ -264,6 +264,7 @@ function renderUpdateMap(centerPos) {
     if(worker.ok) {
       if(mapBlock.renderNeedsUpdate > 1) {
         //FIXME bodge
+        //FIXME this commented-out code may be needed for singleplayer
         /*for(var lx = -1; lx <= 1; lx++) {
           for(var ly = -1; ly <= 1; ly++) {
             for(var lz = -1; lz <= 1; lz++) {
@@ -444,10 +445,37 @@ function renderUpdateLighting(pos) {
     light = Math.max(light, 1);
     
     var tint = facePos[i][3];
+    var tLight = facePos[i][4];
     
-    var colorR = Math.round(lightCurve[light] * tint);
-    var colorG = colorR;
-    var colorB = colorR;
+    var colorR, colorG, colorB;
+    if(tLight) {
+      colorR = Math.round(lightCurve[light] * tint);
+      colorG = colorR;
+      colorB = colorR;
+    } else {
+      var total = lightCurve[light] * tint;
+      var count = 1;
+      
+      var adjList = facePos[i][5];
+      for(var n = 0; n < adjList.length; n++) {
+        if(adjList[n][0] >= 0 && adjList[n][0] < MAPBLOCK_SIZE.x &&
+           adjList[n][1] >= 0 && adjList[n][1] < MAPBLOCK_SIZE.y &&
+           adjList[n][2] >= 0 && adjList[n][2] < MAPBLOCK_SIZE.z) {
+          var adjD = mapBlock.data[adjList[n][0]][adjList[n][1]][adjList[n][2]];
+          var adjLightRaw = (adjD >> 23) & 255;
+          var adjLight = Math.max(adjLightRaw & 15, Math.round(((adjLightRaw >> 4) & 15) * sunAmount));
+          adjLight = Math.max(adjLight, 1);
+          
+          total += lightCurve[adjLight] * tint;
+          count++;
+        }
+      }
+      
+      var avgLight = Math.round(total / count);
+      colorR = avgLight;
+      colorG = colorR;
+      colorB = colorR;
+    }
     
     attr.array[i * 3] = colorR;
     attr.array[i * 3 + 1] = colorG;

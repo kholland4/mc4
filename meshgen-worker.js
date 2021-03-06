@@ -120,15 +120,62 @@ onmessage = function(e) {
             verts.push(arr[i + 1] + (y - 1));
             verts.push(arr[i + 2] + (z - 1));
             
-            colors.push(colorR);
-            colors.push(colorG);
-            colors.push(colorB);
+            var adjList = [];
+            var vertX = arr[i];
+            var vertY = arr[i + 1];
+            var vertZ = arr[i + 2];
+            var xDiff = vertX >= 0 ? 1 : -1;
+            var yDiff = vertY >= 0 ? 1 : -1;
+            var zDiff = vertZ >= 0 ? 1 : -1;
+            if(face.x == 1 || face.x == -1) {
+              adjList.push([rx - 1, ry - 1 + yDiff, rz - 1]);
+              adjList.push([rx - 1, ry - 1, rz - 1 + zDiff]);
+              adjList.push([rx - 1, ry - 1 + yDiff, rz - 1 + zDiff]);
+            } else if(face.y == 1 || face.y == -1) {
+              adjList.push([rx - 1 + xDiff, ry - 1, rz - 1]);
+              adjList.push([rx - 1, ry - 1, rz - 1 + zDiff]);
+              adjList.push([rx - 1 + xDiff, ry - 1, rz - 1 + zDiff]);
+            } else if(face.z == 1 || face.z == -1) {
+              adjList.push([rx - 1, ry - 1 + yDiff, rz - 1]);
+              adjList.push([rx - 1 + xDiff, ry - 1, rz - 1]);
+              adjList.push([rx - 1 + xDiff, ry - 1 + yDiff, rz - 1]);
+            }
             
             //FIXME - see above
             if(tLight) {
-              facePos.push([x - 1, y - 1, z - 1, tint]);
+              colors.push(colorR);
+              colors.push(colorG);
+              colors.push(colorB);
+              
+              facePos.push([x - 1, y - 1, z - 1, tint, true, null]);
             } else {
-              facePos.push([rx - 1, ry - 1, rz - 1, tint]);
+              var total = lightCurve[relLight] * tint;
+              var count = 1;
+              
+              for(var n = 0; n < adjList.length; n++) {
+                if(adjList[n][0] >= 0 && adjList[n][0] < size.x &&
+                   adjList[n][1] >= 0 && adjList[n][1] < size.y &&
+                   adjList[n][2] >= 0 && adjList[n][2] < size.z) {
+                  var adjD = data[adjList[n][0] + 1][adjList[n][1] + 1][adjList[n][2] + 1];
+                  var adjLightRaw = (adjD >> 23) & 255;
+                  var adjLight = Math.max(adjLightRaw & 15, Math.round(((adjLightRaw >> 4) & 15) * sunAmount));
+                  adjLight = Math.max(adjLight, 1);
+                  
+                  total += lightCurve[adjLight] * tint;
+                  count++;
+                }
+              }
+              
+              var avgLight = Math.round(total / count);
+              colorR = avgLight;
+              colorG = colorR;
+              colorB = colorR;
+              
+              colors.push(colorR);
+              colors.push(colorG);
+              colors.push(colorB);
+              
+              facePos.push([rx - 1, ry - 1, rz - 1, tint, false, adjList]);
             }
           }
           uvs.push.apply(uvs, def.uvs[faceIndex]);
