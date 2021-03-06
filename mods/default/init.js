@@ -843,6 +843,15 @@
   });
   
   
+  //---Mese lamp---
+  registerNodeHelper("default:meselamp", {
+    desc: "Lamp",
+    tex: {texAll: "default_meselamp.png"},
+    icon: "default_meselamp.png",
+    node: {groups: {cracky: 1}, transparent: true, lightLevel: 15}
+  });
+  
+  
   //---EXTRA KEYS---
   //FIXME
   mods.default._fast = false;
