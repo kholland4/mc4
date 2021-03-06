@@ -60,6 +60,10 @@ void MemoryDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
   datastore[pos] = mb_store;
 }
 
+void MemoryDB::clean_cache() {
+  //TODO purge non-dirty mapblocks using similar algorithm to SQLiteDB
+}
+
 
 
 //SQLiteDB row versions:

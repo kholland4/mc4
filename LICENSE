@@ -703,7 +703,7 @@ copy of the Program in return for a fee.
 
 
 
-Code in the server directory (server/*)
+Code in the server directory (server/*), except for libraries (server/lib/*)
 =====
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007

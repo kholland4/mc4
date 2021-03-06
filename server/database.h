@@ -42,6 +42,7 @@ class MemoryDB : public Database {
     virtual void set_mapblockupdateinfo(Vector3<int> pos, MapblockUpdateInfo info);
     virtual Mapblock* get_mapblock(Vector3<int> pos);
     virtual void set_mapblock(Vector3<int> pos, Mapblock *mb);
+    virtual void clean_cache();
   
   private:
     std::map<Vector3<int>, Mapblock*> datastore;

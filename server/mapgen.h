@@ -22,18 +22,29 @@
 #include "vector.h"
 #include "mapblock.h"
 
+#include "lib/PerlinNoise.hpp"
+
 class Mapgen {
   public:
-    Mapgen() : seed(7) {};
+    Mapgen(uint32_t _seed) : seed(_seed) {};
     virtual void generate_at(Vector3<int> pos, Mapblock *mb) = 0;
   
   protected:
-    uint64_t seed;
+    uint32_t seed;
 };
 
 class MapgenDefault : public Mapgen {
   public:
     virtual void generate_at(Vector3<int> pos, Mapblock *mb);
+};
+
+class MapgenAlpha : public Mapgen {
+  public:
+    MapgenAlpha(uint32_t _seed) : Mapgen(_seed), perlin(_seed) {};
+    virtual void generate_at(Vector3<int> pos, Mapblock *mb);
+  
+  private:
+    siv::PerlinNoise perlin;
 };
 
 #endif

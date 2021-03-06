@@ -25,7 +25,7 @@ int main() {
   
   SQLiteDB db("test_map.sqlite");
   //MemoryDB db;
-  MapgenDefault mapgen;
+  MapgenAlpha mapgen(82);
   Server server(db, mapgen);
   
   server.set_motd("-- Highly Experimental Test Server (tm)\n-- Use '/gamemode creative' for creative, '/nick new_nickname_here' to change your name, '/status' to view this message, '/help' for other commands\n-- Press 'k' to toggle fly, 'j' to toggle fast");
