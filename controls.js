@@ -53,7 +53,14 @@ class KeyboardControls extends BaseControls {
     this.camera = camera;
     
     this.speed = 4;
-    this.jumpSpeed = 4.5;
+    
+    //Magic jump equation:
+    //  v0 = sqrt(2*g*n)
+    //where
+    //  v0: initial velocity
+    //  g: gravitational downward acceleration
+    //  n: target height
+    this.jumpSpeed = Math.sqrt(2 * GRAVITY * 1.2);
     this.fly = false;
     
     this.kvel = new THREE.Vector3(0, 0, 0);

@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+var GRAVITY = 20;
+
 class Player {
   constructor() {
     this.controls = new KeyboardControls(window, camera);
@@ -45,18 +47,40 @@ class Player {
       if(this.vel.y > 0 && vy == 0) {
         
       } else {
-        this.vel.y = vy - 9.8 * tscale;
+        this.vel.y = vy - GRAVITY * tscale;
       }
     }
     this.rot.copy(this.controls.rot);
     
-    var dim = ["x", "y", "z"];
+    var dim = ["y", "x", "z"];
     for(var i = 0; i < dim.length; i++) {
       var d = dim[i];
       
       var oldN = this.pos[d];
       this.pos[d] += this.vel[d] * tscale;
       if(this.collide()) {
+        var didStepUp = 0;
+        if((d == "x" || d == "z") && this.vel["y"] == 0) {
+          var oldY = this.pos["y"];
+          for(var offset = 1/16; offset <= 0.5; offset += 1/16) {
+            this.pos["y"] = oldY + offset;
+            if(!this.collide()) {
+              didStepUp = offset;
+              break;
+            }
+          }
+          this.pos["y"] = oldY;
+          
+          if(didStepUp > 0) {
+            //Magic jump equation:
+            //  v0 = sqrt(2*g*n)
+            //where
+            //  v0: initial velocity
+            //  g: gravitational downward acceleration
+            //  n: target height
+            this.vel["y"] = Math.sqrt(2 * GRAVITY * (didStepUp * 1.2));
+          }
+        }
         this.pos[d] = oldN;
         if(d == "y" && this.vel[d] > 0) { //FIXME bodge
           this.vel[d] = -0.0001;
