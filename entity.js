@@ -32,18 +32,35 @@ class Entity {
   
   updatePosVelRot(pos, vel, rot) {
     if(this.doInterpolate) {
-      this.oldPos.copy(this.pos);
-      this.oldVel.copy(this.vel);
-      this.oldRot.copy(this.rot);
-      this.oldPosTimestamp = this.posTimestamp;
-      
-      this.pos.copy(pos);
-      this.vel.copy(vel);
-      this.rot.copy(rot);
-      this.posTimestamp = performance.now() / 1000.0;
-      
-      this.interpProgress = 0;
-      this.object.position.copy(this.oldPos);
+      if(this.posTimestamp == 0) {
+        //If this is the first update, set both pos and oldPos and move immediately
+        this.pos.copy(pos);
+        this.vel.copy(vel);
+        this.rot.copy(rot);
+        this.posTimestamp = performance.now() / 1000.0;
+        
+        this.oldPos.copy(this.pos);
+        this.oldVel.copy(this.vel);
+        this.oldRot.copy(this.rot);
+        this.oldPosTimestamp = this.posTimestamp;
+        
+        this.interpProgress = 0;
+        this.object.position.copy(this.oldPos);
+      } else {
+        //On subsequent updates, demote pos to oldPos and update pos
+        this.oldPos.copy(this.pos);
+        this.oldVel.copy(this.vel);
+        this.oldRot.copy(this.rot);
+        this.oldPosTimestamp = this.posTimestamp;
+        
+        this.pos.copy(pos);
+        this.vel.copy(vel);
+        this.rot.copy(rot);
+        this.posTimestamp = performance.now() / 1000.0;
+        
+        this.interpProgress = 0;
+        this.object.position.copy(this.oldPos);
+      }
     } else {
       this.pos.copy(pos);
       this.vel.copy(vel);
