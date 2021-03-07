@@ -22,15 +22,21 @@
   /* defaults - may be overriden */
   width: 50px;
   height: 50px;
+  
+  user-select: none;
 }
 .uiIS_iconContainer {
   width: 100%;
   height: 100%;
+  
+  user-select: none;
 }
 .uiIS_iconImg {
   width: 100%;
   
-  image-rendering: pixelated;
+  image-rendering: pixelated; /* FIXME: doesn't work in Firefox */
+  
+  user-select: none;
 }
 .uiIS_count {
   font-family: sans-serif;
@@ -40,6 +46,8 @@
   position: absolute;
   right: 2px;
   bottom: 2px;
+  
+  user-select: none;
 }
 .uiIS_bar {
   position: absolute;
@@ -51,7 +59,7 @@
 }
 
 .uiInvList {
-  
+  user-select: none;
 }
 /* Height also used in ui-inv.js for scrolling */
 .uiIL_square {
@@ -63,12 +71,16 @@
   width: 50px;
   height: 50px;
   padding: 3px;
+  
+  user-select: none;
 }
 .uiHand_square {
   margin: 8px;
   border: 0px;
   padding: 0px;
   background-color: transparent;
+  
+  user-select: none;
 }
 
 #uiHand {
@@ -80,6 +92,8 @@
   pointer-events: none;
   
   z-index: 10;
+  
+  user-select: none;
 }
 #uiWindowContainer {
   display: none;
