@@ -133,11 +133,12 @@ onmessage = function(e) {
               var lx = rx;
               var ly = ry;
               var lz = rz;
+              var f_relLight = relLight;
               if(sunkLit) {
                 lx = x;
                 ly = y;
                 lz = z;
-                relLight = light;
+                f_relLight = light;
               }
               
               var adjList = [];
@@ -164,7 +165,7 @@ onmessage = function(e) {
               
               
               
-              var total = lightCurve[relLight] * tint;
+              var total = lightCurve[f_relLight] * tint;
               var count = 1;
               
               for(var n = 0; n < adjList.length; n++) {
@@ -175,9 +176,9 @@ onmessage = function(e) {
                   if(adjD == -1) { continue; }
                   var adjLightRaw = (adjD >> 23) & 255;
                   var adjLight = Math.max(adjLightRaw & 15, Math.round(((adjLightRaw >> 4) & 15) * sunAmount));
-                  if(adjLight > 0 && adjLight < relLight - 2) { continue; }
-                  if(adjLight > 0 && relLight < adjLight - 2) { continue; }
-                  if(adjLight == 0) { adjLight = Math.floor(relLight / 3); }
+                  if(adjLight > 0 && adjLight < f_relLight - 2) { continue; }
+                  if(adjLight > 0 && f_relLight < adjLight - 2) { continue; }
+                  if(adjLight == 0) { adjLight = Math.floor(f_relLight / 3); }
                   adjLight = Math.max(adjLight, 1);
                   
                   total += lightCurve[adjLight] * tint;
@@ -186,13 +187,13 @@ onmessage = function(e) {
               }
               
               var avgLight = Math.round(total / count);
-              colorR = avgLight;
-              colorG = colorR;
-              colorB = colorR;
+              var f_colorR = avgLight;
+              var f_colorG = f_colorR;
+              var f_colorB = f_colorR;
               
-              colors.push(colorR);
-              colors.push(colorG);
-              colors.push(colorB);
+              colors.push(f_colorR);
+              colors.push(f_colorG);
+              colors.push(f_colorB);
               
               facePos.push([lx - 1, ly - 1, lz - 1, tint, false, adjList]);
             }
