@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.1.12-dev1";
+var VERSION = "0.1.12-dev2";
 
 var scene;
 var camera;
@@ -223,6 +223,7 @@ function init() {
   loadMod(new ModMeta("stairs", "mods/stairs", ["default"])); //FIXME mod dependencies don't actually do anything
   loadMod(new ModMeta("flowers", "mods/flowers"));
   loadMod(new ModMeta("dye", "mods/dye"));
+  loadMod(new ModMeta("fences", "mods/fences"));
   loadMod(new ModMeta("hud", "mods/hud"));
   loadMod(new ModMeta("inventory", "mods/inventory"));
   loadMod(new ModMeta("chat", "mods/chat"));

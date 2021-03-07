@@ -20,9 +20,9 @@ var allIcons = {};
 
 function getIcon(name) {
   if(name in allIcons) {
-    if(allIcons[name].loaded) {
+    //if(allIcons[name].loaded) {
       return allIcons[name];
-    }
+    //}
   }
   
   return null;
@@ -56,6 +56,7 @@ class Icon {
     this.img.onerror = function() {
       debug("loader", "warning", "unable to load '" + this.file + "' as icon '" + this.name + "'");
       this.error = true;
+      this.img.src = "textures/unknown_item.png";
     }.bind(this);
     this.loaded = false;
     this.error = false;

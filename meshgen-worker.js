@@ -56,6 +56,37 @@ onmessage = function(e) {
         if(def == undefined) { def = unknownDef; }
         if(!def.visible) { continue; }
         
+        var connectDirs = [false, false, false, false, false, false];
+        if(def.connectingMesh) {
+          for(var faceIndex = 0; faceIndex < 6; faceIndex++) {
+            var face = stdFaces[faceIndex];
+            var rx = x + face.x; var ry = y + face.y; var rz = z + face.z;
+            if(rx < 0 || rx >= size.x + 2) { continue; }
+            if(ry < 0 || ry >= size.y + 2) { continue; }
+            if(rz < 0 || rz >= size.z + 2) { continue; }
+            var relD = data[rx][ry][rz];
+            if(relD == -1) { continue; }
+            var relID = relD & 32767;
+            
+            var relDef;
+            if(rx < 1) { relDef = nodeDefAdj["-1,0,0"][relID]; } else
+            if(ry < 1) { relDef = nodeDefAdj["0,-1,0"][relID]; } else
+            if(rz < 1) { relDef = nodeDefAdj["0,0,-1"][relID]; } else
+            if(rx >= size.x + 1) { relDef = nodeDefAdj["1,0,0"][relID]; } else
+            if(ry >= size.y + 1) { relDef = nodeDefAdj["0,1,0"][relID]; } else
+            if(rz >= size.z + 1) { relDef = nodeDefAdj["0,0,1"][relID]; } else
+            { relDef = nodeDef[relID]; }
+            if(relDef == undefined) { relDef = unknownDef; }
+            
+            for(var i = 0; i < def.meshConnectsTo.length; i++) {
+              if(def.meshConnectsTo[i] == relDef.itemstring) {
+                connectDirs[faceIndex] = true;
+                break;
+              }
+            }
+          }
+        }
+        
         for(var faceIndex = 0; faceIndex < 6; faceIndex++) {
           var face = stdFaces[faceIndex];
           var rx = x + face.x; var ry = y + face.y; var rz = z + face.z;
@@ -118,6 +149,16 @@ onmessage = function(e) {
             arr = def.customMeshVerts[faceIndex];
           } else {
             arr = stdVerts[faceIndex];
+          }
+          if(def.connectingMesh) {
+            arr = arr.slice();
+            for(var n = 0; n < 6; n++) {
+              if(connectDirs[n]) {
+                if(def.connectingVerts[n] != null) {
+                  arr.push.apply(arr, def.connectingVerts[n][faceIndex]);
+                }
+              }
+            }
           }
           for(var i = 0; i < arr.length; i += 3) {
             verts.push(arr[i] + (x - 1));
@@ -201,6 +242,15 @@ onmessage = function(e) {
             }
           }
           uvs.push.apply(uvs, def.uvs[faceIndex]);
+          if(def.connectingMesh) {
+            for(var n = 0; n < 6; n++) {
+              if(connectDirs[n]) {
+                if(def.connectingUVs[n] != null) {
+                  uvs.push.apply(uvs, def.connectingUVs[n][faceIndex]);
+                }
+              }
+            }
+          }
         }
       }
     }

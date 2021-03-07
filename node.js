@@ -48,6 +48,10 @@ class NodeBase {
     this.joined = false;
     this.faceIsRecessed = [false, false, false, false, false, false];
     this.useTint = true; //turn off for flowers and such
+    this.connectingMesh = false;
+    this.meshConnectsTo = [];
+    this.connectingVerts = null; //6 sets (-X, +X, -Y, +Y, -Z, +Z) of 6 faces each; a set can be null; a given set will be shown if the node connects in that direction
+    this.connectingUVs = null;
     
     this.isFluid = false;
     
@@ -74,16 +78,40 @@ class NodeBase {
     
     //TODO check for nonexistent textures?
     
+    
+    if(this.texAll != null) {
+      for(var i = 0; i < 6; i++) {
+        this.tex[i] = this.texAll;
+      }
+    }
+    if(this.texTop != null) {
+      this.tex[3] = this.texTop;
+    }
+    if(this.texBottom != null) {
+      this.tex[2] = this.texBottom;
+    }
+    if(this.texSides != null) {
+      this.tex[0] = this.texSides;
+      this.tex[1] = this.texSides;
+      this.tex[4] = this.texSides;
+      this.tex[5] = this.texSides;
+    }
+    
+    var texLoc = [];
+    for(var i = 0; i < 6; i++) {
+      texLoc.push(textureLoc(this.tex[i]));
+    }
+    
     if(this.customMesh) {
       this.uvs = [];
-      var loc = textureLoc(this.texAll);
       
       function scale(n, min1, max1, min2, max2) {
         return (n - min1) * (max2 - min2) / (max1 - min1) + min2;
       }
       
-      for(var i = 0; i < this.customMeshUVs.length; i++) {
+      for(var i = 0; i < 6; i++) { //i < this.customMeshUVs.length; i++) {
         var faceUVs = this.customMeshUVs[i];
+        var loc = texLoc[i];
         var s = [];
         for(var n = 0; n < faceUVs.length; n += 2) {
           s.push(scale(faceUVs[n], 0, 1, loc[0], loc[2]));
@@ -92,29 +120,6 @@ class NodeBase {
         this.uvs.push(s);
       }
     } else {
-      if(this.texAll != null) {
-        for(var i = 0; i < 6; i++) {
-          this.tex[i] = this.texAll;
-        }
-      }
-      if(this.texTop != null) {
-        this.tex[3] = this.texTop;
-      }
-      if(this.texBottom != null) {
-        this.tex[2] = this.texBottom;
-      }
-      if(this.texSides != null) {
-        this.tex[0] = this.texSides;
-        this.tex[1] = this.texSides;
-        this.tex[4] = this.texSides;
-        this.tex[5] = this.texSides;
-      }
-      
-      var texLoc = [];
-      for(var i = 0; i < 6; i++) {
-        texLoc.push(textureLoc(this.tex[i]));
-      }
-      
       this.uvs = [];
       if(this.visible) {
         for(var i = 0; i < 6; i++) {
@@ -125,6 +130,25 @@ class NodeBase {
             if(stdUVs[n + 1] == 0.0) { faceUVs.push(loc[1]); } else { faceUVs.push(loc[3]); }
           }
           this.uvs.push(faceUVs);
+        }
+      }
+    }
+    
+    if(this.connectingUVs != null) {
+      function scale(n, min1, max1, min2, max2) {
+        return (n - min1) * (max2 - min2) / (max1 - min1) + min2;
+      }
+      
+      for(var f = 0; f < 6; f++) {
+        if(this.connectingUVs[f] == null) { continue; }
+        
+        for(var i = 0; i < 6; i++) {
+          var faceUVs = this.connectingUVs[f][i];
+          var loc = texLoc[i];
+          for(var n = 0; n < faceUVs.length; n += 2) {
+            faceUVs[n] = scale(faceUVs[n], 0, 1, loc[0], loc[2]);
+            faceUVs[n + 1] = scale(faceUVs[n + 1], 0, 1, loc[1], loc[3]);
+          }
         }
       }
     }
