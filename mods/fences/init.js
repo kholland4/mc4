@@ -81,7 +81,7 @@
     {name: "Pine Wood Fence", node: "fences:pine_wood", tex: "default_fence_pine_wood.png", icon: "Pine_Fence.png", craft: "default:pine_wood"}
   ];
   
-  var fenceConnects = ["tree", "acacia_tree", "aspen_tree", "jungle_tree", "pine_tree"];
+  var fenceConnects = ["default:tree", "default:acacia_tree", "default:aspen_tree", "default:jungle_tree", "default:pine_tree"];
   for(var i = 0; i < fenceList.length; i++) {
     var node = fenceList[i].node;
     var craft = fenceList[i].craft;
