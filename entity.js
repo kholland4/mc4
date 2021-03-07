@@ -8,6 +8,15 @@ class Entity {
     this.vel = new THREE.Vector3();
     this.rot = new THREE.Quaternion();
     
+    this.oldPos = this.pos.clone();
+    this.oldVel = this.vel.clone();
+    this.oldRot = this.rot.clone();
+    
+    this.oldPosTimestamp = 0;
+    this.posTimestamp = 0;
+    this.interpProgress = 0;
+    this.doInterpolate = true;
+    
     if("id" in data) {
       this.id = data.id;
     } else {
@@ -22,34 +31,53 @@ class Entity {
   }
   
   updatePosVelRot(pos, vel, rot) {
-    this.pos.copy(pos);
-    this.vel.copy(vel);
-    this.rot.copy(rot);
-    
-    this.updateObject();
+    if(this.doInterpolate) {
+      this.oldPos.copy(this.pos);
+      this.oldVel.copy(this.vel);
+      this.oldRot.copy(this.rot);
+      this.oldPosTimestamp = this.posTimestamp;
+      
+      this.pos.copy(pos);
+      this.vel.copy(vel);
+      this.rot.copy(rot);
+      this.posTimestamp = performance.now() / 1000.0;
+      
+      this.interpProgress = 0;
+      this.object.position.copy(this.oldPos);
+    } else {
+      this.pos.copy(pos);
+      this.vel.copy(vel);
+      this.rot.copy(rot);
+      
+      this.updateObject();
+    }
   }
   
   update(data) {
     if(!data) { data = {}; }
     
+    var nPos = this.pos.clone();
+    var nVel = this.pos.clone();
+    var nRot = this.pos.clone();
+    
     if("pos" in data) {
-      this.pos.x = data.pos.x;
-      this.pos.y = data.pos.y;
-      this.pos.z = data.pos.z;
+      nPos.x = data.pos.x;
+      nPos.y = data.pos.y;
+      nPos.z = data.pos.z;
     }
     if("vel" in data) {
-      this.vel.x = data.vel.x;
-      this.vel.y = data.vel.y;
-      this.vel.z = data.vel.z;
+      nVel.x = data.vel.x;
+      nVel.y = data.vel.y;
+      nVel.z = data.vel.z;
     }
     if("rot" in data) {
-      this.rot.x = data.rot.x;
-      this.rot.y = data.rot.y;
-      this.rot.z = data.rot.z;
-      this.rot.w = data.rot.w;
+      nRot.x = data.rot.x;
+      nRot.y = data.rot.y;
+      nRot.z = data.rot.z;
+      nRot.w = data.rot.w;
     }
     
-    this.updateObject();
+    this.updatePosVelRot(nPos, nVel, nRot);
   }
   
   destroy() {
@@ -59,5 +87,23 @@ class Entity {
   updateObject() {
     this.object.position.copy(this.pos);
     this.object.quaternion.copy(this.rot);
+  }
+  
+  tick(tscale) {
+    if(!this.doInterpolate) { return; }
+    
+    var len = this.posTimestamp - this.oldPosTimestamp;
+    if(len == 0) {
+      this.object.position.copy(this.oldPos);
+      return;
+    }
+    
+    var velX = (this.pos.x - this.oldPos.x) / len;
+    var velY = (this.pos.y - this.oldPos.y) / len;
+    var velZ = (this.pos.z - this.oldPos.z) / len;
+    
+    this.object.position.x += velX * tscale;
+    this.object.position.y += velY * tscale;
+    this.object.position.z += velZ * tscale;
   }
 }

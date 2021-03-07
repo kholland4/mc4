@@ -20,8 +20,9 @@
 #define __SERVER_H__
 
 #define VERSION "0.1.0"
-#define SERVER_TICK_INTERVAL 500
-#define SERVER_SLOW_TICK_RATIO 20 //number of ticks to each slow tick
+#define SERVER_TICK_INTERVAL 250
+#define SERVER_MAPBLOCK_TICK_RATIO 2
+#define SERVER_SLOW_TICK_RATIO 40 //number of ticks to each slow tick
 #define PLAYER_ENTITY_VISIBILE_DISTANCE 200
 #define PLAYER_MAPBLOCK_INTEREST_DISTANCE 2
 
@@ -101,6 +102,7 @@ class Server {
     Map map;
     std::string motd;
     
+    int mapblock_tick_counter;
     int slow_tick_counter;
 };
 

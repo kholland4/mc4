@@ -169,6 +169,12 @@ class ServerBase {
     return this.entities[id];
   }
   
+  entityTick(tscale) {
+    for(var key in this.entities) {
+      this.entities[key].tick(tscale);
+    }
+  }
+  
   registerMessageHook(type, hook) {
     if(!(type in this.messageHooks)) {
       this.messageHooks[type] = [];
@@ -474,6 +480,7 @@ class ServerRemote extends ServerBase {
     inv.setList("hand", new Array(1).fill(null));
     
     var playerEntity = new Entity();
+    playerEntity.doInterpolate = false;
     playerEntity.updatePosVelRot(player.pos, player.vel, player.rot);
     player.registerUpdateHook(playerEntity.updatePosVelRot.bind(playerEntity));
     server.addEntity(playerEntity);

@@ -21,7 +21,7 @@
 #include "log.h"
 
 Server::Server(Database& _db, Mapgen& _mapgen)
-    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _mapgen), slow_tick_counter(0)
+    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _mapgen), mapblock_tick_counter(0), slow_tick_counter(0)
 {
   //disable logging
   m_server.clear_access_channels(websocketpp::log::alevel::all);
@@ -301,10 +301,14 @@ void Server::on_close(connection_hdl hdl) {
 void Server::tick(const boost::system::error_code&) {
   //std::cout << "TICK " << status() << std::endl;
   
-  for(auto p : m_players) {
-    PlayerState *player = p.second;
-    
-    player->update_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, map, m_server);
+  mapblock_tick_counter++;
+  if(mapblock_tick_counter >= SERVER_MAPBLOCK_TICK_RATIO) {
+    for(auto p : m_players) {
+      PlayerState *player = p.second;
+      
+      player->update_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, map, m_server);
+    }
+    mapblock_tick_counter = 0;
   }
   
   for(auto p : m_players) {
