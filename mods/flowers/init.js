@@ -128,7 +128,7 @@
       desc: "Grass",
       tex: {texAll: "default_grass_" + i + ".png"},
       icon: "default_grass_" + i + ".png",
-      node: {groups: {oddly_breakable_by_hand: 1}, transparent: true, passSunlight: false, walkable: true, customMesh: true,
+      node: {groups: {oddly_breakable_by_hand: 1}, transparent: true, passSunlight: false, useTint: false, walkable: true, customMesh: true,
         customMeshVerts: xmeshVerts,
         customMeshUVs: xmeshUVs,
         drops: "flowers:grass_3",
@@ -158,7 +158,7 @@
       desc: name,
       tex: {texAll: "flowers_" + node + ".png"},
       icon: "flowers_" + node + ".png",
-      node: {groups: {oddly_breakable_by_hand: 1}, transparent: true, passSunlight: false, walkable: true, customMesh: true,
+      node: {groups: {oddly_breakable_by_hand: 1}, transparent: true, passSunlight: false, useTint: false, walkable: true, customMesh: true,
         customMeshVerts: xmeshVerts,
         customMeshUVs: xmeshUVs,
         canPlaceInside: true

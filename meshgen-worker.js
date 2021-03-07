@@ -102,10 +102,12 @@ onmessage = function(e) {
           if(!tLight && !sunkLit && (rx < 1 || ry < 1 || rz < 1 || rx >= size.x + 1 || ry >= size.y + 1 || rz >= size.z + 1)) { continue; }
           
           var tint = 1;
-          if(faceIndex == 3) { tint = 1; } else
-          if(faceIndex == 2) { tint = 0.6; } else
-          if(faceIndex == 0 || faceIndex == 1) { tint = 0.75; } else
-          { tint = 0.875; }
+          if(def.useTint) {
+            if(faceIndex == 3) { tint = 1; } else
+            if(faceIndex == 2) { tint = 0.6; } else
+            if(faceIndex == 0 || faceIndex == 1) { tint = 0.75; } else
+            { tint = 0.875; }
+          }
           
           var colorR = Math.round(lightCurve[relLight] * tint);
           var colorG = colorR;

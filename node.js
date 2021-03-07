@@ -47,6 +47,7 @@ class NodeBase {
     this.lightLevel = 0;
     this.joined = false;
     this.faceIsRecessed = [false, false, false, false, false, false];
+    this.useTint = true; //turn off for flowers and such
     
     this.isFluid = false;
     
