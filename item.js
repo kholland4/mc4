@@ -42,7 +42,7 @@ class ItemBase {
     
     this.inCreativeInventory = true;
     
-    //wood, tree, stone, sand, sandstone, flora, leaves
+    //wood, tree, stone, sand, sandstone, flora, leaves, wool
     this.groups = {};
     this.toolGroups = {}; //node groups that a tool "helps" with
     
