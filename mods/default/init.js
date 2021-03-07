@@ -487,7 +487,7 @@
     desc: "Water Source",
     tex: {texAll: "default_water_source.png"},
     icon: "default_water_source.png",
-    node: {transparent: true, walkable: true, isFluid: true, joined: true}
+    node: {transparent: true, passSunlight: false, walkable: true, isFluid: true, joined: true, canPlaceInside: true}
   });
   
   

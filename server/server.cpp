@@ -21,7 +21,7 @@
 #include "log.h"
 
 Server::Server(Database& _db, Mapgen& _mapgen)
-    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _mapgen), mapblock_tick_counter(0), slow_tick_counter(0)
+    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _mapgen), mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0)
 {
   //disable logging
   m_server.clear_access_channels(websocketpp::log::alevel::all);
@@ -302,12 +302,38 @@ void Server::tick(const boost::system::error_code&) {
   //std::cout << "TICK " << status() << std::endl;
   
   mapblock_tick_counter++;
+  fluid_tick_counter++;
   if(mapblock_tick_counter >= SERVER_MAPBLOCK_TICK_RATIO) {
+    std::set<Vector3<int>> interested_mapblocks;
+    
     for(auto p : m_players) {
       PlayerState *player = p.second;
       
-      player->update_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, map, m_server);
+      std::vector<Vector3<int>> nearby_known_mapblocks = player->list_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE);
+      
+      player->update_nearby_known_mapblocks(nearby_known_mapblocks, map, m_server);
+      
+      for(size_t i = 0; i < nearby_known_mapblocks.size(); i++) {
+        interested_mapblocks.insert(nearby_known_mapblocks[i]);
+      }
     }
+    
+    if(fluid_tick_counter >= SERVER_FLUID_TICK_RATIO) {
+#ifdef DEBUG_PERF
+      auto start = std::chrono::steady_clock::now();
+#endif
+      
+      map.tick_fluids(interested_mapblocks);
+      
+#ifdef DEBUG_PERF
+      auto end = std::chrono::steady_clock::now();
+      auto diff = end - start;
+      
+      std::cout << "tick_fluids in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
+#endif
+      fluid_tick_counter = 0;
+    }
+    
     mapblock_tick_counter = 0;
   }
   

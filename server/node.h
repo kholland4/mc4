@@ -40,12 +40,13 @@ class Node {
 
 class NodeDef {
   public:
-    NodeDef() : itemstring("nothing"), transparent(false), pass_sunlight(false), light_level(0) {};
-    NodeDef(std::string _itemstring) : itemstring(_itemstring), transparent(false), pass_sunlight(false), light_level(0) {};
+    NodeDef() : itemstring("nothing"), transparent(false), pass_sunlight(false), light_level(0), is_fluid(false) {};
+    NodeDef(std::string _itemstring) : itemstring(_itemstring), transparent(false), pass_sunlight(false), light_level(0), is_fluid(false) {};
     std::string itemstring;
     bool transparent;
     bool pass_sunlight;
     int light_level;
+    bool is_fluid;
 };
 
 void load_node_defs(std::string filename);

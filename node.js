@@ -53,6 +53,10 @@ class NodeBase {
     this.connectingVerts = null; //6 sets (-X, +X, -Y, +Y, -Z, +Z) of 6 faces each; a set can be null; a given set will be shown if the node connects in that direction
     this.connectingUVs = null;
     
+    //The 'rot' property of a node could be used to store non-rotation data (i. e. fluid information, color, etc.)
+    //'rotDataType' will be set automatically based on other properties
+    this.rotDataType = "rot";
+    //this.setRotOnPlace = false; TODO
     this.isFluid = false;
     
     this.tex = [null, null, null, null, null, null];
@@ -60,6 +64,7 @@ class NodeBase {
     this.texTop = null;
     this.texBottom = null;
     this.texSides = null;
+    this.fluidTexLoc = null;
     
     this.drops = null;
     this.breakable = true;
@@ -68,6 +73,11 @@ class NodeBase {
     this.groups = {};
     
     Object.assign(this, props);
+    
+    if(props.isFluid) {
+      this.rotDataType = "fluid";
+      this.fluidTexLoc = textureLoc(this.texAll);
+    }
     
     //---
     

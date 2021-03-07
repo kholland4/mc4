@@ -134,7 +134,8 @@ class ServerBase {
       if(!player.creativeDigPlace) {
         player.inventory.takeIndex("main", player.wieldIndex, stack);
       }
-      this.setNode(sel, NodeData.fromItemStack(stack));
+      var nodeData = NodeData.fromItemStack(stack);
+      this.setNode(sel, nodeData);
       
       debug("server", "log", "place " + stack.itemstring + " at " + fmtXYZ(sel));
       

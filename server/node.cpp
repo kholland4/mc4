@@ -41,6 +41,7 @@ void load_node_defs(std::string filename) {
     def->transparent = n.second.get<bool>("transparent");
     def->pass_sunlight = n.second.get<bool>("passSunlight");
     def->light_level = n.second.get<int>("lightLevel");
+    def->is_fluid = n.second.get<bool>("isFluid");
     
     all_node_defs[itemstring] = def;
     

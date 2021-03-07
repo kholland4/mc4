@@ -87,6 +87,190 @@ onmessage = function(e) {
           }
         }
         
+        var fluidVerts, fluidUVs;
+        if(def.isFluid) {
+          var nearby_heights = [0, 0, 0, 0, 0, 0, 0, 0];
+          var f = [
+            {x: -1, y: 0, z: 0},
+            {x: 1, y: 0, z: 0},
+            {x: 0, y: 0, z: -1},
+            {x: 0, y: 0, z: 1},
+            {x: -1, y: 0, z: -1},
+            {x: 1, y: 0, z: -1},
+            {x: -1, y: 0, z: 1},
+            {x: 1, y: 0, z: 1}
+          ];
+          for(var faceIndex = 0; faceIndex < 8; faceIndex++) {
+            var face = f[faceIndex];
+            var rx = x + face.x; var ry = y + face.y; var rz = z + face.z;
+            if(rx < 0 || rx >= size.x + 2) { continue; }
+            if(ry < 0 || ry >= size.y + 2) { continue; }
+            if(rz < 0 || rz >= size.z + 2) { continue; }
+            var relD = data[rx][ry][rz];
+            if(relD == -1) { continue; }
+            var relID = relD & 32767;
+            var relRot = (relD >> 15) & 255;
+            
+            var relDef;
+            if(rx < 1) { relDef = nodeDefAdj["-1,0,0"][relID]; } else
+            if(ry < 1) { relDef = nodeDefAdj["0,-1,0"][relID]; } else
+            if(rz < 1) { relDef = nodeDefAdj["0,0,-1"][relID]; } else
+            if(rx >= size.x + 1) { relDef = nodeDefAdj["1,0,0"][relID]; } else
+            if(ry >= size.y + 1) { relDef = nodeDefAdj["0,1,0"][relID]; } else
+            if(rz >= size.z + 1) { relDef = nodeDefAdj["0,0,1"][relID]; } else
+            { relDef = nodeDef[relID]; }
+            if(relDef == undefined) { relDef = unknownDef; }
+            
+            if(relDef.isFluid) {
+              nearby_heights[faceIndex] = 16 - ((relRot >> 4) & 15);
+            }
+          }
+          
+          var baseHeight = 16 - ((rot >> 4) & 15);
+          //height in the negative-x and negative-z corner (and so on) on a scale of 0 to 16 inclusive
+          var h_xmzm = Math.max(baseHeight, Math.max(nearby_heights[4], nearby_heights[0], nearby_heights[2]));
+          var h_xpzm = Math.max(baseHeight, Math.max(nearby_heights[5], nearby_heights[1], nearby_heights[2]));
+          var h_xmzp = Math.max(baseHeight, Math.max(nearby_heights[6], nearby_heights[0], nearby_heights[3]));
+          var h_xpzp = Math.max(baseHeight, Math.max(nearby_heights[7], nearby_heights[1], nearby_heights[3]));
+          
+          //vertex y position in the x- z- corner (and so on) on a scale of -0.5 to 0.5 inclusive
+          var vy_xmzm = (h_xmzm / 16) - 0.5;
+          var vy_xpzm = (h_xpzm / 16) - 0.5;
+          var vy_xmzp = (h_xmzp / 16) - 0.5;
+          var vy_xpzp = (h_xpzp / 16) - 0.5;
+          
+          //texture v position in the x- z- corner (and so on) on a scale of 0.0 to 1.0 inclusive
+          var ty_xmzm = h_xmzm / 16;
+          var ty_xpzm = h_xpzm / 16;
+          var ty_xmzp = h_xmzp / 16;
+          var ty_xpzp = h_xpzp / 16;
+          
+          fluidVerts = [
+            [
+              -0.5, vy_xmzm, -0.5,
+              -0.5, -0.5, -0.5,
+              -0.5, vy_xmzp, 0.5,
+              
+              -0.5, -0.5, -0.5,
+              -0.5, -0.5, 0.5,
+              -0.5, vy_xmzp, 0.5
+            ],
+            [
+              0.5, vy_xpzp, 0.5,
+              0.5, -0.5, 0.5,
+              0.5, vy_xpzm, -0.5,
+              
+              0.5, -0.5, 0.5,
+              0.5, -0.5, -0.5,
+              0.5, vy_xpzm, -0.5
+            ],
+            [
+              0.5, -0.5, 0.5,
+              -0.5, -0.5, 0.5,
+              0.5, -0.5, -0.5,
+              
+              -0.5, -0.5, 0.5,
+              -0.5, -0.5, -0.5,
+              0.5, -0.5, -0.5
+            ],
+            [
+              0.5, vy_xpzm, -0.5,
+              -0.5, vy_xmzm, -0.5,
+              0.5, vy_xpzp, 0.5,
+              
+              -0.5, vy_xmzm, -0.5,
+              -0.5, vy_xmzp, 0.5,
+              0.5, vy_xpzp, 0.5
+            ],
+            [
+              0.5, vy_xpzm, -0.5,
+              0.5, -0.5, -0.5,
+              -0.5, vy_xmzm, -0.5,
+              
+              0.5, -0.5, -0.5,
+              -0.5, -0.5, -0.5,
+              -0.5, vy_xmzm, -0.5
+            ],
+            [
+              -0.5, vy_xmzp, 0.5,
+              -0.5, -0.5, 0.5,
+              0.5, vy_xpzp, 0.5,
+              
+              -0.5, -0.5, 0.5,
+              0.5, -0.5, 0.5,
+              0.5, vy_xpzp, 0.5
+            ]
+          ];
+          
+          fluidUVs = [
+            [
+              0.0, ty_xmzm,
+              0.0, 0.0,
+              1.0, ty_xmzp,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, ty_xmzp
+            ],
+            [
+              0.0, ty_xpzp,
+              0.0, 0.0,
+              1.0, ty_xpzm,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, ty_xpzm
+            ],
+            [
+              0.0, 1.0,
+              0.0, 0.0,
+              1.0, 1.0,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, 1.0
+            ],
+            [
+              0.0, 1.0,
+              0.0, 0.0,
+              1.0, 1.0,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, 1.0
+            ],
+            [
+              0.0, ty_xpzm,
+              0.0, 0.0,
+              1.0, ty_xmzm,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, ty_xmzm
+            ],
+            [
+              0.0, ty_xmzp,
+              0.0, 0.0,
+              1.0, ty_xpzp,
+              
+              0.0, 0.0,
+              1.0, 0.0,
+              1.0, ty_xpzp
+            ]
+          ];
+          
+          function scale(n, min1, max1, min2, max2) {
+            return (n - min1) * (max2 - min2) / (max1 - min1) + min2;
+          }
+          
+          for(var i = 0; i < 6; i++) {
+            for(var n = 0; n < fluidUVs[i].length; n += 2) {
+              fluidUVs[i][n] = scale(fluidUVs[i][n], 0, 1, def.fluidTexLoc[0], def.fluidTexLoc[2]);
+              fluidUVs[i][n + 1] = scale(fluidUVs[i][n + 1], 0, 1, def.fluidTexLoc[1], def.fluidTexLoc[3]);
+            }
+          }
+        }
+        
         for(var faceIndex = 0; faceIndex < 6; faceIndex++) {
           var face = stdFaces[faceIndex];
           var rx = x + face.x; var ry = y + face.y; var rz = z + face.z;
@@ -124,7 +308,13 @@ onmessage = function(e) {
           
           //TODO: use transFaces?
           //if(def.transparent && def.transFaces[faceIndex] && light > relLight) { relLight = light; tLight = true; }
-          if(def.transparent && light > relLight && !sunkLit) { relLight = light; tLight = true; }
+          if(def.transparent && light > relLight && !sunkLit) {
+            if(def.isFluid) {
+              sunkLit = true;
+            } else {
+              relLight = light; tLight = true;
+            }
+          }
           
           //Only show faces that are lit by a node in the current mapblock.
           //Exclude self-lit nodes outside of the current mapblock.
@@ -145,10 +335,14 @@ onmessage = function(e) {
           var colorB = colorR;
           
           var arr;
-          if(def.customMesh) {
-            arr = def.customMeshVerts[faceIndex];
+          if(def.isFluid) {
+            arr = fluidVerts[faceIndex];
           } else {
-            arr = stdVerts[faceIndex];
+            if(def.customMesh) {
+              arr = def.customMeshVerts[faceIndex];
+            } else {
+              arr = stdVerts[faceIndex];
+            }
           }
           if(def.connectingMesh) {
             arr = arr.slice();
@@ -241,12 +435,16 @@ onmessage = function(e) {
               facePos.push([lx - 1, ly - 1, lz - 1, tint, false, adjList]);
             }
           }
-          uvs.push.apply(uvs, def.uvs[faceIndex]);
-          if(def.connectingMesh) {
-            for(var n = 0; n < 6; n++) {
-              if(connectDirs[n]) {
-                if(def.connectingUVs[n] != null) {
-                  uvs.push.apply(uvs, def.connectingUVs[n][faceIndex]);
+          if(def.isFluid) {
+            uvs.push.apply(uvs, fluidUVs[faceIndex]);
+          } else {
+            uvs.push.apply(uvs, def.uvs[faceIndex]);
+            if(def.connectingMesh) {
+              for(var n = 0; n < 6; n++) {
+                if(connectDirs[n]) {
+                  if(def.connectingUVs[n] != null) {
+                    uvs.push.apply(uvs, def.connectingUVs[n][faceIndex]);
+                  }
                 }
               }
             }

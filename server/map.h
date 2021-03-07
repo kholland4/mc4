@@ -40,6 +40,8 @@ class Map {
     void update_mapblock_light(std::set<Vector3<int>>);
     Vector3<int> containing_mapblock(Vector3<int> pos);
     MapblockUpdateInfo get_mapblockupdateinfo(Vector3<int> mb_pos);
+    
+    void tick_fluids(std::set<Vector3<int>> mapblocks);
   
   private:
     void update_mapblock_light_optimized_singlenode_transparent(Vector3<int> mb_pos, Vector3<int> rel_pos);

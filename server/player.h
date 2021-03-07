@@ -72,7 +72,9 @@ class PlayerState {
     
     void update_mapblocks(std::vector<Vector3<int>> mapblock_list, Map& map, WsServer& sender);
     void update_nearby_mapblocks(int mb_radius, Map& map, WsServer& sender);
+    std::vector<Vector3<int>> list_nearby_known_mapblocks(int mb_radius);
     void update_nearby_known_mapblocks(int mb_radius, Map& map, WsServer& sender);
+    void update_nearby_known_mapblocks(std::vector<Vector3<int>> mb_to_update, Map& map, WsServer& sender);
     
     void send(std::string msg, WsServer& sender) {
       sender.send(m_connection_hdl, msg, websocketpp::frame::opcode::text);

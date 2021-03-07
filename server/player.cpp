@@ -151,7 +151,7 @@ void PlayerState::update_nearby_mapblocks(int mb_radius, Map& map, WsServer& sen
   }
   update_mapblocks(mb_to_update, map, sender);
 }
-void PlayerState::update_nearby_known_mapblocks(int mb_radius, Map& map, WsServer& sender) {
+std::vector<Vector3<int>> PlayerState::list_nearby_known_mapblocks(int mb_radius) {
   Vector3<int> abs_pos((int)pos.x, (int)pos.y, (int)pos.z);
   
   Vector3<int> mb_pos(
@@ -173,5 +173,13 @@ void PlayerState::update_nearby_known_mapblocks(int mb_radius, Map& map, WsServe
       }
     }
   }
+  
+  return mb_to_update;
+}
+void PlayerState::update_nearby_known_mapblocks(int mb_radius, Map& map, WsServer& sender) {
+  std::vector<Vector3<int>> mb_to_update = list_nearby_known_mapblocks(mb_radius);
+  update_mapblocks(mb_to_update, map, sender);
+}
+void PlayerState::update_nearby_known_mapblocks(std::vector<Vector3<int>> mb_to_update, Map& map, WsServer& sender) {
   update_mapblocks(mb_to_update, map, sender);
 }
