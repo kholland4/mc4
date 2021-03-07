@@ -720,7 +720,9 @@
       ],
       boundingBox: [
         new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, -0.375, 0.5))
-      ]}
+      ],
+      faceIsRecessed: [false, false, false, true, false, false]
+    }
   });
   registerNodeHelper("default:snowblock", {
     desc: "Snow Block",
@@ -728,6 +730,8 @@
     icon: "default_snowblock.png",
     node: {groups: {crumbly: 1}}
   });
+  api.registerCraft(new api.CraftEntry("default:snowblock", Array(9).fill("default:snow"), {shape: {x: 3, y: 3}}));
+  api.registerCraft(new api.CraftEntry("default:snow 9", ["default:snowblock"], {shape: null}));
   
   
   //---Ladder---
@@ -775,9 +779,10 @@
           1.0, 0.0,
           1.0, 1.0
         ], [], [], [], []
-      ]}
+      ],
+      faceIsRecessed: [true, false, false, false, false, false]}
   });
-  api.registerCraft(new api.CraftEntry("default:ladder_wood",
+  api.registerCraft(new api.CraftEntry("default:ladder_wood 4",
     [
       "default:stick", null, "default:stick",
       "default:stick", "default:stick", "default:stick",

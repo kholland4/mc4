@@ -89,15 +89,17 @@ onmessage = function(e) {
           //joined nodes (ie water)
           if(def.itemstring == relDef.itemstring && def.joined) { continue; }
           
+          var sunkLit = def.faceIsRecessed[faceIndex];
+          
           //TODO: use transFaces?
           //if(def.transparent && def.transFaces[faceIndex] && light > relLight) { relLight = light; tLight = true; }
-          if(def.transparent && light > relLight) { relLight = light; tLight = true; }
+          if(def.transparent && light > relLight && !sunkLit) { relLight = light; tLight = true; }
           
           //Only show faces that are lit by a node in the current mapblock.
           //Exclude self-lit nodes outside of the current mapblock.
-          if(tLight && (x < 1 || y < 1 || z < 1 || x >= size.x + 1 || y >= size.y + 1 || z >= size.z + 1)) { continue; }
+          if((tLight || sunkLit) && (x < 1 || y < 1 || z < 1 || x >= size.x + 1 || y >= size.y + 1 || z >= size.z + 1)) { continue; }
           //Exclude non-self-lit nodes where the current face is lit by a node outside of the current mapblock.
-          if(!tLight && (rx < 1 || ry < 1 || rz < 1 || rx >= size.x + 1 || ry >= size.y + 1 || rz >= size.z + 1)) { continue; }
+          if(!tLight && !sunkLit && (rx < 1 || ry < 1 || rz < 1 || rx >= size.x + 1 || ry >= size.y + 1 || rz >= size.z + 1)) { continue; }
           
           var tint = 1;
           if(faceIndex == 3) { tint = 1; } else
@@ -120,27 +122,6 @@ onmessage = function(e) {
             verts.push(arr[i + 1] + (y - 1));
             verts.push(arr[i + 2] + (z - 1));
             
-            var adjList = [];
-            var vertX = arr[i];
-            var vertY = arr[i + 1];
-            var vertZ = arr[i + 2];
-            var xDiff = vertX >= 0 ? 1 : -1;
-            var yDiff = vertY >= 0 ? 1 : -1;
-            var zDiff = vertZ >= 0 ? 1 : -1;
-            if(face.x == 1 || face.x == -1) {
-              adjList.push([rx - 1, ry - 1 + yDiff, rz - 1]);
-              adjList.push([rx - 1, ry - 1, rz - 1 + zDiff]);
-              adjList.push([rx - 1, ry - 1 + yDiff, rz - 1 + zDiff]);
-            } else if(face.y == 1 || face.y == -1) {
-              adjList.push([rx - 1 + xDiff, ry - 1, rz - 1]);
-              adjList.push([rx - 1, ry - 1, rz - 1 + zDiff]);
-              adjList.push([rx - 1 + xDiff, ry - 1, rz - 1 + zDiff]);
-            } else if(face.z == 1 || face.z == -1) {
-              adjList.push([rx - 1, ry - 1 + yDiff, rz - 1]);
-              adjList.push([rx - 1 + xDiff, ry - 1, rz - 1]);
-              adjList.push([rx - 1 + xDiff, ry - 1 + yDiff, rz - 1]);
-            }
-            
             //FIXME - see above
             if(tLight) {
               colors.push(colorR);
@@ -149,6 +130,40 @@ onmessage = function(e) {
               
               facePos.push([x - 1, y - 1, z - 1, tint, true, null]);
             } else {
+              var lx = rx;
+              var ly = ry;
+              var lz = rz;
+              if(sunkLit) {
+                lx = x;
+                ly = y;
+                lz = z;
+                relLight = light;
+              }
+              
+              var adjList = [];
+              var vertX = arr[i];
+              var vertY = arr[i + 1];
+              var vertZ = arr[i + 2];
+              var xDiff = vertX + face.x * 0.1 >= 0 ? 1 : -1;
+              var yDiff = vertY + face.y * 0.1 >= 0 ? 1 : -1;
+              var zDiff = vertZ + face.z * 0.1 >= 0 ? 1 : -1;
+              
+              if(face.x == 1 || face.x == -1) {
+                adjList.push([lx - 1, ly - 1 + yDiff, lz - 1]);
+                adjList.push([lx - 1, ly - 1, lz - 1 + zDiff]);
+                adjList.push([lx - 1, ly - 1 + yDiff, lz - 1 + zDiff]);
+              } else if(face.y == 1 || face.y == -1) {
+                adjList.push([lx - 1 + xDiff, ly - 1, lz - 1]);
+                adjList.push([lx - 1, ly - 1, lz - 1 + zDiff]);
+                adjList.push([lx - 1 + xDiff, ly - 1, lz - 1 + zDiff]);
+              } else if((face.z == 1 || face.z == -1) && face.z == zDiff) {
+                adjList.push([lx - 1, ly - 1 + yDiff, lz - 1]);
+                adjList.push([lx - 1 + xDiff, ly - 1, lz - 1]);
+                adjList.push([lx - 1 + xDiff, ly - 1 + yDiff, lz - 1]);
+              }
+              
+              
+              
               var total = lightCurve[relLight] * tint;
               var count = 1;
               
@@ -179,7 +194,7 @@ onmessage = function(e) {
               colors.push(colorG);
               colors.push(colorB);
               
-              facePos.push([rx - 1, ry - 1, rz - 1, tint, false, adjList]);
+              facePos.push([lx - 1, ly - 1, lz - 1, tint, false, adjList]);
             }
           }
           uvs.push.apply(uvs, def.uvs[faceIndex]);

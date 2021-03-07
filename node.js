@@ -46,6 +46,7 @@ class NodeBase {
     this.passSunlight = false;
     this.lightLevel = 0;
     this.joined = false;
+    this.faceIsRecessed = [false, false, false, false, false, false];
     
     this.isFluid = false;
     

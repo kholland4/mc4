@@ -183,7 +183,8 @@
           ],
           boundingBox: [
             new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0, 0.5))
-          ]
+          ],
+          faceIsRecessed: [false, false, false, true, false, false]
         }, tex)
       )); //api.registerNode
       
