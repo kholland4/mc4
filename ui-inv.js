@@ -102,6 +102,14 @@ function uiRenderInventoryList(inv, listName, kwargs) {
   }
   
   if(args.scrollHeight != null) {
+    //Workaround for Firefox's scrollbar placement
+    var inner = container;
+    container = document.createElement("div");
+    container.style.paddingRight = "18px";
+    container.appendChild(inner);
+    var width = 66;
+    inner.style.width = (width * args.width) + "px";
+    
     container.style.overflowY = "auto";
     
     /*var sqSample = document.createElement("div");
