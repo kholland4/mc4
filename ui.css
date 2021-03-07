@@ -34,7 +34,9 @@
 .uiIS_iconImg {
   width: 100%;
   
-  image-rendering: pixelated; /* FIXME: doesn't work in Firefox */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
   
   user-select: none;
 }
