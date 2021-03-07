@@ -58,6 +58,7 @@ class NodeBase {
     
     this.drops = null;
     this.breakable = true;
+    this.canPlaceInside = false;
     
     this.groups = {};
     

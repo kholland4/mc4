@@ -117,7 +117,7 @@ function init() {
     api.mouse.y = e.clientY;
   });
   
-  api.registerNode(new Node("air", {transparent: true, passSunlight: true, visible: false, walkable: true}));
+  api.registerNode(new Node("air", {transparent: true, passSunlight: true, visible: false, walkable: true, canPlaceInside: true}));
   api.registerNode(new Node("ignore", {transparent: false, passSunlight: false, visible: false, breakable: false}));
   api.registerNode(new Node("nothing", {transparent: false, passSunlight: false, visible: true, breakable: false}));
   api.loadTexture("unknown:texAll", "textures/unknown_node.png");
@@ -189,9 +189,12 @@ function init() {
             }
           }
           if(ok) {
-            if(server.getNode(placeSel).itemstring == "air") {
-              server.placeNode(player, placeSel);
-              needsRaycast = true;
+            var existingNode = server.getNode(placeSel);
+            if(existingNode != null) {
+              if(existingNode.getDef().canPlaceInside) {
+                server.placeNode(player, placeSel);
+                needsRaycast = true;
+              }
             }
           }
         }
@@ -218,6 +221,7 @@ function init() {
   
   loadMod(new ModMeta("default", "mods/default"));
   loadMod(new ModMeta("stairs", "mods/stairs", ["default"])); //FIXME mod dependencies don't actually do anything
+  loadMod(new ModMeta("flowers", "mods/flowers"));
   loadMod(new ModMeta("hud", "mods/hud"));
   loadMod(new ModMeta("inventory", "mods/inventory"));
   loadMod(new ModMeta("chat", "mods/chat"));
@@ -314,19 +318,28 @@ function animate() {
         var box = new THREE.Box3().setFromPoints([a, b, c]);
         var center = box.getCenter(new THREE.Vector3());
         
+        var isAxisAligned = true;
+        
         var plane = 0;
         if(box.min.x == box.max.x) { plane = 0; } else
         if(box.min.y == box.max.y) { plane = 1; } else
         if(box.min.z == box.max.z) { plane = 2; } else
-        { console.error("raycasted bounding box is not axis-aligned"); }
+        { isAxisAligned = false; }
         
-        var side = 1;
-        if(player.pos.getComponent(plane) > center.getComponent(plane)) { side = -1; }
-        
-        destroySel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * 0.01));
-        destroySel = new THREE.Vector3(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z));
-        placeSel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * -0.99));
-        placeSel = new THREE.Vector3(Math.round(placeSel.x), Math.round(placeSel.y), Math.round(placeSel.z));
+        if(isAxisAligned) {
+          var side = 1;
+          if(player.pos.getComponent(plane) > center.getComponent(plane)) { side = -1; }
+          
+          destroySel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * 0.01));
+          destroySel = new THREE.Vector3(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z));
+          placeSel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * -0.99));
+          placeSel = new THREE.Vector3(Math.round(placeSel.x), Math.round(placeSel.y), Math.round(placeSel.z));
+        } else {
+          //usually flowers or whatever
+          destroySel = center.clone();
+          destroySel = new THREE.Vector3(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z));
+          placeSel = destroySel.clone();
+        }
         
         raycasterSel.position.copy(destroySel);
         raycasterSel.visible = true;
