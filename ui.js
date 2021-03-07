@@ -77,6 +77,12 @@ function uiElement(name, opts) {
     if(opts != undefined) { el.innerText = opts; }
     return el;
   }
+  if(name == "link") {
+    var el = document.createElement("a");
+    el.className = "uiEl_link";
+    if(opts != undefined) { el.innerText = opts[0]; el.href = opts[1]; }
+    return el;
+  }
   if(name == "br") {
     var el = document.createElement("br");
     el.className = "uiEl_br";
