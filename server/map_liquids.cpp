@@ -168,11 +168,20 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
               Node rel_n = get_node_rel_prefetch(input_mapblocks, mb_pos, adj_pos);
               if(rel_n.itemstring != "air") { continue; }
               
-              //Don't allow spreading horizontally if we're over an air/fluid block to an air block
+              //Don't allow spreading horizontally if we're over an air/fluid block unless we're over a fluid source block
               if(n_below.itemstring == "air" || n_below_def.is_fluid) {
-                Node rel_n_below = get_node_rel_prefetch(input_mapblocks, mb_pos, adj_pos + Vector3<int>(0, -1, 0));
+                /*Node rel_n_below = get_node_rel_prefetch(input_mapblocks, mb_pos, adj_pos + Vector3<int>(0, -1, 0));
                 NodeDef rel_n_below_def = get_node_def(rel_n_below.itemstring);
-                if(rel_n_below.itemstring == "air") { continue; }
+                if(rel_n_below.itemstring == "air" ||
+                   (rel_n_below_def.isFluid && rel_n_below.itemstring != n.itemstring) ||
+                   (rel_n_below.itemstring == n.itemstring && (rel_n_below.rot & 8) != 0)
+                { continue; }*/
+                
+                if(n_below.itemstring == n.itemstring && (n_below.rot & 8) == 0) {
+                  //fluid source: ok
+                } else {
+                  continue;
+                }
               }
               
               int rot = ((spread_height & 15) << 4);
