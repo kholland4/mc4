@@ -56,6 +56,9 @@ void set_node_rel_prefetch(std::map<Vector3<int>, Mapblock*>& input_mapblocks, s
     return;
   }
   
+  Node old_n = search_in->second->get_node_rel(rel_pos);
+  if(old_n == n) { return; }
+  
   Mapblock *mb = new Mapblock(*(search_in->second));
   mb->set_node_rel(rel_pos, n);
   output_mapblocks[mb_pos] = mb;

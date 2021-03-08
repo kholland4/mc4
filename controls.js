@@ -62,6 +62,7 @@ class KeyboardControls extends BaseControls {
     //  n: target height
     this.jumpSpeed = Math.sqrt(2 * GRAVITY * 1.2);
     this.fly = false;
+    this.water = false;
     
     this.kvel = new THREE.Vector3(0, 0, 0);
     
@@ -112,7 +113,7 @@ class KeyboardControls extends BaseControls {
     }
     this.kvel.clamp(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
     
-    if(this.fly || this.ladder) {
+    if(this.fly || this.ladder || this.water) {
       var yamt = amt;
       if(this.ladder && !this.fly) { yamt = amt * 0.7; }
       
@@ -140,15 +141,19 @@ class KeyboardControls extends BaseControls {
     //res.normalize();
     var len = res.length();
     
+    var adjSpeed = this.speed;
+    if(this.water) { adjSpeed *= 0.5; }
+    
     var mat = new THREE.Matrix4().compose(new THREE.Vector3(0, 0, 0), this.rot, new THREE.Vector3(1, 1, 1));
     res.transformDirection(mat);
     res.y = 0;
     if(!KBDCTL_PITCH_MOVEMENT) { res.normalize(); }
-    res.multiplyScalar(len * this.speed);
+    res.multiplyScalar(len * adjSpeed);
     
     res.y = this.kvel.y;
-    if(this.fly) { res.y *= this.speed; }
-    else if(this.ladder) { res.y *= this.speed * 0.75; }
+    if(this.fly) { res.y *= adjSpeed; }
+    else if(this.ladder) { res.y *= adjSpeed * 0.75; }
+    else if(this.water) { res.y *= adjSpeed; }
     
     return res;
   }

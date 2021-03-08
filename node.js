@@ -58,6 +58,7 @@ class NodeBase {
     this.rotDataType = "rot";
     //this.setRotOnPlace = false; TODO
     this.isFluid = false;
+    this.fluidOverlayColor = false;
     
     this.tex = [null, null, null, null, null, null];
     this.texAll = null;

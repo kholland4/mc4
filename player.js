@@ -32,22 +32,83 @@ class Player {
     this.wieldIndex = 0;
     this.creativeDigPlace = false;
     
+    this.waterPhysics = false;
+    this.waterView = null;
+    
     this.boundingBox = new THREE.Box3(new THREE.Vector3(-0.3, -1.5, -0.3), new THREE.Vector3(0.3, 0.3, 0.3));
     
     this.updateHooks = [];
   }
   
   tick(tscale) {
+    var containingNode = server.getNode(new THREE.Vector3(Math.round(this.pos.x), Math.round(this.pos.y), Math.round(this.pos.z)));
+    if(containingNode != null) {
+      var def = containingNode.getDef();
+      var newWaterView;
+      if(def.isFluid) {
+        var h = 16 - ((containingNode.rot >> 4) & 15);
+        var fluidHeight = ((h + 1) / 16) - 0.5;
+        var relPosY = this.pos.y - Math.round(this.pos.y);
+        if(relPosY <= fluidHeight) {
+          newWaterView = def.fluidOverlayColor;
+        } else {
+          newWaterView = null;
+        }
+      } else {
+        newWaterView = null;
+      }
+      if(this.waterView != newWaterView) {
+        this.waterView = newWaterView;
+        if(this.waterView == null) {
+          document.getElementById("fluidOverlay").style.display = "none";
+        } else {
+          document.getElementById("fluidOverlay").style.display = "block";
+          document.getElementById("fluidOverlay").style.backgroundColor = this.waterView;
+        }
+      }
+    }
+    
+    //roughly where the feet are
+    var containingNodeLower = server.getNode(new THREE.Vector3(Math.round(this.pos.x), Math.round(this.pos.y - 1.5), Math.round(this.pos.z)));
+    if(containingNodeLower != null) {
+      var def = containingNodeLower.getDef();
+      if(def.isFluid) {
+        var h = 16 - ((containingNodeLower.rot >> 4) & 15);
+        var fluidHeight = ((h + 1) / 16) - 0.5;
+        var relPosY = (this.pos.y - 1.5) - Math.round(this.pos.y - 1.5);
+        if(relPosY <= fluidHeight) {
+          this.waterPhysics = true;
+        } else {
+          this.waterPhysics = false;
+        }
+      } else {
+        this.waterPhysics = false;
+      }
+    }
+    
+    var localGravity = GRAVITY;
+    
+    if(this.waterPhysics) {
+      localGravity = 5;
+    }
+    
     var vy = this.vel.y;
     this.controls.fly = this.fly;
     this.controls.ladder = this.inLadder();
+    this.controls.water = this.waterPhysics;
     this.controls.tick(tscale);
     this.vel.copy(this.controls.vel);
     if(!this.fly && !this.inLadder()) {
       if(this.vel.y > 0 && vy == 0) {
         
       } else {
-        this.vel.y = vy - GRAVITY * tscale;
+        if(this.waterPhysics) {
+          if(this.vel.y <= 0) {
+            this.vel.y -= 1;
+          }
+        } else {
+          this.vel.y = vy - localGravity * tscale;
+        }
       }
     }
     this.rot.copy(this.controls.rot);
@@ -78,7 +139,7 @@ class Player {
             //  v0: initial velocity
             //  g: gravitational downward acceleration
             //  n: target height
-            this.vel["y"] = Math.sqrt(2 * GRAVITY * (didStepUp * 1.2));
+            this.vel["y"] = Math.sqrt(2 * localGravity * (didStepUp * 1.2));
           }
         }
         this.pos[d] = oldN;
