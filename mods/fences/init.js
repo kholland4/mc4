@@ -546,7 +546,7 @@
           boundingBox: [
             new THREE.Box3(new THREE.Vector3(-0.21, -0.5, -0.21), new THREE.Vector3(0.21, 0.5, 0.21))
           ],
-          faceIsRecessed: [true, true, false, false, true, true]
+          faceIsRecessed: [true, true, true, true, true, true]
         }
       });
       

@@ -305,15 +305,18 @@ onmessage = function(e) {
           if(def.itemstring == relDef.itemstring && def.joined) { continue; }
           
           var sunkLit = def.faceIsRecessed[faceIndex];
+          if(sunkLit == null) { sunkLit = false; }
+          var smoothLightIgnoreSolid = false;
           
           //TODO: use transFaces?
           //if(def.transparent && def.transFaces[faceIndex] && light > relLight) { relLight = light; tLight = true; }
-          if(def.transparent && light > relLight && !sunkLit) {
-            if(def.isFluid) {
-              sunkLit = true;
-            } else {
-              relLight = light; tLight = true;
-            }
+          if(def.isFluid) {
+            sunkLit = true;
+            smoothLightIgnoreSolid = true;
+          } else if(def.transparent && light > relLight && def.faceIsRecessed[faceIndex] == null) {
+            //relLight = light; tLight = true;
+            sunkLit = true;
+            smoothLightIgnoreSolid = true;
           }
           
           //Only show faces that are lit by a node in the current mapblock.
@@ -354,6 +357,34 @@ onmessage = function(e) {
               }
             }
           }
+          
+          //Find the bounding box for the verticies on this face, to help with smooth lighting computations.
+          var vertMinX = 0;
+          var vertMaxX = 0;
+          var vertMinY = 0;
+          var vertMaxY = 0;
+          var vertMinZ = 0;
+          var vertMaxZ = 0;
+          if(arr.length >= 3) {
+            vertMinX = arr[0];
+            vertMaxX = arr[0];
+            vertMinY = arr[1];
+            vertMaxY = arr[1];
+            vertMinZ = arr[2];
+            vertMaxZ = arr[2];
+          }
+          for(var i = 3; i < arr.length; i += 3) {
+            vertMinX = Math.min(vertMinX, arr[i]);
+            vertMaxX = Math.max(vertMaxX, arr[i]);
+            vertMinY = Math.min(vertMinY, arr[i + 1]);
+            vertMaxY = Math.max(vertMaxY, arr[i + 1]);
+            vertMinZ = Math.min(vertMinZ, arr[i + 2]);
+            vertMaxZ = Math.max(vertMaxZ, arr[i + 2]);
+          }
+          var vertMidX = (vertMinX + vertMaxX) / 2;
+          var vertMidY = (vertMinY + vertMaxY) / 2;
+          var vertMidZ = (vertMinZ + vertMaxZ) / 2;
+          
           for(var i = 0; i < arr.length; i += 3) {
             verts.push(arr[i] + (x - 1));
             verts.push(arr[i + 1] + (y - 1));
@@ -382,9 +413,10 @@ onmessage = function(e) {
               var vertX = arr[i];
               var vertY = arr[i + 1];
               var vertZ = arr[i + 2];
-              var xDiff = vertX + face.x * 0.1 >= 0 ? 1 : -1;
-              var yDiff = vertY + face.y * 0.1 >= 0 ? 1 : -1;
-              var zDiff = vertZ + face.z * 0.1 >= 0 ? 1 : -1;
+              //FIXME these may not be detected correctly for some mesh geometries
+              var xDiff = vertX >= vertMidX ? 1 : -1;
+              var yDiff = vertY >= vertMidY ? 1 : -1;
+              var zDiff = vertZ >= vertMidZ ? 1 : -1;
               
               if(face.x == 1 || face.x == -1) {
                 adjList.push([lx - 1, ly - 1 + yDiff, lz - 1]);
@@ -394,7 +426,7 @@ onmessage = function(e) {
                 adjList.push([lx - 1 + xDiff, ly - 1, lz - 1]);
                 adjList.push([lx - 1, ly - 1, lz - 1 + zDiff]);
                 adjList.push([lx - 1 + xDiff, ly - 1, lz - 1 + zDiff]);
-              } else if((face.z == 1 || face.z == -1) && face.z == zDiff) {
+              } else if(face.z == 1 || face.z == -1) {
                 adjList.push([lx - 1, ly - 1 + yDiff, lz - 1]);
                 adjList.push([lx - 1 + xDiff, ly - 1, lz - 1]);
                 adjList.push([lx - 1 + xDiff, ly - 1 + yDiff, lz - 1]);
@@ -406,6 +438,7 @@ onmessage = function(e) {
               var count = 1;
               
               for(var n = 0; n < adjList.length; n++) {
+                if(adjList[n] == null) { continue; }
                 if(adjList[n][0] >= -1 && adjList[n][0] < size.x + 1 &&
                    adjList[n][1] >= -1 && adjList[n][1] < size.y + 1 &&
                    adjList[n][2] >= -1 && adjList[n][2] < size.z + 1) {
@@ -415,6 +448,7 @@ onmessage = function(e) {
                   var adjLight = Math.max(adjLightRaw & 15, Math.round(((adjLightRaw >> 4) & 15) * sunAmount));
                   if(adjLight > 0 && adjLight < f_relLight - 2) { continue; }
                   if(adjLight > 0 && f_relLight < adjLight - 2) { continue; }
+                  if(adjLight == 0 && smoothLightIgnoreSolid) { adjList[n] = null; continue; }
                   if(adjLight == 0) { adjLight = Math.floor(f_relLight / 3); }
                   adjLight = Math.max(adjLight, 1);
                   

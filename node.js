@@ -46,7 +46,7 @@ class NodeBase {
     this.passSunlight = false;
     this.lightLevel = 0;
     this.joined = false;
-    this.faceIsRecessed = [false, false, false, false, false, false];
+    this.faceIsRecessed = [null, null, null, null, null, null]; //true: always sunkLit, false: never sunkLit, null: no preference (renderer decides)
     this.useTint = true; //turn off for flowers and such
     this.connectingMesh = false;
     this.meshConnectsTo = [];

@@ -781,7 +781,7 @@
           1.0, 1.0
         ], [], [], [], []
       ],
-      faceIsRecessed: [true, false, false, false, false, false]}
+      faceIsRecessed: [true, null, null, null, null, null]}
   });
   api.registerCraft(new api.CraftEntry("default:ladder_wood 4",
     [

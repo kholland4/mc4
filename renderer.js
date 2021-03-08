@@ -458,6 +458,8 @@ function renderUpdateLighting(pos) {
       
       var adjList = facePos[i][5];
       for(var n = 0; n < adjList.length; n++) {
+        if(adjList[n] == null) { continue; }
+        
         var fx = adjList[n][0];
         var fy = adjList[n][1];
         var fz = adjList[n][2];
