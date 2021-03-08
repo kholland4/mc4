@@ -119,6 +119,7 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
           int new_height = old_height;
           bool do_destroy = false;
           bool make_source = is_source;
+          bool visual_fullheight = (old_rot & 4) == 4;
           
           if(!is_source) {
             int largest_adj_height = 16;
@@ -142,7 +143,11 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
             
             Node rel_n_above = get_node_rel_prefetch(input_mapblocks, mb_pos, rel_pos + Vector3<int>(0, 1, 0));
             if(rel_n_above.itemstring == n.itemstring) {
-              target_height = 0;
+              int height_above = (rel_n_above.rot >> 4) & 15;
+              if(height_above < target_height) {
+                target_height = height_above;
+                visual_fullheight = true;
+              }
             }
             
             if(target_height > 15) {
@@ -152,7 +157,7 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
             new_height = target_height;
           }
           
-          unsigned int new_rot = ((new_height & 15) << 4) | (make_source ? 0 : 8);
+          unsigned int new_rot = ((new_height & 15) << 4) | (make_source ? 0 : 8) | (visual_fullheight ? 4 : 0);
           
           if(do_destroy) {
             set_node_rel_prefetch(input_mapblocks, output_mapblocks, mb_pos, rel_pos, Node("air"));
@@ -177,14 +182,14 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
                    (rel_n_below.itemstring == n.itemstring && (rel_n_below.rot & 8) != 0)
                 { continue; }*/
                 
-                if(n_below.itemstring == n.itemstring && (n_below.rot & 8) == 0) {
+                if(n_below.itemstring == n.itemstring && (n_below.rot & 8) == 0 && ((n_below.rot >> 4) & 15) == 0) {
                   //fluid source: ok
                 } else {
                   continue;
                 }
               }
               
-              int rot = ((spread_height & 15) << 4);
+              int rot = ((spread_height & 15) << 4) | 8;
               
               set_node_rel_prefetch(input_mapblocks, output_mapblocks, mb_pos, adj_pos, Node(n.itemstring, rot));
             }
@@ -192,7 +197,8 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
           
           if(n_below.itemstring == "air" || n_below.itemstring == n.itemstring) {
             //Spread down
-            int rot = 8;
+            int height_below = new_height;
+            int rot = ((height_below & 15) << 4) | 8 | 4; //flags: not source, visual_fullheight
             set_node_rel_prefetch(input_mapblocks, output_mapblocks, mb_pos, rel_pos + Vector3<int>(0, -1, 0), Node(n.itemstring, rot));
           }
         }

@@ -123,10 +123,16 @@ onmessage = function(e) {
             
             if(relDef.isFluid) {
               nearby_heights[faceIndex] = 16 - ((relRot >> 4) & 15);
+              if((relRot & 4) == 4) { //visual_fullheight
+                nearby_heights[faceIndex] = 16;
+              }
             }
           }
           
           var baseHeight = 16 - ((rot >> 4) & 15);
+          if((rot & 4) == 4) { //visual_fullheight
+            baseHeight = 16;
+          }
           //height in the negative-x and negative-z corner (and so on) on a scale of 0 to 16 inclusive
           var h_xmzm = Math.max(baseHeight, Math.max(nearby_heights[4], nearby_heights[0], nearby_heights[2]));
           var h_xpzm = Math.max(baseHeight, Math.max(nearby_heights[5], nearby_heights[1], nearby_heights[2]));
