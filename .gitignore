@@ -1,2 +1,3 @@
-server/*.o
+server/build/*
+server/mc4-server
 server/*.sqlite
