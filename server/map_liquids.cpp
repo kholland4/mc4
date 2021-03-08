@@ -195,11 +195,13 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
             }
           }
           
-          if(n_below.itemstring == "air" || n_below.itemstring == n.itemstring) {
-            //Spread down
-            int height_below = new_height;
-            int rot = ((height_below & 15) << 4) | 8 | 4; //flags: not source, visual_fullheight
-            set_node_rel_prefetch(input_mapblocks, output_mapblocks, mb_pos, rel_pos + Vector3<int>(0, -1, 0), Node(n.itemstring, rot));
+          if(new_height <= 15) {
+            if(n_below.itemstring == "air" || n_below.itemstring == n.itemstring) {
+              //Spread down
+              int height_below = new_height;
+              int rot = ((height_below & 15) << 4) | 8 | 4; //flags: not source, visual_fullheight
+              set_node_rel_prefetch(input_mapblocks, output_mapblocks, mb_pos, rel_pos + Vector3<int>(0, -1, 0), Node(n.itemstring, rot));
+            }
           }
         }
       }
