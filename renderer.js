@@ -26,8 +26,8 @@ var RENDER_MAX_LIGHTING_UPDATES = 2;
 var sunAmount = 1;
 
 //renderDist *must* be greater that unrenderDist in all dimensions
-var renderDist = new MapPos(2, 2, 2, 0, 0, 0); //4, 2, 4
-var renderDistExtW = new MapPos(0, 0, 0, 0, 0, 0);
+var renderDist = new MapPos(2, 2, 2, 1, 0, 0); //4, 2, 4
+var renderDistExtW = new MapPos(1, 1, 1, 0, 0, 0);
 var unrenderDist = new MapPos(7, 4, 7, 2, 0, 0);
 var hideDist = new MapPos(7, 4, 7, 0, 0, 0);
 

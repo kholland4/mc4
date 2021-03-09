@@ -170,7 +170,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       player->rot.set(pt.get<double>("rot.x"), pt.get<double>("rot.y"), pt.get<double>("rot.z"), pt.get<double>("rot.w"));
       
       player->prepare_nearby_mapblocks(2, 3, 0, map);
-      //player->prepare_nearby_mapblocks(1, 2, 1, map);
+      player->prepare_nearby_mapblocks(1, 2, 1, map);
     } else if(type == "set_node") {
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       Node node(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
@@ -277,7 +277,7 @@ void Server::on_open(connection_hdl hdl) {
   player->send_pos(m_server);
   
   player->prepare_nearby_mapblocks(2, 3, 0, map);
-  //player->prepare_nearby_mapblocks(1, 2, 1, map);
+  player->prepare_nearby_mapblocks(1, 2, 1, map);
   
   log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " connected!");
   chat_send_player(player, "server", status());

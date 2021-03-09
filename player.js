@@ -30,8 +30,14 @@ class Player {
       var key = e.key;
       if(key == "PageUp" || key == "]") {
         this.pos.w++;
+        if(this.collide()) {
+          this.pos.w--;
+        }
       } else if(key == "PageDown" || key == "[") {
         this.pos.w--;
+        if(this.collide()) {
+          this.pos.w++;
+        }
       }
     }.bind(this));
     
