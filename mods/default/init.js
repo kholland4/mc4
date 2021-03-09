@@ -795,7 +795,8 @@
   //---TIME---
   mods.default.timeOffset = 1440 / 2;
   mods.default.timeOfDay = function() {
-    var time = api.debugTimestamp() + mods.default.timeOffset;
+    //var time = api.debugTimestamp() + mods.default.timeOffset;
+    var time = mods.default.timeOffset; //FIXME temporarily disabled due to performance issues
     return {d: Math.floor(time / 1440), h: Math.floor((time % 1440) / 60), m: Math.floor(time % 60)};
   };
   mods.default.setTimeOfDay = function(h, m) {
@@ -805,14 +806,18 @@
   };
   
   mods.default._sunUpdateCount = 0;
+  mods.default._oldTime = 0;
   api.registerOnFrame(function(tscale) {
     mods.default._sunUpdateCount++;
     if(mods.default._sunUpdateCount > 100) {
       var tRaw = mods.default.timeOfDay();
       var t = (tRaw.h * 60 + tRaw.m) / 1440;
       
-      var sun = Math.min(Math.max(-Math.cos(6.283 * t) + 0.5, 0), 1);
-      api.setSun(sun);
+      if(t != mods.default._oldTime) {
+        var sun = Math.min(Math.max(-Math.cos(6.283 * t) + 0.5, 0), 1);
+        api.setSun(sun);
+      }
+      mods.default._oldTime = t;
       
       mods.default._sunUpdateCount = 0;
     }

@@ -60,6 +60,7 @@ class Player {
       var newWaterView;
       if(def.isFluid) {
         var h = 16 - ((containingNode.rot >> 4) & 15);
+        if((containingNode.rot & 4) == 4) { h = 16; } //visual_fullheight
         var fluidHeight = ((h + 1) / 16) - 0.5;
         var relPosY = this.pos.y - Math.round(this.pos.y);
         if(relPosY <= fluidHeight) {
@@ -87,6 +88,7 @@ class Player {
       var def = containingNodeLower.getDef();
       if(def.isFluid) {
         var h = 16 - ((containingNodeLower.rot >> 4) & 15);
+        if((containingNodeLower.rot & 4) == 4) { h = 16; } //visual_fullheight
         var fluidHeight = ((h + 1) / 16) - 0.5;
         var relPosY = (this.pos.y - 1.5) - Math.round(this.pos.y - 1.5);
         if(relPosY <= fluidHeight) {

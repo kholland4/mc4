@@ -284,7 +284,7 @@ class MapBlockPatch {
     
     var mapBlock = this.server.getMapBlock(this.mapBlockPos);
     if(mapBlock == null) {
-      throw new Exception("cannot patch an unloaded mapblock");
+      throw new Error("cannot patch an unloaded mapblock");
     }
     this.oldNodeData = mapBlock.getNode(this.localPos);
     this.oldLight = nodeLight(mapBlock.data[this.localPos.x][this.localPos.y][this.localPos.z]);
@@ -293,7 +293,7 @@ class MapBlockPatch {
   doApply() {
     var mapBlock = this.server.getMapBlock(this.mapBlockPos);
     if(mapBlock == null) {
-      throw new Exception("cannot patch an unloaded mapblock");
+      throw new Error("cannot patch an unloaded mapblock");
     }
     
     var oldLightRaw = nodeLight(mapBlock.data[this.localPos.x][this.localPos.y][this.localPos.z]);

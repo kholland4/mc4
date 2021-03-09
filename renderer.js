@@ -256,6 +256,17 @@ function renderUpdateMap(centerPos) {
     }
   }
   
+  for(var i = renderUpdateQueue.length - 1; i >= 0; i--) {
+    if(renderUpdateQueue[i].x < centerPos.x - renderDist.x || renderUpdateQueue[i].x > centerPos.x + renderDist.x ||
+       renderUpdateQueue[i].y < centerPos.y - renderDist.y || renderUpdateQueue[i].y > centerPos.y + renderDist.y ||
+       renderUpdateQueue[i].z < centerPos.z - renderDist.z || renderUpdateQueue[i].z > centerPos.z + renderDist.z ||
+       renderUpdateQueue[i].w < centerPos.w - renderDist.w || renderUpdateQueue[i].w > centerPos.w + renderDist.w ||
+       renderUpdateQueue[i].world < centerPos.world - renderDist.world || renderUpdateQueue[i].world > centerPos.world + renderDist.world ||
+       renderUpdateQueue[i].universe < centerPos.universe - renderDist.universe || renderUpdateQueue[i].universe > centerPos.universe + renderDist.universe) {
+      renderUpdateQueue.splice(i, 1);
+    }
+  }
+  
   while(renderUpdateQueue.length > 0 && renderWorkers.length < RENDER_MAX_WORKERS) {
     var targetPos = null;
     for(var i = 0; i < renderUpdateQueue.length; i++) {
