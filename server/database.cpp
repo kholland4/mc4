@@ -28,7 +28,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
-MapblockUpdateInfo MemoryDB::get_mapblockupdateinfo(Vector3<int> pos) {
+MapblockUpdateInfo MemoryDB::get_mapblockupdateinfo(MapPos<int> pos) {
   auto search = datastore.find(pos);
   if(search != datastore.end()) {
     return MapblockUpdateInfo(search->second);
@@ -36,14 +36,14 @@ MapblockUpdateInfo MemoryDB::get_mapblockupdateinfo(Vector3<int> pos) {
   return MapblockUpdateInfo(pos);
 }
 
-void MemoryDB::set_mapblockupdateinfo(Vector3<int> pos, MapblockUpdateInfo info) {
+void MemoryDB::set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) {
   auto search = datastore.find(pos);
   if(search != datastore.end()) {
     info.write_to_mapblock(search->second);
   }
 }
 
-Mapblock* MemoryDB::get_mapblock(Vector3<int> pos) {
+Mapblock* MemoryDB::get_mapblock(MapPos<int> pos) {
   auto search = datastore.find(pos);
   if(search != datastore.end()) {
     return new Mapblock(*(search->second));
@@ -51,7 +51,7 @@ Mapblock* MemoryDB::get_mapblock(Vector3<int> pos) {
   return new Mapblock(pos);
 }
 
-void MemoryDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
+void MemoryDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
   auto search = datastore.find(pos);
   if(search != datastore.end()) {
     delete search->second;
@@ -110,6 +110,32 @@ CREATE TABLE IF NOT EXISTS map ( \
 );
 
 */
+/* Version 3:
+
+//NOTE: No changes were made to row storage format; row format remains at version 2
+
+//Changes:
+//  - recreate table with w, world, universe columns and new primary key
+
+//Upgrade path:
+//  - add new columns with default values 0
+
+CREATE TABLE IF NOT EXISTS map ( \
+  x INT,\
+  y INT,\
+  z INT,\
+  w INT,\ (DEFAULT 0 for upgraded databases)
+  world INT,\ (DEFAULT 0 for upgraded databases)
+  universe INT,\ (DEFAULT 0 for upgraded databases)
+  data MEDIUMBLOB,\
+  id_to_is TEXT,\
+  sunlit BOOLEAN,\
+  dirty BOOLEAN,\
+  version SMALLINT UNSIGNED,\
+  primary key (x, y, z, w, world, universe)\
+);
+
+*/
 
 SQLiteDB::SQLiteDB(const char* filename) {
   int rc = sqlite3_open(filename, &db);
@@ -164,19 +190,22 @@ SQLiteDB::SQLiteDB(const char* filename) {
   //If version is still 0, the database is empty and uninitialized.
   //Create the appropriate table(s) and set the 'user_version' pragma.
   if(db_version == 0) {
-    db_version = 2;
+    db_version = 3;
     
     const char *sql =
-"CREATE TABLE map ( \
+"CREATE TABLE IF NOT EXISTS map ( \
   x INT,\
   y INT,\
   z INT,\
+  w INT,\
+  world INT,\
+  universe INT,\
   data MEDIUMBLOB,\
   id_to_is TEXT,\
   sunlit BOOLEAN,\
   dirty BOOLEAN,\
   version SMALLINT UNSIGNED,\
-  primary key (x, y, z)\
+  primary key (x, y, z, w, world, universe)\
 );";
     
     sqlite3_stmt *statement;
@@ -233,6 +262,55 @@ SQLiteDB::SQLiteDB(const char* filename) {
     db_version = 2;
   }
   
+  //Upgrades from version 2 to version 3
+  if(db_version == 2) {
+    log(LogSource::SQLITEDB, LogLevel::NOTICE, "Upgrading database from version 2 to version 3");
+    
+    std::array<std::string, 7> sql_str = {
+      /*"BEGIN EXCLUSIVE TRANSACTION;",
+      "ALTER TABLE map ADD COLUMN w INT DEFAULT 0;",
+      "ALTER TABLE map ADD COLUMN world INT DEFAULT 0;",
+      "ALTER TABLE map ADD COLUMN universe INT DEFAULT 0;",
+      "PRAGMA user_version = 3;",
+      "COMMIT TRANSACTION;"*/
+      "BEGIN EXCLUSIVE TRANSACTION;",
+      "CREATE TABLE map_new ( \
+        x INT,\
+        y INT,\
+        z INT,\
+        w INT,\
+        world INT,\
+        universe INT,\
+        data MEDIUMBLOB,\
+        id_to_is TEXT,\
+        sunlit BOOLEAN,\
+        dirty BOOLEAN,\
+        version SMALLINT UNSIGNED,\
+        primary key (x, y, z, w, world, universe)\
+      );",
+      "INSERT INTO map_new (x, y, z, w, world, universe, data, id_to_is, sunlit, dirty, version) SELECT x, y, z, 0, 0, 0, data, id_to_is, sunlit, dirty, version FROM map;",
+      "DROP TABLE map;",
+      "ALTER TABLE map_new RENAME TO map;",
+      "PRAGMA user_version = 3;",
+      "COMMIT TRANSACTION;"
+    };
+    
+    for(size_t i = 0; i < sql_str.size(); i++) {
+      sqlite3_stmt *statement;
+      if(sqlite3_prepare_v2(db, sql_str[i].c_str(), -1, &statement, NULL) != SQLITE_OK) {
+        log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to migrate table 'map': ") + std::string(sqlite3_errmsg(db)));
+        exit(1);
+      }
+      if(sqlite3_step(statement) != SQLITE_DONE) {
+        log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to migrate table 'map': ") + std::string(sqlite3_errmsg(db)));
+        exit(1);
+      }
+      sqlite3_finalize(statement);
+    }
+    
+    db_version = 3;
+  }
+  
   
   //Store the DB user_version, if changed.
   if(db_version != orig_db_version) {
@@ -257,7 +335,7 @@ SQLiteDB::SQLiteDB(const char* filename) {
   std::map<int, int> row_counts;
   sql_str[-1] = "SELECT COUNT(*) FROM map;";
   //Iterate over possible versions.
-  for(int i = 1; i <= 2; i++) {
+  for(int i = 1; i <= 3; i++) {
     sql_str[i] = "SELECT COUNT(*) FROM map WHERE version=" + std::to_string(i) + ";";
   }
   
@@ -297,7 +375,7 @@ SQLiteDB::~SQLiteDB() {
   sqlite3_close_v2(db);
 }
 
-MapblockUpdateInfo SQLiteDB::get_mapblockupdateinfo(Vector3<int> pos) {
+MapblockUpdateInfo SQLiteDB::get_mapblockupdateinfo(MapPos<int> pos) {
   //Try read cache.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
@@ -312,7 +390,7 @@ MapblockUpdateInfo SQLiteDB::get_mapblockupdateinfo(Vector3<int> pos) {
   return MapblockUpdateInfo(pos);
 }
 
-void SQLiteDB::set_mapblockupdateinfo(Vector3<int> pos, MapblockUpdateInfo info) {
+void SQLiteDB::set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) {
   //Update info (with the exception of light_needs_update) only needs to be stored in read cache because it's irrelevant after all the clients disconnect.
   auto search = read_cache.find(pos);
   if(search == read_cache.end()) {
@@ -323,7 +401,7 @@ void SQLiteDB::set_mapblockupdateinfo(Vector3<int> pos, MapblockUpdateInfo info)
   info.write_to_mapblock(search->second);
 }
 
-Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
+Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
   //Try read cache.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
@@ -334,7 +412,7 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
   Mapblock *mb = new Mapblock(pos);
   
   //Try database.
-  const char *sql = "SELECT data, id_to_is, sunlit, dirty, version FROM map WHERE x=? AND y=? AND z=? LIMIT 1;";
+  const char *sql = "SELECT data, id_to_is, sunlit, dirty, version FROM map WHERE x=? AND y=? AND z=? AND w=? AND world=? AND universe=? LIMIT 1;";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
@@ -355,6 +433,24 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
     return mb;
   }
   if(sqlite3_bind_int(statement, 3, pos.z) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    mb->dont_write_to_db = true;
+    return mb;
+  }
+  if(sqlite3_bind_int(statement, 4, pos.w) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    mb->dont_write_to_db = true;
+    return mb;
+  }
+  if(sqlite3_bind_int(statement, 5, pos.world) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    mb->dont_write_to_db = true;
+    return mb;
+  }
+  if(sqlite3_bind_int(statement, 6, pos.universe) != SQLITE_OK) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     mb->dont_write_to_db = true;
@@ -476,7 +572,7 @@ Mapblock* SQLiteDB::get_mapblock(Vector3<int> pos) {
   return mb;
 }
 
-void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
+void SQLiteDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
   int row_version = 2;
   
   //Update read cache.
@@ -502,8 +598,8 @@ void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
     return;
   }
   
-  //Update database.
-  const char *sql = "REPLACE INTO map (x, y, z, data, id_to_is, sunlit, dirty, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
+  //Update database
+  const char *sql = "REPLACE INTO map (x, y, z, w, world, universe, data, id_to_is, sunlit, dirty, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
@@ -521,6 +617,21 @@ void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
     return;
   }
   if(sqlite3_bind_int(statement, 3, pos.z) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  if(sqlite3_bind_int(statement, 4, pos.w) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  if(sqlite3_bind_int(statement, 5, pos.world) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  if(sqlite3_bind_int(statement, 6, pos.universe) != SQLITE_OK) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
@@ -560,7 +671,7 @@ void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
     out_cursor++;
     run_length = 0;
   }
-  if(sqlite3_bind_blob(statement, 4, data_compressed, out_cursor * sizeof(uint32_t), SQLITE_TRANSIENT) != SQLITE_OK) {
+  if(sqlite3_bind_blob(statement, 7, data_compressed, out_cursor * sizeof(uint32_t), SQLITE_TRANSIENT) != SQLITE_OK) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
@@ -578,23 +689,23 @@ void SQLiteDB::set_mapblock(Vector3<int> pos, Mapblock *mb) {
   IDtoIS_json << "}";
   std::string IDtoIS_json_str = IDtoIS_json.str();
   const char* IDtoIS_json_cstr = IDtoIS_json_str.c_str();
-  if(sqlite3_bind_text(statement, 5, IDtoIS_json_cstr, -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+  if(sqlite3_bind_text(statement, 8, IDtoIS_json_cstr, -1, SQLITE_TRANSIENT) != SQLITE_OK) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
   
-  if(sqlite3_bind_int(statement, 6, mb->sunlit) != SQLITE_OK) {
+  if(sqlite3_bind_int(statement, 9, mb->sunlit) != SQLITE_OK) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
-  if(sqlite3_bind_int(statement, 7, mb->dirty) != SQLITE_OK) {
+  if(sqlite3_bind_int(statement, 10, mb->dirty) != SQLITE_OK) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;
   }
-  if(sqlite3_bind_int(statement, 8, row_version) != SQLITE_OK) {
+  if(sqlite3_bind_int(statement, 11, row_version) != SQLITE_OK) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     return;

@@ -65,3 +65,55 @@ void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
   
   chat_send_player(player, "server", "Time set to " + std::to_string(hours) + ":" + (minutes < 10 ? "0" : "") + std::to_string(minutes) + ".");
 }
+
+void Server::cmd_whereami(PlayerState *player, std::vector<std::string> args) {
+  std::string world_name = std::to_string(player->pos.world);
+  auto search = map.worlds.find(player->pos.world);
+  if(search != map.worlds.end()) {
+    world_name = search->second->name;
+  }
+  chat_send_player(player, "server", "(" + std::to_string(player->pos.x) + ", " + std::to_string(player->pos.y) + ", " + std::to_string(player->pos.z) + ") in w=" +
+             std::to_string(player->pos.w) + " world=" + world_name + " universe=" + std::to_string(player->pos.universe));
+}
+
+void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
+  if(args.size() != 2) {
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/world <name>'");
+    return;
+  }
+  
+  for(auto it : map.worlds) {
+    if(it.second->name == args[1]) {
+      if(player->pos.world == it.first) {
+        chat_send_player(player, "server", "You're already here!");
+        return;
+      }
+      player->pos.world = it.first;
+      chat_send_player(player, "server", "Welcome to " + it.second->name + "!");
+      player->send_pos(m_server);
+      return;
+    }
+  }
+  chat_send_player(player, "server", "unknown world");
+}
+
+void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args) {
+  if(args.size() != 2) {
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/universe <number>'");
+    return;
+  }
+  
+  try {
+    int universe = stoi(args[1]);
+    
+    if(player->pos.universe == universe) {
+      chat_send_player(player, "server", "You're already in universe " + std::to_string(universe) + ".");
+    } else {
+      player->pos.universe = universe;
+      chat_send_player(player, "server", "Welcome to universe " + std::to_string(player->pos.universe) + "!");
+      player->send_pos(m_server);
+    }
+  } catch(std::exception const& e) {
+    chat_send_player(player, "server", "invalid command: invalid input, expected '/universe <number>'");
+  }
+}

@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+"use strict";
+
 var SERVER_REMOTE_UPDATE_INTERVAL = 0.25; //how often to send updates about, i. e., the player position to the remote server
 
 class ServerBase {
@@ -37,28 +39,30 @@ class ServerBase {
   requestMapBlock(pos) {}
   
   getNodeRaw(pos) {
-    var mapBlockPos = new THREE.Vector3(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z));
+    var mapBlockPos = new MapPos(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z), pos.w, pos.world, pos.universe);
     var mapBlock = this.getMapBlock(mapBlockPos);
     if(mapBlock == null) { return null; }
     
-    var localPos = new THREE.Vector3(
+    var localPos = new MapPos(
       ((pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
       ((pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
-      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
+      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z,
+      0, 0, 0);
     
     var n = mapBlock.data[localPos.x][localPos.y][localPos.z];
     
     return n;
   }
   getNode(pos) {
-    var mapBlockPos = new THREE.Vector3(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z));
+    var mapBlockPos = new MapPos(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z), pos.w, pos.world, pos.universe);
     var mapBlock = this.getMapBlock(mapBlockPos);
     if(mapBlock == null) { return null; }
     
-    var localPos = new THREE.Vector3(
+    var localPos = new MapPos(
       ((pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
       ((pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
-      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
+      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z,
+      0, 0, 0);
     
     var n = mapBlock.data[localPos.x][localPos.y][localPos.z];
     
@@ -67,12 +71,13 @@ class ServerBase {
   }
   
   setNode(pos, nodeData) {
-    var mapBlockPos = new THREE.Vector3(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z));
+    var mapBlockPos = new MapPos(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z), pos.w, pos.world, pos.universe);
     var mapBlock = this.getMapBlock(mapBlockPos);
-    var localPos = new THREE.Vector3(
+    var localPos = new MapPos(
       ((pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
       ((pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
-      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
+      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z,
+      0, 0, 0);
     
     var val = nodeN(mapBlock.getNodeID(nodeData.itemstring), nodeData.rot);
     mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
@@ -95,8 +100,8 @@ class ServerBase {
     this.setMapBlock(mapBlockPos, mapBlock);
   }
   
-  digNode(player, sel) {
-    var nodeData = this.getNode(sel);
+  digNode(player, pos) {
+    var nodeData = this.getNode(pos);
     var stack = ItemStack.fromNodeData(nodeData);
     
     var canGive = player.inventory.canGive("main", stack);
@@ -109,16 +114,16 @@ class ServerBase {
       } else {
         player.inventory.give("main", stack);
       }
-      this.setNode(sel, new NodeData("air"));
+      this.setNode(pos, new NodeData("air"));
       
-      debug("server", "log", "dig " + nodeData.itemstring + " at " + fmtXYZ(sel));
+      debug("server", "log", "dig " + nodeData.itemstring + " at " + pos.toString());
       
       return true;
     }
     
     return false;
   }
-  placeNode(player, sel) {
+  placeNode(player, pos) {
     if(player.wield == null) { return false; }
     
     var stack = player.wield;
@@ -135,9 +140,9 @@ class ServerBase {
         player.inventory.takeIndex("main", player.wieldIndex, stack);
       }
       var nodeData = NodeData.fromItemStack(stack);
-      this.setNode(sel, nodeData);
+      this.setNode(pos, nodeData);
       
-      debug("server", "log", "place " + stack.itemstring + " at " + fmtXYZ(sel));
+      debug("server", "log", "place " + stack.itemstring + " at " + pos.toString());
       
       return true;
     }
@@ -267,11 +272,12 @@ class MapBlockPatch {
   constructor(_server, _pos, _nodeData) {
     this.pos = _pos;
     
-    this.mapBlockPos = new THREE.Vector3(Math.floor(this.pos.x / MAPBLOCK_SIZE.x), Math.floor(this.pos.y / MAPBLOCK_SIZE.y), Math.floor(this.pos.z / MAPBLOCK_SIZE.z));
-    this.localPos = new THREE.Vector3(
+    this.mapBlockPos = new MapPos(Math.floor(this.pos.x / MAPBLOCK_SIZE.x), Math.floor(this.pos.y / MAPBLOCK_SIZE.y), Math.floor(this.pos.z / MAPBLOCK_SIZE.z), this.pos.w, this.pos.world, this.pos.universe);
+    this.localPos = new MapPos(
       ((this.pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
       ((this.pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
-      ((this.pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z);
+      ((this.pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z,
+      0, 0, 0);
     
     this.server = _server;
     this.nodeData = _nodeData;
@@ -292,7 +298,7 @@ class MapBlockPatch {
     
     var oldLightRaw = nodeLight(mapBlock.data[this.localPos.x][this.localPos.y][this.localPos.z]);
     var sunlight = (oldLightRaw >> 4) & 15;
-    var light = oldLightRaw & 15;;
+    var light = oldLightRaw & 15;
     
     //Make a rough prediction of what the light will look like so that it can be shown to the player immediately.
     var def = this.nodeData.getDef();
@@ -304,7 +310,7 @@ class MapBlockPatch {
       var maxNearbyLight = 0;
       var hasSunAbove = false;
       for(var i = 0; i < stdFaces.length; i++) {
-        var l = nodeLight(this.server.getNodeRaw(new THREE.Vector3(this.pos.x + stdFaces[i].x, this.pos.y + stdFaces[i].y, this.pos.z + stdFaces[i].z)));
+        var l = nodeLight(this.server.getNodeRaw(new MapPos(this.pos.x + stdFaces[i].x, this.pos.y + stdFaces[i].y, this.pos.z + stdFaces[i].z, this.pos.w, this.pos.world, this.pos.universe)));
         maxNearbySunlight = Math.max((l >> 4) & 15, maxNearbySunlight);
         maxNearbyLight = Math.max(l & 15, maxNearbyLight);
         
@@ -339,12 +345,12 @@ class MapBlockPatch {
   }
   
   doQueueUpdates() {
-    if(this.localPos.x == 0) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0)), true); } else
-    if(this.localPos.x == MAPBLOCK_SIZE.x - 1) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(1, 0, 0)), true); }
-    if(this.localPos.y == 0) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(0, -1, 0)), true); } else
-    if(this.localPos.y == MAPBLOCK_SIZE.y - 1) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(0, 1, 0)), true); }
-    if(this.localPos.z == 0) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1)), true); } else
-    if(this.localPos.z == MAPBLOCK_SIZE.z - 1) { renderQueueUpdate(this.mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1)), true); }
+    if(this.localPos.x == 0) { renderQueueUpdate(this.mapBlockPos.add(new MapPos(-1, 0, 0, 0, 0, 0)), true); } else
+    if(this.localPos.x == MAPBLOCK_SIZE.x - 1) { renderQueueUpdate(this.mapBlockPos.add(new MapPos(1, 0, 0, 0, 0, 0)), true); }
+    if(this.localPos.y == 0) { renderQueueUpdate(this.mapBlockPos.add(new MapPos(0, -1, 0, 0, 0, 0)), true); } else
+    if(this.localPos.y == MAPBLOCK_SIZE.y - 1) { renderQueueUpdate(this.mapBlockPos.add(new MapPos(0, 1, 0, 0, 0, 0)), true); }
+    if(this.localPos.z == 0) { renderQueueUpdate(this.mapBlockPos.add(new MapPos(0, 0, -1, 0, 0, 0)), true); } else
+    if(this.localPos.z == MAPBLOCK_SIZE.z - 1) { renderQueueUpdate(this.mapBlockPos.add(new MapPos(0, 0, 1, 0, 0, 0)), true); }
     renderQueueUpdate(this.mapBlockPos, true);
   }
   
@@ -406,9 +412,9 @@ class ServerRemote extends ServerBase {
       
       if(data.type == "req_mapblock") {
         var mdata = data.data;
-        var index = mdata.pos.x + "," + mdata.pos.y + "," + mdata.pos.z;
+        var index = mdata.pos.x + "," + mdata.pos.y + "," + mdata.pos.z + "," + mdata.pos.w + "," + mdata.pos.world + "," + mdata.pos.universe;
         
-        var mapBlock = new MapBlock(new THREE.Vector3(mdata.pos.x, mdata.pos.y, mdata.pos.z));
+        var mapBlock = new MapBlock(new MapPos(mdata.pos.x, mdata.pos.y, mdata.pos.z, mdata.pos.w, mdata.pos.world, mdata.pos.universe));
         mapBlock.updateNum = mdata.updateNum;
         mapBlock.lightUpdateNum = mdata.lightUpdateNum;
         mapBlock.lightNeedsUpdate = mdata.lightNeedsUpdate;
@@ -458,7 +464,7 @@ class ServerRemote extends ServerBase {
           }
         }.bind(this));
       } else if(data.type == "set_player_pos") {
-        this.player.pos.set(data.pos.x, data.pos.y, data.pos.z);
+        this.player.pos.set(data.pos.x, data.pos.y, data.pos.z, data.pos.w, data.pos.world, data.pos.universe);
         this.player.rot.set(data.rot.x, data.rot.y, data.rot.z, data.rot.w);
       }
       
@@ -488,7 +494,14 @@ class ServerRemote extends ServerBase {
   }
   
   getMapBlock(pos, needLight=false) {
-    var index = pos.x + "," + pos.y + "," + pos.z;
+    assert(Number.isFinite(pos.x), "getMapBlock pos.x is not a finite number");
+    assert(Number.isFinite(pos.y), "getMapBlock pos.y is not a finite number");
+    assert(Number.isFinite(pos.z), "getMapBlock pos.z is not a finite number");
+    assert(Number.isFinite(pos.w), "getMapBlock pos.w is not a finite number");
+    assert(Number.isFinite(pos.world), "getMapBlock pos.world is not a finite number");
+    assert(Number.isFinite(pos.universe), "getMapBlock pos.universe is not a finite number");
+    
+    var index = pos.x + "," + pos.y + "," + pos.z + "," + pos.w + "," + pos.world + "," + pos.universe;
     if(index in this.saved) {
       var mapBlock = this.saved[index];
       if(mapBlock.lightNeedsUpdate > 0 && needLight) {
@@ -510,7 +523,7 @@ class ServerRemote extends ServerBase {
         //console.log("req " + index);
         this.socket.send(JSON.stringify({
           type: "req_mapblock",
-          pos: {x: pos.x, y: pos.y, z: pos.z}
+          pos: {x: pos.x, y: pos.y, z: pos.z, w: pos.w, world: pos.world, universe: pos.universe}
         }));
         this.requests.push(index);
       }
@@ -529,7 +542,7 @@ class ServerRemote extends ServerBase {
     }
   }
   requestMapBlock(pos) {
-    var index = pos.x + "," + pos.y + "," + pos.z;
+    var index = pos.x + "," + pos.y + "," + pos.z + "," + pos.w + "," + pos.world + "," + pos.universe;
     if(!(index in this.cache) && !(index in this.saved)) {
       this.getMapBlock(pos);
     }
@@ -557,7 +570,7 @@ class ServerRemote extends ServerBase {
     if(this._socketReady) {
       this.socket.send(JSON.stringify({
         type: "set_node",
-        pos: {x: pos.x, y: pos.y, z: pos.z},
+        pos: {x: pos.x, y: pos.y, z: pos.z, w: pos.w, world: pos.world, universe: pos.universe},
         data: nodeData
       }));
     }
@@ -607,7 +620,7 @@ class ServerRemote extends ServerBase {
   
   onFrame(tscale) {
     this.lastPlayerMapblock = this.playerMapblock;
-    this.playerMapblock = new THREE.Vector3(Math.round(this.player.pos.x / MAPBLOCK_SIZE.x), Math.round(this.player.pos.y / MAPBLOCK_SIZE.y), Math.round(this.player.pos.z / MAPBLOCK_SIZE.z));
+    this.playerMapblock = new MapPos(Math.round(this.player.pos.x / MAPBLOCK_SIZE.x), Math.round(this.player.pos.y / MAPBLOCK_SIZE.y), Math.round(this.player.pos.z / MAPBLOCK_SIZE.z), this.player.pos.w, this.player.pos.world, this.player.pos.universe);
     if(this.lastPlayerMapblock == undefined) { this.lastPlayerMapblock = this.playerMapblock; }
     
     this.timeSinceUpdateSent += tscale;
@@ -616,7 +629,7 @@ class ServerRemote extends ServerBase {
         if(this.player != null) {
           this.socket.send(JSON.stringify({
             type: "set_player_pos",
-            pos: {x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z},
+            pos: {x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, w: this.player.pos.w, world: this.player.pos.world, universe: this.player.pos.universe},
             vel: {x: this.player.vel.x, y: this.player.vel.y, z: this.player.vel.z},
             rot: {x: this.player.rot.x, y: this.player.rot.y, z: this.player.rot.z, w: this.player.rot.w}
           }));

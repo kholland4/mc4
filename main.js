@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.1.13-dev4";
+var VERSION = "0.2.0-dev1";
 
 var scene;
 var camera;
@@ -134,7 +134,7 @@ function init() {
   } else if(menuConfig.gameType == "remote") {
     server = new ServerRemote(menuConfig.remoteServer);
     
-    renderDist = new THREE.Vector3(2, 2, 2);
+    //renderDist = new MapPos(2, 2, 2, 0, 0, 0);
   } else {
     //whoops
   }
@@ -177,12 +177,12 @@ function init() {
           if(def.walkable) {
             
           } else if(def.boundingBox == null) {
-            if(player.collide(new THREE.Box3().setFromCenterAndSize(placeSel, new THREE.Vector3(1, 1, 1)))) {
+            if(player.collide(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(placeSel.x, placeSel.y, placeSel.z), new THREE.Vector3(1, 1, 1)))) {
               ok = false;
             }
           } else {
             for(var i = 0; i < def.boundingBox.length; i++) {
-              if(player.collide(def.boundingBox[i].clone().translate(placeSel))) {
+              if(player.collide(def.boundingBox[i].clone().translate(new THREE.Vector3(placeSel.x, placeSel.y, placeSel.z)))) {
                 ok = false;
                 break;
               }
@@ -333,17 +333,17 @@ function animate() {
           if(player.pos.getComponent(plane) > center.getComponent(plane)) { side = -1; }
           
           destroySel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * 0.01));
-          destroySel = new THREE.Vector3(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z));
+          destroySel = new MapPos(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z), player.pos.w, player.pos.world, player.pos.universe);
           placeSel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * -0.99));
-          placeSel = new THREE.Vector3(Math.round(placeSel.x), Math.round(placeSel.y), Math.round(placeSel.z));
+          placeSel = new MapPos(Math.round(placeSel.x), Math.round(placeSel.y), Math.round(placeSel.z), player.pos.w, player.pos.world, player.pos.universe);
         } else {
           //usually flowers or whatever
           destroySel = center.clone();
-          destroySel = new THREE.Vector3(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z));
+          destroySel = new MapPos(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z), player.pos.w, player.pos.world, player.pos.universe);
           placeSel = destroySel.clone();
         }
         
-        raycasterSel.position.copy(destroySel);
+        raycasterSel.position.set(destroySel.x, destroySel.y, destroySel.z);
         raycasterSel.visible = true;
       } else {
         destroySel = null;
@@ -436,7 +436,7 @@ function animate() {
   server.entityTick(frameTime);
   
   lightUpdate();
-  renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
+  renderUpdateMap(new MapPos(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z), player.pos.w, player.pos.world, player.pos.universe));
   
   renderer.render(scene, camera);
 }

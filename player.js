@@ -16,13 +16,26 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+"use strict";
+
 var GRAVITY = 20;
 
 class Player {
   constructor() {
     this.controls = new KeyboardControls(window, camera);
     
-    this.pos = new THREE.Vector3(0, 10, 0);
+    window.addEventListener("keydown", function(e) {
+      if(!api.ingameKey()) { return; }
+      
+      var key = e.key;
+      if(key == "PageUp" || key == "]") {
+        this.pos.w++;
+      } else if(key == "PageDown" || key == "[") {
+        this.pos.w--;
+      }
+    }.bind(this));
+    
+    this.pos = new MapPos(0, 10, 0, 0, 0, 0);
     this.vel = new THREE.Vector3(0, 0, 0);
     this.rot = new THREE.Quaternion();
     
@@ -41,7 +54,7 @@ class Player {
   }
   
   tick(tscale) {
-    var containingNode = server.getNode(new THREE.Vector3(Math.round(this.pos.x), Math.round(this.pos.y), Math.round(this.pos.z)));
+    var containingNode = server.getNode(new MapPos(Math.round(this.pos.x), Math.round(this.pos.y), Math.round(this.pos.z), this.pos.w, this.pos.world, this.pos.universe));
     if(containingNode != null) {
       var def = containingNode.getDef();
       var newWaterView;
@@ -69,7 +82,7 @@ class Player {
     }
     
     //roughly where the feet are
-    var containingNodeLower = server.getNode(new THREE.Vector3(Math.round(this.pos.x), Math.round(this.pos.y - 1.5), Math.round(this.pos.z)));
+    var containingNodeLower = server.getNode(new MapPos(Math.round(this.pos.x), Math.round(this.pos.y - 1.5), Math.round(this.pos.z), this.pos.w, this.pos.world, this.pos.universe));
     if(containingNodeLower != null) {
       var def = containingNodeLower.getDef();
       if(def.isFluid) {
@@ -185,14 +198,14 @@ class Player {
   
   collide(box) {
     if(box == undefined) {
-      return collideMap(this.boundingBox.clone().translate(this.pos));
+      return collideMap(this.boundingBox.clone().translate(new THREE.Vector3(this.pos.x, this.pos.y, this.pos.z)), this.pos);
     } else {
-      return collide(box, this.boundingBox.clone().translate(this.pos));
+      return collide(box, this.boundingBox.clone().translate(new THREE.Vector3(this.pos.x, this.pos.y, this.pos.z)));
     }
   }
   
   inLadder() {
-    var nodeStandingIn = server.getNode(new THREE.Vector3(Math.round(this.pos.x), Math.round(this.pos.y - 1.51), Math.round(this.pos.z)));
+    var nodeStandingIn = server.getNode(new MapPos(Math.round(this.pos.x), Math.round(this.pos.y - 1.51), Math.round(this.pos.z), this.pos.w, this.pos.world, this.pos.universe));
     if(nodeStandingIn == null) { return false; }
     var nodeStandingInDef = nodeStandingIn.getDef();
     return nodeStandingInDef.ladderlike;

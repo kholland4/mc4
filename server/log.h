@@ -24,7 +24,8 @@
 enum class LogSource {
   SERVER,
   SQLITEDB,
-  LOADER
+  LOADER,
+  MAP
 };
 
 //Based on https://en.wikipedia.org/wiki/Syslog#Severity_level

@@ -25,8 +25,17 @@ int main() {
   
   SQLiteDB db("test_map.sqlite");
   //MemoryDB db;
-  MapgenAlpha mapgen(82);
-  Server server(db, mapgen);
+  MapgenAlpha mapgen0(82);
+  World *world0 = new World("Earth", mapgen0);
+  MapgenHeck mapgen1(82);
+  World *world1 = new World("Heck", mapgen1);
+  
+  std::map<int, World*> worlds = {
+    {0, world0},
+    {1, world1}
+  };
+  
+  Server server(db, worlds);
   
   server.set_motd("-- Highly Experimental Test Server (tm)\n-- Use '/gamemode creative' for creative, '/nick new_nickname_here' to change your name, '/status' to view this message, '/help' for other commands\n-- Press 'k' to toggle fly, 'j' to toggle fast");
   

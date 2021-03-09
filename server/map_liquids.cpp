@@ -18,13 +18,16 @@
 
 #include "map.h"
 
-Node get_node_rel_prefetch(std::map<Vector3<int>, Mapblock*>& input_mapblocks, Vector3<int> mb_pos, Vector3<int> rel_pos) {
+Node get_node_rel_prefetch(std::map<MapPos<int>, Mapblock*>& input_mapblocks, MapPos<int> mb_pos, MapPos<int> rel_pos) {
   while(rel_pos.x < 0               ) { rel_pos.x += MAPBLOCK_SIZE_X; mb_pos.x--; }
   while(rel_pos.x >= MAPBLOCK_SIZE_X) { rel_pos.x -= MAPBLOCK_SIZE_X; mb_pos.x++; }
   while(rel_pos.y < 0               ) { rel_pos.y += MAPBLOCK_SIZE_Y; mb_pos.y--; }
   while(rel_pos.y >= MAPBLOCK_SIZE_Y) { rel_pos.y -= MAPBLOCK_SIZE_Y; mb_pos.y++; }
   while(rel_pos.z < 0               ) { rel_pos.z += MAPBLOCK_SIZE_Z; mb_pos.z--; }
   while(rel_pos.z >= MAPBLOCK_SIZE_Z) { rel_pos.z -= MAPBLOCK_SIZE_Z; mb_pos.z++; }
+  if(rel_pos.w != 0) { mb_pos.w += rel_pos.w; rel_pos.w = 0; }
+  if(rel_pos.world != 0) { mb_pos.world += rel_pos.world; rel_pos.world = 0; }
+  if(rel_pos.universe != 0) { mb_pos.universe += rel_pos.universe; rel_pos.universe = 0; }
   
   auto search = input_mapblocks.find(mb_pos);
   if(search == input_mapblocks.end()) {
@@ -35,13 +38,16 @@ Node get_node_rel_prefetch(std::map<Vector3<int>, Mapblock*>& input_mapblocks, V
   return mb->get_node_rel(rel_pos);
 }
 
-void set_node_rel_prefetch(std::map<Vector3<int>, Mapblock*>& input_mapblocks, std::map<Vector3<int>, Mapblock*>& output_mapblocks, Vector3<int> mb_pos, Vector3<int> rel_pos, Node n) {
+void set_node_rel_prefetch(std::map<MapPos<int>, Mapblock*>& input_mapblocks, std::map<MapPos<int>, Mapblock*>& output_mapblocks, MapPos<int> mb_pos, MapPos<int> rel_pos, Node n) {
   while(rel_pos.x < 0               ) { rel_pos.x += MAPBLOCK_SIZE_X; mb_pos.x--; }
   while(rel_pos.x >= MAPBLOCK_SIZE_X) { rel_pos.x -= MAPBLOCK_SIZE_X; mb_pos.x++; }
   while(rel_pos.y < 0               ) { rel_pos.y += MAPBLOCK_SIZE_Y; mb_pos.y--; }
   while(rel_pos.y >= MAPBLOCK_SIZE_Y) { rel_pos.y -= MAPBLOCK_SIZE_Y; mb_pos.y++; }
   while(rel_pos.z < 0               ) { rel_pos.z += MAPBLOCK_SIZE_Z; mb_pos.z--; }
   while(rel_pos.z >= MAPBLOCK_SIZE_Z) { rel_pos.z -= MAPBLOCK_SIZE_Z; mb_pos.z++; }
+  if(rel_pos.w != 0) { mb_pos.w += rel_pos.w; rel_pos.w = 0; }
+  if(rel_pos.world != 0) { mb_pos.world += rel_pos.world; rel_pos.world = 0; }
+  if(rel_pos.universe != 0) { mb_pos.universe += rel_pos.universe; rel_pos.universe = 0; }
   
   auto search = output_mapblocks.find(mb_pos);
   if(search != output_mapblocks.end()) {
@@ -64,24 +70,24 @@ void set_node_rel_prefetch(std::map<Vector3<int>, Mapblock*>& input_mapblocks, s
   output_mapblocks[mb_pos] = mb;
 }
 
-void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
-  std::map<Vector3<int>, Mapblock*> input_mapblocks;
-  std::map<Vector3<int>, Mapblock*> output_mapblocks;
+void Map::tick_fluids(std::set<MapPos<int>> mapblocks) {
+  std::map<MapPos<int>, Mapblock*> input_mapblocks;
+  std::map<MapPos<int>, Mapblock*> output_mapblocks;
   
-  for(const Vector3<int>& mb_pos : mapblocks) {
+  for(const MapPos<int>& mb_pos : mapblocks) {
     input_mapblocks[mb_pos] = get_mapblock(mb_pos);
   }
   
-  Vector3<int> faces[4] = {
-    {-1, 0, 0},
-    {1, 0, 0},
-    {0, 0, -1},
-    {0, 0, 1}
+  MapPos<int> faces[4] = {
+    {-1, 0, 0, 0, 0, 0},
+    {1, 0, 0, 0, 0, 0},
+    {0, 0, -1, 0, 0, 0},
+    {0, 0, 1, 0, 0, 0}
   };
   
   //Update each fluid node
   for(auto it : input_mapblocks) {
-    Vector3<int> mb_pos = it.first;
+    MapPos<int> mb_pos = it.first;
     Mapblock *mb = it.second;
     
     std::vector<bool> id_fluid;
@@ -105,10 +111,10 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
           if(!id_fluid[id]) { continue; }
           
           //it's a fluid
-          Vector3<int> rel_pos(x, y, z);
+          MapPos<int> rel_pos(x, y, z, 0, 0, 0);
           
           Node n = mb->get_node_rel(rel_pos);
-          Node n_below = get_node_rel_prefetch(input_mapblocks, mb_pos, rel_pos + Vector3<int>(0, -1, 0));
+          Node n_below = get_node_rel_prefetch(input_mapblocks, mb_pos, rel_pos + MapPos<int>(0, -1, 0, 0, 0, 0));
           NodeDef n_below_def = get_node_def(n_below.itemstring);
           
           unsigned int old_rot = n.rot;
@@ -126,7 +132,7 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
             int nearby_source_count = 0;
             
             for(int i = 0; i < 4; i++) {
-              Vector3<int> adj_pos = rel_pos + faces[i];
+              MapPos<int> adj_pos = rel_pos + faces[i];
               Node rel_n = get_node_rel_prefetch(input_mapblocks, mb_pos, adj_pos);
               if(rel_n.itemstring != n.itemstring) { continue; }
               int rel_height = ((rel_n.rot >> 4) & 15);
@@ -141,7 +147,7 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
             make_source = nearby_source_count >= 2;
             int target_height = make_source ? 0 : (largest_adj_height + 2);
             
-            Node rel_n_above = get_node_rel_prefetch(input_mapblocks, mb_pos, rel_pos + Vector3<int>(0, 1, 0));
+            Node rel_n_above = get_node_rel_prefetch(input_mapblocks, mb_pos, rel_pos + MapPos<int>(0, 1, 0, 0, 0, 0));
             if(rel_n_above.itemstring == n.itemstring) {
               int height_above = (rel_n_above.rot >> 4) & 15;
               if(height_above < target_height) {
@@ -169,7 +175,7 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
           int spread_height = new_height + 2;
           if(spread_height <= 15) {
             for(int i = 0; i < 4; i++) {
-              Vector3<int> adj_pos = rel_pos + faces[i];
+              MapPos<int> adj_pos = rel_pos + faces[i];
               Node rel_n = get_node_rel_prefetch(input_mapblocks, mb_pos, adj_pos);
               if(rel_n.itemstring != "air") { continue; }
               
@@ -200,7 +206,7 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
               //Spread down
               int height_below = new_height;
               int rot = ((height_below & 15) << 4) | 8 | 4; //flags: not source, visual_fullheight
-              set_node_rel_prefetch(input_mapblocks, output_mapblocks, mb_pos, rel_pos + Vector3<int>(0, -1, 0), Node(n.itemstring, rot));
+              set_node_rel_prefetch(input_mapblocks, output_mapblocks, mb_pos, rel_pos + MapPos<int>(0, -1, 0, 0, 0, 0), Node(n.itemstring, rot));
             }
           }
         }
@@ -213,9 +219,9 @@ void Map::tick_fluids(std::set<Vector3<int>> mapblocks) {
     delete it.second;
   }
   
-  std::set<Vector3<int>> to_update;
+  std::set<MapPos<int>> to_update;
   for(auto it : output_mapblocks) {
-    Vector3<int> mb_pos = it.first;
+    MapPos<int> mb_pos = it.first;
     Mapblock *mb = it.second;
     mb->light_needs_update = 1;
     mb->update_num++;

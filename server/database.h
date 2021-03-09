@@ -29,40 +29,40 @@
 
 class Database {
   public:
-    virtual MapblockUpdateInfo get_mapblockupdateinfo(Vector3<int> pos) = 0;
-    virtual void set_mapblockupdateinfo(Vector3<int> pos, MapblockUpdateInfo info) = 0;
-    virtual Mapblock* get_mapblock(Vector3<int> pos) = 0;
-    virtual void set_mapblock(Vector3<int> pos, Mapblock *mb) = 0;
+    virtual MapblockUpdateInfo get_mapblockupdateinfo(MapPos<int> pos) = 0;
+    virtual void set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) = 0;
+    virtual Mapblock* get_mapblock(MapPos<int> pos) = 0;
+    virtual void set_mapblock(MapPos<int> pos, Mapblock *mb) = 0;
     virtual void clean_cache() = 0;
 };
 
 class MemoryDB : public Database {
   public:
-    virtual MapblockUpdateInfo get_mapblockupdateinfo(Vector3<int> pos);
-    virtual void set_mapblockupdateinfo(Vector3<int> pos, MapblockUpdateInfo info);
-    virtual Mapblock* get_mapblock(Vector3<int> pos);
-    virtual void set_mapblock(Vector3<int> pos, Mapblock *mb);
+    virtual MapblockUpdateInfo get_mapblockupdateinfo(MapPos<int> pos);
+    virtual void set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info);
+    virtual Mapblock* get_mapblock(MapPos<int> pos);
+    virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
   
   private:
-    std::map<Vector3<int>, Mapblock*> datastore;
+    std::map<MapPos<int>, Mapblock*> datastore;
 };
 
 class SQLiteDB: public Database {
   public:
     SQLiteDB(const char* filename);
     virtual ~SQLiteDB();
-    virtual MapblockUpdateInfo get_mapblockupdateinfo(Vector3<int> pos);
-    virtual void set_mapblockupdateinfo(Vector3<int> pos, MapblockUpdateInfo info);
-    virtual Mapblock* get_mapblock(Vector3<int> pos);
-    virtual void set_mapblock(Vector3<int> pos, Mapblock *mb);
+    virtual MapblockUpdateInfo get_mapblockupdateinfo(MapPos<int> pos);
+    virtual void set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info);
+    virtual Mapblock* get_mapblock(MapPos<int> pos);
+    virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
   
   private:
     sqlite3 *db;
     int db_version;
-    std::map<Vector3<int>, Mapblock*> read_cache;
-    std::map<Vector3<int>, std::chrono::time_point<std::chrono::steady_clock>> read_cache_hits;
+    std::map<MapPos<int>, Mapblock*> read_cache;
+    std::map<MapPos<int>, std::chrono::time_point<std::chrono::steady_clock>> read_cache_hits;
 };
 
 #endif

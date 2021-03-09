@@ -27,7 +27,7 @@
 class Mapgen {
   public:
     Mapgen(uint32_t _seed) : seed(_seed) {};
-    virtual void generate_at(Vector3<int> pos, Mapblock *mb) = 0;
+    virtual void generate_at(MapPos<int> pos, Mapblock *mb) = 0;
   
   protected:
     uint32_t seed;
@@ -35,16 +35,35 @@ class Mapgen {
 
 class MapgenDefault : public Mapgen {
   public:
-    virtual void generate_at(Vector3<int> pos, Mapblock *mb);
+    virtual void generate_at(MapPos<int> pos, Mapblock *mb);
 };
 
 class MapgenAlpha : public Mapgen {
   public:
     MapgenAlpha(uint32_t _seed) : Mapgen(_seed), perlin(_seed) {};
-    virtual void generate_at(Vector3<int> pos, Mapblock *mb);
+    virtual void generate_at(MapPos<int> pos, Mapblock *mb);
   
   private:
     siv::PerlinNoise perlin;
+};
+
+class MapgenHeck : public Mapgen {
+  public:
+    MapgenHeck(uint32_t _seed) : Mapgen(_seed), perlin(_seed) {};
+    virtual void generate_at(MapPos<int> pos, Mapblock *mb);
+  
+  private:
+    siv::PerlinNoise perlin;
+};
+
+
+
+class World {
+  public:
+    World(std::string _name, Mapgen& _mapgen) : name(_name), mapgen(_mapgen) {}
+    
+    std::string name;
+    Mapgen& mapgen;
 };
 
 #endif

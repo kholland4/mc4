@@ -20,7 +20,13 @@
 #include <iostream>
 #include <cmath>
 
-void MapgenDefault::generate_at(Vector3<int> pos, Mapblock *mb) {
+//Mapgens can safely ignore the 'world' and 'universe' dimensions.
+//The map itself is responsible for picking the correct mapgen for a given world,
+//and all universes should have identical mapgen.
+
+//TODO: use the 'w' dimension as part of the mapgen
+
+void MapgenDefault::generate_at(MapPos<int> pos, Mapblock *mb) {
   if(pos.y > 0) {
     //do nothing, leave it full of air per default
   } else if(pos.y == 0) {
@@ -60,8 +66,8 @@ void MapgenDefault::generate_at(Vector3<int> pos, Mapblock *mb) {
   mb->is_nil = false;
 }
 
-void MapgenAlpha::generate_at(Vector3<int> pos, Mapblock *mb) {
-  Vector3<int> global_offset = Vector3<int>(pos.x * MAPBLOCK_SIZE_X, pos.y * MAPBLOCK_SIZE_Y, pos.z * MAPBLOCK_SIZE_Z);
+void MapgenAlpha::generate_at(MapPos<int> pos, Mapblock *mb) {
+  MapPos<int> global_offset = MapPos<int>(pos.x * MAPBLOCK_SIZE_X, pos.y * MAPBLOCK_SIZE_Y, pos.z * MAPBLOCK_SIZE_Z, pos.w, pos.world, pos.universe);
   
   unsigned int grass_id = mb->itemstring_to_id("default:grass");
   unsigned int dirt_id = mb->itemstring_to_id("default:dirt");
@@ -69,7 +75,7 @@ void MapgenAlpha::generate_at(Vector3<int> pos, Mapblock *mb) {
   
   for(int x = 0; x < MAPBLOCK_SIZE_X; x++) {
     for(int z = 0; z < MAPBLOCK_SIZE_Z; z++) {
-      double val = perlin.accumulatedOctaveNoise2D((x + global_offset.x) / 500.0, (z + global_offset.z) / 500.0, 6);
+      double val = perlin.accumulatedOctaveNoise3D((x + global_offset.x) / 500.0, (z + global_offset.z) / 500.0, global_offset.w / 300.0, 6);
       
       int height = std::floor(val * 50);
       height -= global_offset.y;
@@ -86,6 +92,40 @@ void MapgenAlpha::generate_at(Vector3<int> pos, Mapblock *mb) {
             mb->data[x][y][z] = dirt_id;
           } else {
             mb->data[x][y][z] = stone_id;
+          }
+        }
+      }
+    }
+  }
+  
+  mb->is_nil = false;
+}
+
+void MapgenHeck::generate_at(MapPos<int> pos, Mapblock *mb) {
+  MapPos<int> global_offset = MapPos<int>(pos.x * MAPBLOCK_SIZE_X, pos.y * MAPBLOCK_SIZE_Y, pos.z * MAPBLOCK_SIZE_Z, pos.w, pos.world, pos.universe);
+  
+  unsigned int brick_id = mb->itemstring_to_id("default:brick");
+  unsigned int iron_block_id = mb->itemstring_to_id("default:iron_block");
+  
+  for(int x = 0; x < MAPBLOCK_SIZE_X; x++) {
+    for(int z = 0; z < MAPBLOCK_SIZE_Z; z++) {
+      double val = perlin.accumulatedOctaveNoise3D((x + global_offset.x) / 50.0, (z + global_offset.z) / 50.0, global_offset.w / 30.0, 3);
+      
+      int height = std::floor(val * 50);
+      height -= global_offset.y;
+      
+      if(height >= 0) {
+        mb->sunlit = false;
+        
+        for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
+          if(y > height) {
+            //air, which is already there
+          } else if(y == height) {
+            mb->data[x][y][z] = brick_id;
+          } else if(y >= height - 2) {
+            mb->data[x][y][z] = iron_block_id;
+          } else {
+            mb->data[x][y][z] = brick_id;
           }
         }
       }

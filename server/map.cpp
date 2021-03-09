@@ -18,33 +18,37 @@
 
 #include "map.h"
 
+#include "log.h"
+
 #include <algorithm>
 #include <iostream>
 
 #define SUNLIGHT_CHECK_DISTANCE 4
 
-Map::Map(Database& _db, Mapgen& _mapgen)
-    : db(_db), mapgen(_mapgen)
+Map::Map(Database& _db, std::map<int, World*> _worlds)
+    : worlds(_worlds), db(_db)
 {
   
 }
 
-Node Map::get_node(Vector3<int> pos) {
+Node Map::get_node(MapPos<int> pos) {
   //C++ integer division always rounds "towards zero", i. e. the fractional part is discarded.
   //Unfortunately, we want to floor the result -- round it down.
   //For positive numbers, C++ gives us the correct answer.
   //For negative numbers, it may not. -9 / 4 gives -2, but we want -3.
   //However, when a negative dividend is divided evenly by its divisor, we get the desired result (i. e. -8 / 2 = -4).
-  Vector3<int> mb_pos(
+  MapPos<int> mb_pos(
       (pos.x < 0 && pos.x % MAPBLOCK_SIZE_X != 0) ? (pos.x / MAPBLOCK_SIZE_X - 1) : (pos.x / MAPBLOCK_SIZE_X),
       (pos.y < 0 && pos.y % MAPBLOCK_SIZE_Y != 0) ? (pos.y / MAPBLOCK_SIZE_Y - 1) : (pos.y / MAPBLOCK_SIZE_Y),
-      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z));
+      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z),
+      pos.w, pos.world, pos.universe);
   
   //Since the modulo operation gives remainders, doing something like -9 % 5 would give -4. We wrap this around into the positive interval [0, MAPBLOCK_SIZE_*).
-  Vector3<int> rel_pos(
+  MapPos<int> rel_pos(
       ((pos.x % MAPBLOCK_SIZE_X) + MAPBLOCK_SIZE_X) % MAPBLOCK_SIZE_X,
       ((pos.y % MAPBLOCK_SIZE_Y) + MAPBLOCK_SIZE_Y) % MAPBLOCK_SIZE_Y,
-      ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z);
+      ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z,
+      0, 0, 0);
   
   Mapblock *mb = get_mapblock(mb_pos);
   Node node = mb->get_node_rel(rel_pos);
@@ -54,15 +58,17 @@ Node Map::get_node(Vector3<int> pos) {
 
 //High-level setting of a node.
 //Everything is handled automatically, including lighting.
-void Map::set_node(Vector3<int> pos, Node node) {
-  Vector3<int> mb_pos(
+void Map::set_node(MapPos<int> pos, Node node) {
+  MapPos<int> mb_pos(
       (pos.x < 0 && pos.x % MAPBLOCK_SIZE_X != 0) ? (pos.x / MAPBLOCK_SIZE_X - 1) : (pos.x / MAPBLOCK_SIZE_X),
       (pos.y < 0 && pos.y % MAPBLOCK_SIZE_Y != 0) ? (pos.y / MAPBLOCK_SIZE_Y - 1) : (pos.y / MAPBLOCK_SIZE_Y),
-      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z));
-  Vector3<int> rel_pos(
+      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z),
+      pos.w, pos.world, pos.universe);
+  MapPos<int> rel_pos(
       ((pos.x % MAPBLOCK_SIZE_X) + MAPBLOCK_SIZE_X) % MAPBLOCK_SIZE_X,
       ((pos.y % MAPBLOCK_SIZE_Y) + MAPBLOCK_SIZE_Y) % MAPBLOCK_SIZE_Y,
-      ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z);
+      ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z,
+      0, 0, 0);
   
   Mapblock *mb = get_mapblock(mb_pos);
   
@@ -92,7 +98,7 @@ void Map::set_node(Vector3<int> pos, Node node) {
   delete mb;
 }
 
-Mapblock* Map::get_mapblock(Vector3<int> mb_pos) {
+Mapblock* Map::get_mapblock(MapPos<int> mb_pos) {
   Mapblock *mb = db.get_mapblock(mb_pos);
   if(!mb->is_nil) { return mb; }
   
@@ -101,12 +107,19 @@ Mapblock* Map::get_mapblock(Vector3<int> mb_pos) {
   //The resultant mapblock will be sent to the database for caching,
   //but because it isn't marked as 'dirty', it shouldn't be stored to disk (it could be regenerated at any time).
   
-  mapgen.generate_at(mb_pos, mb);
+  auto search = worlds.find(mb_pos.world);
+  if(search == worlds.end()) {
+    //no world exists at this position
+    //return a nil mapblock
+    return mb;
+  }
+  
+  search->second->mapgen.generate_at(mb_pos, mb);
   db.set_mapblock(mb_pos, mb);
   return mb;
 }
 
-void Map::set_mapblock(Vector3<int> mb_pos, Mapblock *mb) {
+void Map::set_mapblock(MapPos<int> mb_pos, Mapblock *mb) {
   mb->light_needs_update = 2;
   mb->update_num++;
   mb->dirty = true;
@@ -119,7 +132,7 @@ void Map::update_mapblock_light(MapblockUpdateInfo info) {
   if(info.light_needs_update == 1) {
     update_mapblock_light(info.pos, info.pos);
   } else if(info.light_needs_update == 2) {
-    update_mapblock_light(info.pos - Vector3<int>(1, 1, 1), info.pos + Vector3<int>(1, 1, 1));
+    update_mapblock_light(info.pos - MapPos<int>(1, 1, 1, 0, 0, 0), info.pos + MapPos<int>(1, 1, 1, 0, 0, 0));
   } else {
     return; //should never happen
   }
@@ -129,12 +142,16 @@ void Map::update_mapblock_light(MapblockUpdateInfo info) {
   db.set_mapblockupdateinfo(info.pos, new_info);
 }
 
-void Map::update_mapblock_light(Vector3<int> min_pos, Vector3<int> max_pos) {
-  std::set<Vector3<int>> mapblock_list;
+void Map::update_mapblock_light(MapPos<int> min_pos, MapPos<int> max_pos) {
+  if(min_pos.w != max_pos.w || min_pos.world != max_pos.world || min_pos.universe != max_pos.universe) {
+    log(LogSource::MAP, LogLevel::WARNING, "cannot update mapblock light across higher spatial dimensions");
+    return;
+  }
+  std::set<MapPos<int>> mapblock_list;
   for(int x = min_pos.x; x <= max_pos.x; x++) {
     for(int y = min_pos.y; y <= max_pos.y; y++) {
       for(int z = min_pos.z; z <= max_pos.z; z++) {
-        mapblock_list.insert(Vector3<int>(x, y, z));
+        mapblock_list.insert(MapPos<int>(x, y, z, min_pos.w, min_pos.world, min_pos.universe));
       }
     }
   }
@@ -142,23 +159,23 @@ void Map::update_mapblock_light(Vector3<int> min_pos, Vector3<int> max_pos) {
 }
 
 enum LightCascadeType {LC_NORM, LC_SUN};
-Vector3<int> faces[6] = {
-  Vector3<int>(1, 0, 0),
-  Vector3<int>(0, 1, 0),
-  Vector3<int>(0, 0, 1),
-  Vector3<int>(-1, 0, 0),
-  Vector3<int>(0, -1, 0),
-  Vector3<int>(0, 0, -1)
+MapPos<int> faces[6] = {
+  MapPos<int>(1, 0, 0, 0, 0, 0),
+  MapPos<int>(0, 1, 0, 0, 0, 0),
+  MapPos<int>(0, 0, 1, 0, 0, 0),
+  MapPos<int>(-1, 0, 0, 0, 0, 0),
+  MapPos<int>(0, -1, 0, 0, 0, 0),
+  MapPos<int>(0, 0, -1, 0, 0, 0)
 };
-Vector3<int> rev_faces[6] = {
-  Vector3<int>(-1, 0, 0),
-  Vector3<int>(0, -1, 0),
-  Vector3<int>(0, 0, -1),
-  Vector3<int>(1, 0, 0),
-  Vector3<int>(0, 1, 0),
-  Vector3<int>(0, 0, 1)
+MapPos<int> rev_faces[6] = {
+  MapPos<int>(-1, 0, 0, 0, 0, 0),
+  MapPos<int>(0, -1, 0, 0, 0, 0),
+  MapPos<int>(0, 0, -1, 0, 0, 0),
+  MapPos<int>(1, 0, 0, 0, 0, 0),
+  MapPos<int>(0, 1, 0, 0, 0, 0),
+  MapPos<int>(0, 0, 1, 0, 0, 0)
 };
-void light_cascade_fast(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector3<int>>& mapblocks_to_update, Mapblock *mb, Vector3<int> mb_pos, Vector3<int> rel_pos, unsigned int light_level, LightCascadeType type, Vector3<int> skip_face, int bleed_mode = 0) {
+void light_cascade_fast(std::map<MapPos<int>, Mapblock*>& mapblocks, std::set<MapPos<int>>& mapblocks_to_update, Mapblock *mb, MapPos<int> mb_pos, MapPos<int> rel_pos, unsigned int light_level, LightCascadeType type, MapPos<int> skip_face, int bleed_mode = 0) {
   if(light_level == 0 && bleed_mode == 0) { return; }
   
   uint32_t val = mb->data[rel_pos.x][rel_pos.y][rel_pos.z];
@@ -207,11 +224,14 @@ void light_cascade_fast(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<V
       for(int i = 0; i < 6; i++) {
         if(faces[i] == skip_face) { continue; }
         
-        Vector3<int> adj = rel_pos + faces[i];
-        Vector3<int> mb_pos_n(mb_pos);
+        MapPos<int> adj = rel_pos + faces[i];
+        MapPos<int> mb_pos_n(mb_pos);
         if(adj.x >= 0 && adj.x < MAPBLOCK_SIZE_X &&
            adj.y >= 0 && adj.y < MAPBLOCK_SIZE_Y &&
-           adj.z >= 0 && adj.z < MAPBLOCK_SIZE_Z) {
+           adj.z >= 0 && adj.z < MAPBLOCK_SIZE_Z &&
+           adj.w == 0 &&
+           adj.world == 0 &&
+           adj.universe == 0) {
           light_cascade_fast(mapblocks, mapblocks_to_update, mb, mb_pos_n, adj, light_level, type, rev_faces[i]);
         } else {
           if(adj.x < 0               ) { adj.x += MAPBLOCK_SIZE_X; mb_pos_n.x--; }
@@ -220,6 +240,9 @@ void light_cascade_fast(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<V
           if(adj.y >= MAPBLOCK_SIZE_Y) { adj.y -= MAPBLOCK_SIZE_Y; mb_pos_n.y++; }
           if(adj.z < 0               ) { adj.z += MAPBLOCK_SIZE_Z; mb_pos_n.z--; }
           if(adj.z >= MAPBLOCK_SIZE_Z) { adj.z -= MAPBLOCK_SIZE_Z; mb_pos_n.z++; }
+          if(adj.w != 0) { mb_pos_n.w = adj.w; adj.w = 0; }
+          if(adj.world != 0) { mb_pos_n.world = adj.world; adj.world = 0; }
+          if(adj.universe != 0) { mb_pos_n.universe = adj.universe; adj.universe = 0; }
           
           bool in_update = mapblocks_to_update.find(mb_pos_n) != mapblocks_to_update.end();
           if(!in_update) { continue; }
@@ -234,13 +257,14 @@ void light_cascade_fast(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<V
     }
   }
 }
-void light_cascade(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector3<int>>& mapblocks_to_update, Vector3<int> pos, unsigned int light_level, LightCascadeType type, int bleed_mode = 0) {
+void light_cascade(std::map<MapPos<int>, Mapblock*>& mapblocks, std::set<MapPos<int>>& mapblocks_to_update, MapPos<int> pos, unsigned int light_level, LightCascadeType type, int bleed_mode = 0) {
   if(light_level == 0 && bleed_mode == 0) { return; }
   
-  Vector3<int> mb_pos(
+  MapPos<int> mb_pos(
       (pos.x < 0 && pos.x % MAPBLOCK_SIZE_X != 0) ? (pos.x / MAPBLOCK_SIZE_X - 1) : (pos.x / MAPBLOCK_SIZE_X),
       (pos.y < 0 && pos.y % MAPBLOCK_SIZE_Y != 0) ? (pos.y / MAPBLOCK_SIZE_Y - 1) : (pos.y / MAPBLOCK_SIZE_Y),
-      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z));
+      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z),
+      pos.w, pos.world, pos.universe);
   
   bool in_update = false;
   if(bleed_mode == 0) {
@@ -252,10 +276,11 @@ void light_cascade(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector
   if(search == mapblocks.end()) { return; }
   Mapblock *mb = search->second;
   
-  Vector3<int> rel_pos(
+  MapPos<int> rel_pos(
       ((pos.x % MAPBLOCK_SIZE_X) + MAPBLOCK_SIZE_X) % MAPBLOCK_SIZE_X,
       ((pos.y % MAPBLOCK_SIZE_Y) + MAPBLOCK_SIZE_Y) % MAPBLOCK_SIZE_Y,
-      ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z);
+      ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z,
+      0, 0, 0);
   
   uint32_t val = mb->data[rel_pos.x][rel_pos.y][rel_pos.z];
   unsigned int light = (val >> 23) & 255;
@@ -307,10 +332,13 @@ void light_cascade(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector
       light_cascade(mapblocks, mapblocks_to_update, pos + Vector3<int>(0, -1, 0), light_level, type);
       light_cascade(mapblocks, mapblocks_to_update, pos + Vector3<int>(0, 0, -1), light_level, type);*/
       for(int i = 0; i < 6; i++) {
-        Vector3<int> adj = rel_pos + faces[i];
+        MapPos<int> adj = rel_pos + faces[i];
         if(adj.x >= 0 && adj.x < MAPBLOCK_SIZE_X &&
            adj.y >= 0 && adj.y < MAPBLOCK_SIZE_Y &&
-           adj.z >= 0 && adj.z < MAPBLOCK_SIZE_Z) {
+           adj.z >= 0 && adj.z < MAPBLOCK_SIZE_Z &&
+           adj.w == 0 &&
+           adj.world == 0 &&
+           adj.universe == 0) {
           light_cascade_fast(mapblocks, mapblocks_to_update, mb, mb_pos, adj, light_level, type, rev_faces[i]);
         } else {
           light_cascade(mapblocks, mapblocks_to_update, pos + faces[i], light_level, type);
@@ -320,9 +348,9 @@ void light_cascade(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector
   }
 }
 
-void Map::save_changed_lit_mapblocks(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector3<int>>& mapblocks_to_update, bool do_clear_light_needs_update) {
+void Map::save_changed_lit_mapblocks(std::map<MapPos<int>, Mapblock*>& mapblocks, std::set<MapPos<int>>& mapblocks_to_update, bool do_clear_light_needs_update) {
   for(auto i : mapblocks_to_update) {
-    Vector3<int> mb_pos = i;
+    MapPos<int> mb_pos = i;
     Mapblock *mb = mapblocks[mb_pos];
     bool needs_update = false;
     
@@ -355,21 +383,21 @@ void Map::save_changed_lit_mapblocks(std::map<Vector3<int>, Mapblock*>& mapblock
   }
 }
 
-void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
-  std::map<Vector3<int>, Mapblock*> mapblocks;
-  std::map<Vector3<int>, std::map<unsigned int, NodeDef>> def_tables;
+void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
+  std::map<MapPos<int>, Mapblock*> mapblocks;
+  std::map<MapPos<int>, std::map<unsigned int, NodeDef>> def_tables;
   
-  std::set<Vector3<int>> mapblocks_to_compute;
+  std::set<MapPos<int>> mapblocks_to_compute;
   
   //Load each requested mapblock plus any adjacent ones (adjacent meaning +/- 1 away on any axis).
   //Also fetch mapblocks up to SUNLIGHT_CHECK_DISTANCE above the target (for sunlight).
   //Also precompute tables of definitions.
   for(auto i : mapblocks_to_update) {
-    Vector3<int> center_pos = i;
+    MapPos<int> center_pos = i;
     for(int x = center_pos.x - 1; x <= center_pos.x + 1; x++) {
       for(int z = center_pos.z - 1; z <= center_pos.z + 1; z++) {
         for(int y = center_pos.y - 1; y <= center_pos.y + SUNLIGHT_CHECK_DISTANCE; y++) {
-          Vector3<int> pos(x, y, z);
+          MapPos<int> pos(x, y, z, center_pos.w, center_pos.world, center_pos.universe);
           if(y <= center_pos.y + 1) {
             auto search = mapblocks_to_compute.find(pos);
             if(search == mapblocks_to_compute.end()) {
@@ -397,13 +425,13 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
     }
   }
   
-  std::vector<std::pair<Vector3<int>, unsigned int>> light_sources;
-  std::vector<std::pair<Vector3<int>, unsigned int>> sunlight_sources;
+  std::vector<std::pair<MapPos<int>, unsigned int>> light_sources;
+  std::vector<std::pair<MapPos<int>, unsigned int>> sunlight_sources;
   
   //Clear light in the mapblocks being updated.
   //Compute sunlight and find light sources as well.
   for(auto i : mapblocks_to_compute) {
-    Vector3<int> mb_pos = i;
+    MapPos<int> mb_pos = i;
     Mapblock *mb = mapblocks[mb_pos];
     std::map<unsigned int, NodeDef> def_table = def_tables[mb_pos];
     
@@ -414,7 +442,7 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
           has_sun = true;
         } else {
           for(int mb_y = mb_pos.y + 1; mb_y <= mb_pos.y + SUNLIGHT_CHECK_DISTANCE; mb_y++) {
-            Vector3<int> check_pos(mb_pos.x, mb_y, mb_pos.z);
+            MapPos<int> check_pos(mb_pos.x, mb_y, mb_pos.z, mb_pos.w, mb_pos.world, mb_pos.universe);
             auto search = mapblocks.find(check_pos);
             if(search == mapblocks.end()) { break; }
             Mapblock *mb_above = search->second;
@@ -435,7 +463,8 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
         }
         
         for(int y = MAPBLOCK_SIZE_Y - 1; y >= 0; y--) {
-          Vector3<int> abs_pos = Vector3<int>(mb_pos.x * MAPBLOCK_SIZE_X, mb_pos.y * MAPBLOCK_SIZE_Y, mb_pos.z * MAPBLOCK_SIZE_Z) + Vector3<int>(x, y, z);
+          MapPos<int> abs_pos = MapPos<int>(mb_pos.x * MAPBLOCK_SIZE_X, mb_pos.y * MAPBLOCK_SIZE_Y, mb_pos.z * MAPBLOCK_SIZE_Z, mb_pos.w, mb_pos.world, mb_pos.universe)
+                                + MapPos<int>(x, y, z, 0, 0, 0);
           
           unsigned int id = mb->data[x][y][z] & 32767;
           NodeDef def = def_table[id];
@@ -472,17 +501,17 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
   }
   
   //Bleed in light from the edges of adjacent mapblocks.
-  std::pair<Vector3<int>, Vector3<int>> planes[6];
-  planes[0].first.set(0,                   0,                   0                  ); planes[0].second.set(0,                   MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1);
-  planes[1].first.set(0,                   0,                   0                  ); planes[1].second.set(MAPBLOCK_SIZE_X - 1, 0,                   MAPBLOCK_SIZE_Z - 1);
-  planes[2].first.set(0,                   0,                   0                  ); planes[2].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, 0              );
-  planes[3].first.set(MAPBLOCK_SIZE_X - 1, 0,                   0                  ); planes[3].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1);
-  planes[4].first.set(0,                   MAPBLOCK_SIZE_Y - 1, 0                  ); planes[4].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1);
-  planes[5].first.set(0,                   0,                   MAPBLOCK_SIZE_Z - 1); planes[5].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1);
+  std::pair<MapPos<int>, MapPos<int>> planes[6];
+  planes[0].first.set(0,                   0,                   0,                   0, 0, 0); planes[0].second.set(0,                   MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1, 0, 0, 0);
+  planes[1].first.set(0,                   0,                   0,                   0, 0, 0); planes[1].second.set(MAPBLOCK_SIZE_X - 1, 0,                   MAPBLOCK_SIZE_Z - 1, 0, 0, 0);
+  planes[2].first.set(0,                   0,                   0,                   0, 0, 0); planes[2].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, 0,                   0, 0, 0);
+  planes[3].first.set(MAPBLOCK_SIZE_X - 1, 0,                   0,                   0, 0, 0); planes[3].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1, 0, 0, 0);
+  planes[4].first.set(0,                   MAPBLOCK_SIZE_Y - 1, 0,                   0, 0, 0); planes[4].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1, 0, 0, 0);
+  planes[5].first.set(0,                   0,                   MAPBLOCK_SIZE_Z - 1, 0, 0, 0); planes[5].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1, 0, 0, 0);
   for(auto i : mapblocks_to_compute) {
-    Vector3<int> mb_pos = i;
+    MapPos<int> mb_pos = i;
     for(size_t n = 0; n < 6; n++) {
-      Vector3<int> new_pos = mb_pos + faces[n];
+      MapPos<int> new_pos = mb_pos + faces[n];
       
       //No need to bleed in from mapblocks that were part of this update batch.
       bool in_update = mapblocks_to_compute.find(new_pos) != mapblocks_to_compute.end();
@@ -495,7 +524,7 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
       for(int x = planes[n].first.x; x <= planes[n].second.x; x++) {
         for(int y = planes[n].first.y; y <= planes[n].second.y; y++) {
           for(int z = planes[n].first.z; z <= planes[n].second.z; z++) {
-            Vector3<int> abs_pos = Vector3<int>(new_pos.x * MAPBLOCK_SIZE_X, new_pos.y * MAPBLOCK_SIZE_Y, new_pos.z * MAPBLOCK_SIZE_Z) + Vector3<int>(x, y, z);
+            MapPos<int> abs_pos = MapPos<int>(new_pos.x * MAPBLOCK_SIZE_X, new_pos.y * MAPBLOCK_SIZE_Y, new_pos.z * MAPBLOCK_SIZE_Z, new_pos.w, new_pos.world, new_pos.universe) + MapPos<int>(x, y, z, 0, 0, 0);
             light_cascade(mapblocks, mapblocks_to_update, abs_pos, 0, LC_NORM, 1);
             light_cascade(mapblocks, mapblocks_to_update, abs_pos, 0, LC_SUN, 1);
           }
@@ -513,13 +542,16 @@ void Map::update_mapblock_light(std::set<Vector3<int>> mapblocks_to_update) {
   }
 }
 
-NodeDef get_node_def_prefetch(std::map<Vector3<int>, Mapblock*>& mapblocks, std::map<Vector3<int>, std::map<unsigned int, NodeDef>>& def_tables, Vector3<int> mb_pos, Vector3<int> rel_pos) {
+NodeDef get_node_def_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks, std::map<MapPos<int>, std::map<unsigned int, NodeDef>>& def_tables, MapPos<int> mb_pos, MapPos<int> rel_pos) {
   while(rel_pos.x < 0               ) { rel_pos.x += MAPBLOCK_SIZE_X; mb_pos.x--; }
   while(rel_pos.x >= MAPBLOCK_SIZE_X) { rel_pos.x -= MAPBLOCK_SIZE_X; mb_pos.x++; }
   while(rel_pos.y < 0               ) { rel_pos.y += MAPBLOCK_SIZE_Y; mb_pos.y--; }
   while(rel_pos.y >= MAPBLOCK_SIZE_Y) { rel_pos.y -= MAPBLOCK_SIZE_Y; mb_pos.y++; }
   while(rel_pos.z < 0               ) { rel_pos.z += MAPBLOCK_SIZE_Z; mb_pos.z--; }
   while(rel_pos.z >= MAPBLOCK_SIZE_Z) { rel_pos.z -= MAPBLOCK_SIZE_Z; mb_pos.z++; }
+  if(rel_pos.w != 0) { mb_pos.w += rel_pos.w; rel_pos.w = 0; }
+  if(rel_pos.world != 0) { mb_pos.world += rel_pos.world; rel_pos.world = 0; }
+  if(rel_pos.universe != 0) { mb_pos.universe += rel_pos.universe; rel_pos.universe = 0; }
   
   auto search = mapblocks.find(mb_pos);
   if(search == mapblocks.end()) {
@@ -543,13 +575,16 @@ NodeDef get_node_def_prefetch(std::map<Vector3<int>, Mapblock*>& mapblocks, std:
   return search_id->second;
 }
 
-unsigned int get_light_val_prefetch(std::map<Vector3<int>, Mapblock*>& mapblocks, Vector3<int> mb_pos, Vector3<int> rel_pos) {
+unsigned int get_light_val_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks, MapPos<int> mb_pos, MapPos<int> rel_pos) {
   while(rel_pos.x < 0               ) { rel_pos.x += MAPBLOCK_SIZE_X; mb_pos.x--; }
   while(rel_pos.x >= MAPBLOCK_SIZE_X) { rel_pos.x -= MAPBLOCK_SIZE_X; mb_pos.x++; }
   while(rel_pos.y < 0               ) { rel_pos.y += MAPBLOCK_SIZE_Y; mb_pos.y--; }
   while(rel_pos.y >= MAPBLOCK_SIZE_Y) { rel_pos.y -= MAPBLOCK_SIZE_Y; mb_pos.y++; }
   while(rel_pos.z < 0               ) { rel_pos.z += MAPBLOCK_SIZE_Z; mb_pos.z--; }
   while(rel_pos.z >= MAPBLOCK_SIZE_Z) { rel_pos.z -= MAPBLOCK_SIZE_Z; mb_pos.z++; }
+  if(rel_pos.w != 0) { mb_pos.w += rel_pos.w; rel_pos.w = 0; }
+  if(rel_pos.world != 0) { mb_pos.world += rel_pos.world; rel_pos.world = 0; }
+  if(rel_pos.universe != 0) { mb_pos.universe += rel_pos.universe; rel_pos.universe = 0; }
   
   auto search = mapblocks.find(mb_pos);
   if(search == mapblocks.end()) {
@@ -561,13 +596,16 @@ unsigned int get_light_val_prefetch(std::map<Vector3<int>, Mapblock*>& mapblocks
   return light;
 }
 
-void set_light_val_prefetch(std::map<Vector3<int>, Mapblock*>& mapblocks, Vector3<int> mb_pos, Vector3<int> rel_pos, unsigned int light) {
+void set_light_val_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks, MapPos<int> mb_pos, MapPos<int> rel_pos, unsigned int light) {
   while(rel_pos.x < 0               ) { rel_pos.x += MAPBLOCK_SIZE_X; mb_pos.x--; }
   while(rel_pos.x >= MAPBLOCK_SIZE_X) { rel_pos.x -= MAPBLOCK_SIZE_X; mb_pos.x++; }
   while(rel_pos.y < 0               ) { rel_pos.y += MAPBLOCK_SIZE_Y; mb_pos.y--; }
   while(rel_pos.y >= MAPBLOCK_SIZE_Y) { rel_pos.y -= MAPBLOCK_SIZE_Y; mb_pos.y++; }
   while(rel_pos.z < 0               ) { rel_pos.z += MAPBLOCK_SIZE_Z; mb_pos.z--; }
   while(rel_pos.z >= MAPBLOCK_SIZE_Z) { rel_pos.z -= MAPBLOCK_SIZE_Z; mb_pos.z++; }
+  if(rel_pos.w != 0) { mb_pos.w += rel_pos.w; rel_pos.w = 0; }
+  if(rel_pos.world != 0) { mb_pos.world += rel_pos.world; rel_pos.world = 0; }
+  if(rel_pos.universe != 0) { mb_pos.universe += rel_pos.universe; rel_pos.universe = 0; }
   
   auto search = mapblocks.find(mb_pos);
   if(search == mapblocks.end()) {
@@ -577,16 +615,16 @@ void set_light_val_prefetch(std::map<Vector3<int>, Mapblock*>& mapblocks, Vector
   search->second->data[rel_pos.x][rel_pos.y][rel_pos.z] = (search->second->data[rel_pos.x][rel_pos.y][rel_pos.z] & 0b10000000011111111111111111111111UL) | (light << 23);
 }
 
-void Map::update_mapblock_light_optimized_singlenode_transparent(Vector3<int> mb_pos, Vector3<int> rel_pos) {
-  std::set<Vector3<int>> mapblocks_to_update;
-  std::map<Vector3<int>, Mapblock*> mapblocks;
-  std::map<Vector3<int>, std::map<unsigned int, NodeDef>> def_tables;
+void Map::update_mapblock_light_optimized_singlenode_transparent(MapPos<int> mb_pos, MapPos<int> rel_pos) {
+  std::set<MapPos<int>> mapblocks_to_update;
+  std::map<MapPos<int>, Mapblock*> mapblocks;
+  std::map<MapPos<int>, std::map<unsigned int, NodeDef>> def_tables;
   
   //Load each requested mapblock plus any adjacent ones (adjacent meaning +/- 1 away on any axis).
   for(int x = mb_pos.x - 1; x <= mb_pos.x + 1; x++) {
     for(int z = mb_pos.z - 1; z <= mb_pos.z + 1; z++) {
       for(int y = mb_pos.y - 1; y <= mb_pos.y + 1; y++) {
-        Vector3<int> pos(x, y, z);
+        MapPos<int> pos(x, y, z, mb_pos.w, mb_pos.world, mb_pos.universe);
         if(mapblocks.find(pos) != mapblocks.end()) { continue; }
         
         mapblocks[pos] = get_mapblock(pos);
@@ -608,28 +646,28 @@ void Map::update_mapblock_light_optimized_singlenode_transparent(Vector3<int> mb
   unsigned int old_light = get_light_val_prefetch(mapblocks, mb_pos, rel_pos);
   set_light_val_prefetch(mapblocks, mb_pos, rel_pos, (old_light & 0xF0) | std::max(old_light & 0x0F, 1U));
   
-  std::vector<std::pair<Vector3<int>, unsigned int>> light_sources;
-  std::vector<std::pair<Vector3<int>, unsigned int>> sunlight_sources;
+  std::vector<std::pair<MapPos<int>, unsigned int>> light_sources;
+  std::vector<std::pair<MapPos<int>, unsigned int>> sunlight_sources;
   
-  Vector3<int> abs_pos = Vector3<int>(mb_pos.x * MAPBLOCK_SIZE_X, mb_pos.y * MAPBLOCK_SIZE_Y, mb_pos.z * MAPBLOCK_SIZE_Z) + rel_pos;
+  MapPos<int> abs_pos = MapPos<int>(mb_pos.x * MAPBLOCK_SIZE_X, mb_pos.y * MAPBLOCK_SIZE_Y, mb_pos.z * MAPBLOCK_SIZE_Z, mb_pos.w, mb_pos.world, mb_pos.universe) + rel_pos;
   
   //If the node above the current one is sunlit (sunlight == 15), flood the sunlight downward.
   //FIXME the sunlight won't go as deep as it should
-  unsigned int sunlight_above = (get_light_val_prefetch(mapblocks, mb_pos, rel_pos + Vector3<int>(0, 1, 0)) >> 4) & 0x0F;
+  unsigned int sunlight_above = (get_light_val_prefetch(mapblocks, mb_pos, rel_pos + MapPos<int>(0, 1, 0, 0, 0, 0)) >> 4) & 0x0F;
   if(sunlight_above == 15) {
     unsigned int old_light_s = get_light_val_prefetch(mapblocks, mb_pos, rel_pos);
     set_light_val_prefetch(mapblocks, mb_pos, rel_pos, old_light_s | 0xF0);
     sunlight_sources.push_back(std::make_pair(abs_pos, 15));
     for(int y = -1; y >= -MAPBLOCK_SIZE_Y * 2; y--) {
-      NodeDef def = get_node_def_prefetch(mapblocks, def_tables, mb_pos, rel_pos + Vector3<int>(0, y, 0));
+      NodeDef def = get_node_def_prefetch(mapblocks, def_tables, mb_pos, rel_pos + MapPos<int>(0, y, 0, 0, 0, 0));
       if(!def.pass_sunlight || !def.transparent) {
         break;
       }
       
-      unsigned int old_light_l = get_light_val_prefetch(mapblocks, mb_pos, rel_pos + Vector3<int>(0, y, 0));
-      set_light_val_prefetch(mapblocks, mb_pos, rel_pos + Vector3<int>(0, y, 0), old_light_l | 0xF0);
+      unsigned int old_light_l = get_light_val_prefetch(mapblocks, mb_pos, rel_pos + MapPos<int>(0, y, 0, 0, 0, 0));
+      set_light_val_prefetch(mapblocks, mb_pos, rel_pos + MapPos<int>(0, y, 0, 0, 0, 0), old_light_l | 0xF0);
       if(y < -1) {
-        sunlight_sources.push_back(std::make_pair(abs_pos + Vector3<int>(0, y, 0), 15));
+        sunlight_sources.push_back(std::make_pair(abs_pos + MapPos<int>(0, y, 0, 0, 0, 0), 15));
       }
     }
   }
@@ -668,13 +706,14 @@ void Map::update_mapblock_light_optimized_singlenode_transparent(Vector3<int> mb
   }
 }
 
-Vector3<int> Map::containing_mapblock(Vector3<int> pos) {
-  return Vector3<int>(
+MapPos<int> Map::containing_mapblock(MapPos<int> pos) {
+  return MapPos<int>(
       (pos.x < 0 && pos.x % MAPBLOCK_SIZE_X != 0) ? (pos.x / MAPBLOCK_SIZE_X - 1) : (pos.x / MAPBLOCK_SIZE_X),
       (pos.y < 0 && pos.y % MAPBLOCK_SIZE_Y != 0) ? (pos.y / MAPBLOCK_SIZE_Y - 1) : (pos.y / MAPBLOCK_SIZE_Y),
-      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z));
+      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z),
+      pos.w, pos.world, pos.universe);
 }
 
-MapblockUpdateInfo Map::get_mapblockupdateinfo(Vector3<int> mb_pos) {
+MapblockUpdateInfo Map::get_mapblockupdateinfo(MapPos<int> mb_pos) {
   return db.get_mapblockupdateinfo(mb_pos);
 }

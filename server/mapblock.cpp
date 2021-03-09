@@ -18,11 +18,12 @@
 
 #include "mapblock.h"
 #include "json.h"
+#include "log.h"
 
 #include <sstream>
 //#include <simdjson.h>
 
-Mapblock::Mapblock(Vector3<int> _pos)
+Mapblock::Mapblock(MapPos<int> _pos)
     : pos(_pos), update_num(0), light_update_num(0), light_needs_update(1), sunlit(true), is_nil(true), dirty(false), dont_write_to_db(false), data {}
 {
   IDtoIS.push_back("air");
@@ -39,14 +40,25 @@ Mapblock::Mapblock(Vector3<int> _pos)
 //|   sun|| other|
 // 7 6 5 4 3 2 1 0
 
-Node Mapblock::get_node_rel(Vector3<int> rel_pos) {
+Node Mapblock::get_node_rel(MapPos<int> rel_pos) {
+  //a safety check to make sure all the new code isn't doing anything silly
+  if(rel_pos.w != 0 || rel_pos.world != 0 || rel_pos.universe != 0) {
+    log(LogSource::MAP, LogLevel::WARNING, "cannot get data outside of this mapblock!");
+    return Node();
+  }
+  
   uint32_t val = data[rel_pos.x][rel_pos.y][rel_pos.z];
   unsigned int id = val & 32767;
   unsigned int rot = (val >> 15) & 255;
   return Node(id_to_itemstring(id), rot);
 }
 
-void Mapblock::set_node_rel(Vector3<int> rel_pos, Node node) {
+void Mapblock::set_node_rel(MapPos<int> rel_pos, Node node) {
+  //a safety check to make sure all the new code isn't doing anything silly
+  if(rel_pos.w != 0 || rel_pos.world != 0 || rel_pos.universe != 0) {
+    log(LogSource::MAP, LogLevel::WARNING, "cannot set data outside of this mapblock!");
+  }
+  
   unsigned int id = itemstring_to_id(node.itemstring) & 32767;
   unsigned int rot = node.rot & 255;
   uint32_t old_val = data[rel_pos.x][rel_pos.y][rel_pos.z];
@@ -110,7 +122,7 @@ std::string Mapblock::as_json() {
   std::ostringstream out;
   
   out << "{\"type\":\"req_mapblock\",\"data\":{"
-      << "\"pos\":{\"x\":" << pos.x << ",\"y\":" << pos.y << ",\"z\":" << pos.z << "},"
+      << "\"pos\":{\"x\":" << pos.x << ",\"y\":" << pos.y << ",\"z\":" << pos.z << ",\"w\":" << pos.w << ",\"world\":" << pos.world << ",\"universe\":" << pos.universe << "},"
       << "\"updateNum\":" << update_num << ","
       << "\"lightUpdateNum\":" << light_update_num << ","
       << "\"lightNeedsUpdate\":" << light_needs_update << ","

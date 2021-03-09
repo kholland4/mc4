@@ -19,13 +19,14 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.1.1"
+#define VERSION "0.2.0"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
 #define SERVER_SLOW_TICK_RATIO 40 //number of ticks to each slow tick
 #define PLAYER_ENTITY_VISIBILE_DISTANCE 200
 #define PLAYER_MAPBLOCK_INTEREST_DISTANCE 2
+#define PLAYER_MAPBLOCK_INTEREST_DISTANCE_W 0
 
 #define BOOST_ERROR_CODE_HEADER_ONLY
 
@@ -68,7 +69,7 @@ using websocketpp::lib::placeholders::_2;
 
 class Server {
   public:
-    Server(Database& _db, Mapgen& _mapgen);
+    Server(Database& _db, std::map<int, World*> _worlds);
     void run(uint16_t port);
     std::string status() const;
     
@@ -86,6 +87,9 @@ class Server {
     void cmd_nick(PlayerState *player, std::vector<std::string> args);
     void cmd_status(PlayerState *player, std::vector<std::string> args);
     void cmd_time(PlayerState *player, std::vector<std::string> args);
+    void cmd_whereami(PlayerState *player, std::vector<std::string> args);
+    void cmd_tp_world(PlayerState *player, std::vector<std::string> args);
+    void cmd_tp_universe(PlayerState *player, std::vector<std::string> args);
     
     void on_open(connection_hdl hdl);
     void on_close(connection_hdl hdl);

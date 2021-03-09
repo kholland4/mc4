@@ -28,8 +28,8 @@ std::string PlayerState::pos_as_json() {
   std::ostringstream out;
   
   out << "{\"type\":\"set_player_pos\","
-      <<  "\"pos\":{\"x\":" << pos.x << ",\"y\":" << pos.y << ",\"z\":" << pos.z << "},"
-      <<  "\"vel\":{\"x\":" << vel.x << ",\"y\":" << vel.y << ",\"z\":" << vel.z << "},"
+      <<  "\"pos\":{\"x\":" << pos.x << ",\"y\":" << pos.y << ",\"z\":" << pos.z << ",\"w\":" << pos.w << ",\"world\":" << pos.world << ",\"universe\":" << pos.universe << "},"
+      <<  "\"vel\":{\"x\":" << vel.x << ",\"y\":" << vel.y << ",\"z\":" << vel.z << ",\"w\":" << vel.w << ",\"world\":" << vel.world << ",\"universe\":" << vel.universe << "},"
       <<  "\"rot\":{\"x\":" << rot.x << ",\"y\":" << rot.y << ",\"z\":" << rot.z << ",\"w\":" << rot.w << "}}";
   
   return out.str();
@@ -39,11 +39,15 @@ std::string PlayerState::entity_data_as_json() {
   std::ostringstream out;
   
   out << "{\"id\":\"" << json_escape(get_tag()) << "\","
-      <<  "\"pos\":{\"x\":" << pos.x << ",\"y\":" << pos.y << ",\"z\":" << pos.z << "},"
-      <<  "\"vel\":{\"x\":" << vel.x << ",\"y\":" << vel.y << ",\"z\":" << vel.z << "},"
+      <<  "\"pos\":{\"x\":" << pos.x << ",\"y\":" << pos.y << ",\"z\":" << pos.z << ",\"w\":" << pos.w << ",\"world\":" << pos.world << ",\"universe\":" << pos.universe << "},"
+      <<  "\"vel\":{\"x\":" << vel.x << ",\"y\":" << vel.y << ",\"z\":" << vel.z << ",\"w\":" << vel.w << ",\"world\":" << vel.world << ",\"universe\":" << vel.universe << "},"
       <<  "\"rot\":{\"x\":" << rot.x << ",\"y\":" << rot.y << ",\"z\":" << rot.z << ",\"w\":" << rot.w << "}}";
   
   return out.str();
+}
+
+void PlayerState::send_pos(WsServer& sender) {
+  sender.send(m_connection_hdl, pos_as_json(), websocketpp::frame::opcode::text);
 }
 
 bool PlayerState::needs_mapblock_update(MapblockUpdateInfo info) {
@@ -61,11 +65,11 @@ void PlayerState::send_mapblock(Mapblock *mb, WsServer& sender) {
   sender.send(m_connection_hdl, mb->as_json(), websocketpp::frame::opcode::text);
 }
 
-void PlayerState::prepare_mapblocks(std::vector<Vector3<int>> mapblock_list, Map& map) {
+void PlayerState::prepare_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map) {
   //Batch update light.
-  std::set<Vector3<int>> mb_need_light;
+  std::set<MapPos<int>> mb_need_light;
   for(size_t i = 0; i < mapblock_list.size(); i++) {
-    Vector3<int> mb_pos = mapblock_list[i];
+    MapPos<int> mb_pos = mapblock_list[i];
     MapblockUpdateInfo info = map.get_mapblockupdateinfo(mb_pos);
     if(info.light_needs_update == 1) { //TODO what about 2?
       mb_need_light.insert(mb_pos);
@@ -89,24 +93,31 @@ void PlayerState::prepare_mapblocks(std::vector<Vector3<int>> mapblock_list, Map
 //mb_radius_outer indicates the radius of a sort of 3-dimensional plus shape extending outward from this cube
 //  (if at least two dimensions are within the bounds of the inner cube, the mapblocks will be loaded)
 //  this is used because mapblock rendering on the client requires access all 6 mapblocks immediately adjacent to the one being rendered
-void PlayerState::prepare_nearby_mapblocks(int mb_radius, int mb_radius_outer, Map& map) {
-  Vector3<int> mb_pos(
+void PlayerState::prepare_nearby_mapblocks(int mb_radius, int mb_radius_outer, int mb_radius_w, Map& map) {
+  MapPos<int> mb_pos(
       (int)std::round(pos.x / MAPBLOCK_SIZE_X),
       (int)std::round(pos.y / MAPBLOCK_SIZE_Y),
-      (int)std::round(pos.z / MAPBLOCK_SIZE_Z));
-  Vector3<int> min_inner(mb_pos.x - mb_radius, mb_pos.y - mb_radius, mb_pos.z - mb_radius);
-  Vector3<int> max_inner(mb_pos.x + mb_radius, mb_pos.y + mb_radius, mb_pos.z + mb_radius);
-  Vector3<int> min_outer(mb_pos.x - mb_radius_outer, mb_pos.y - mb_radius_outer, mb_pos.z - mb_radius_outer);
-  Vector3<int> max_outer(mb_pos.x + mb_radius_outer, mb_pos.y + mb_radius_outer, mb_pos.z + mb_radius_outer);
+      (int)std::round(pos.z / MAPBLOCK_SIZE_Z),
+      pos.w, pos.world, pos.universe);
+  MapPos<int> min_inner(mb_pos.x - mb_radius, mb_pos.y - mb_radius, mb_pos.z - mb_radius, mb_pos.w - mb_radius_w, mb_pos.world, mb_pos.universe);
+  MapPos<int> max_inner(mb_pos.x + mb_radius, mb_pos.y + mb_radius, mb_pos.z + mb_radius, mb_pos.w + mb_radius_w, mb_pos.world, mb_pos.universe);
+  MapPos<int> min_outer(mb_pos.x - mb_radius_outer, mb_pos.y - mb_radius_outer, mb_pos.z - mb_radius_outer, mb_pos.w - mb_radius_w, mb_pos.world, mb_pos.universe);
+  MapPos<int> max_outer(mb_pos.x + mb_radius_outer, mb_pos.y + mb_radius_outer, mb_pos.z + mb_radius_outer, mb_pos.w + mb_radius_w, mb_pos.world, mb_pos.universe);
   
-  std::vector<Vector3<int>> mb_to_update;
-  for(int x = min_outer.x; x <= max_outer.x; x++) {
-    for(int y = min_outer.y; y <= max_outer.y; y++) {
-      for(int z = min_outer.z; z <= max_outer.z; z++) {
-        if(((x >= min_inner.x && x <= max_inner.x) && (y >= min_inner.y && y <= max_inner.y)) ||
-           ((y >= min_inner.y && y <= max_inner.y) && (z >= min_inner.z && z <= max_inner.z)) ||
-           ((x >= min_inner.x && x <= max_inner.x) && (z >= min_inner.z && z <= max_inner.z))) {
-          mb_to_update.push_back(Vector3<int>(x, y, z));
+  std::vector<MapPos<int>> mb_to_update;
+  for(int universe = min_outer.universe; universe <= max_outer.universe; universe++) {
+    for(int world = min_outer.world; world <= max_outer.world; world++) {
+      for(int w = min_outer.w; w <= max_outer.w; w++) {
+        for(int x = min_outer.x; x <= max_outer.x; x++) {
+          for(int y = min_outer.y; y <= max_outer.y; y++) {
+            for(int z = min_outer.z; z <= max_outer.z; z++) {
+              if(((x >= min_inner.x && x <= max_inner.x) && (y >= min_inner.y && y <= max_inner.y)) ||
+                 ((y >= min_inner.y && y <= max_inner.y) && (z >= min_inner.z && z <= max_inner.z)) ||
+                 ((x >= min_inner.x && x <= max_inner.x) && (z >= min_inner.z && z <= max_inner.z))) {
+                mb_to_update.push_back(MapPos<int>(x, y, z, w, world, universe));
+              }
+            }
+          }
         }
       }
     }
@@ -115,11 +126,11 @@ void PlayerState::prepare_nearby_mapblocks(int mb_radius, int mb_radius_outer, M
   prepare_mapblocks(mb_to_update, map);
 }
 
-void PlayerState::update_mapblocks(std::vector<Vector3<int>> mapblock_list, Map& map, WsServer& sender) {
+void PlayerState::update_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map, WsServer& sender) {
   prepare_mapblocks(mapblock_list, map);
   
   for(size_t i = 0; i < mapblock_list.size(); i++) {
-    Vector3<int> mb_pos = mapblock_list[i];
+    MapPos<int> mb_pos = mapblock_list[i];
     MapblockUpdateInfo info = map.get_mapblockupdateinfo(mb_pos);
     if(needs_mapblock_update(info)) {
       Mapblock *mb = map.get_mapblock(mb_pos);
@@ -131,44 +142,59 @@ void PlayerState::update_mapblocks(std::vector<Vector3<int>> mapblock_list, Map&
 
 
 
-void PlayerState::update_nearby_mapblocks(int mb_radius, Map& map, WsServer& sender) {
-  Vector3<int> abs_pos((int)pos.x, (int)pos.y, (int)pos.z);
+void PlayerState::update_nearby_mapblocks(int mb_radius, int mb_radius_w, Map& map, WsServer& sender) {
+  MapPos<int> abs_pos((int)pos.x, (int)pos.y, (int)pos.z, pos.w, pos.world, pos.universe);
   
-  Vector3<int> mb_pos(
+  MapPos<int> mb_pos(
       (abs_pos.x < 0 && abs_pos.x % MAPBLOCK_SIZE_X != 0) ? (abs_pos.x / MAPBLOCK_SIZE_X - 1) : (abs_pos.x / MAPBLOCK_SIZE_X),
       (abs_pos.y < 0 && abs_pos.y % MAPBLOCK_SIZE_Y != 0) ? (abs_pos.y / MAPBLOCK_SIZE_Y - 1) : (abs_pos.y / MAPBLOCK_SIZE_Y),
-      (abs_pos.z < 0 && abs_pos.z % MAPBLOCK_SIZE_Z != 0) ? (abs_pos.z / MAPBLOCK_SIZE_Z - 1) : (abs_pos.z / MAPBLOCK_SIZE_Z));
-  Vector3<int> min_pos(mb_pos.x - mb_radius, mb_pos.y - mb_radius, mb_pos.z - mb_radius);
-  Vector3<int> max_pos(mb_pos.x + mb_radius, mb_pos.y + mb_radius, mb_pos.z + mb_radius);
+      (abs_pos.z < 0 && abs_pos.z % MAPBLOCK_SIZE_Z != 0) ? (abs_pos.z / MAPBLOCK_SIZE_Z - 1) : (abs_pos.z / MAPBLOCK_SIZE_Z),
+      abs_pos.w, abs_pos.world, abs_pos.universe);
+  MapPos<int> min_pos(mb_pos.x - mb_radius, mb_pos.y - mb_radius, mb_pos.z - mb_radius, mb_pos.w - mb_radius_w, mb_pos.world, mb_pos.universe);
+  MapPos<int> max_pos(mb_pos.x + mb_radius, mb_pos.y + mb_radius, mb_pos.z + mb_radius, mb_pos.w + mb_radius_w, mb_pos.world, mb_pos.universe);
   
-  std::vector<Vector3<int>> mb_to_update;
-  for(int x = min_pos.x; x <= max_pos.x; x++) {
-    for(int y = min_pos.y; y <= max_pos.y; y++) {
-      for(int z = min_pos.z; z <= max_pos.z; z++) {
-        mb_to_update.push_back(Vector3<int>(x, y, z));
+  std::vector<MapPos<int>> mb_to_update;
+  for(int universe = min_pos.universe; universe <= max_pos.universe; universe++) {
+    for(int world = min_pos.world; world <= max_pos.world; world++) {
+      for(int w = min_pos.w; w <= max_pos.w; w++) {
+        for(int x = min_pos.x; x <= max_pos.x; x++) {
+          for(int y = min_pos.y; y <= max_pos.y; y++) {
+            for(int z = min_pos.z; z <= max_pos.z; z++) {
+              mb_to_update.push_back(MapPos<int>(x, y, z, w, world, universe));
+            }
+          }
+        }
       }
     }
   }
   update_mapblocks(mb_to_update, map, sender);
 }
-std::vector<Vector3<int>> PlayerState::list_nearby_known_mapblocks(int mb_radius) {
-  Vector3<int> abs_pos((int)pos.x, (int)pos.y, (int)pos.z);
+std::vector<MapPos<int>> PlayerState::list_nearby_known_mapblocks(int mb_radius, int mb_radius_w) {
+  MapPos<int> abs_pos((int)pos.x, (int)pos.y, (int)pos.z, pos.w, pos.world, pos.universe);
   
-  Vector3<int> mb_pos(
+  MapPos<int> mb_pos(
       (abs_pos.x < 0 && abs_pos.x % MAPBLOCK_SIZE_X != 0) ? (abs_pos.x / MAPBLOCK_SIZE_X - 1) : (abs_pos.x / MAPBLOCK_SIZE_X),
       (abs_pos.y < 0 && abs_pos.y % MAPBLOCK_SIZE_Y != 0) ? (abs_pos.y / MAPBLOCK_SIZE_Y - 1) : (abs_pos.y / MAPBLOCK_SIZE_Y),
-      (abs_pos.z < 0 && abs_pos.z % MAPBLOCK_SIZE_Z != 0) ? (abs_pos.z / MAPBLOCK_SIZE_Z - 1) : (abs_pos.z / MAPBLOCK_SIZE_Z));
-  Vector3<int> min_pos(mb_pos.x - mb_radius, mb_pos.y - mb_radius, mb_pos.z - mb_radius);
-  Vector3<int> max_pos(mb_pos.x + mb_radius, mb_pos.y + mb_radius, mb_pos.z + mb_radius);
+      (abs_pos.z < 0 && abs_pos.z % MAPBLOCK_SIZE_Z != 0) ? (abs_pos.z / MAPBLOCK_SIZE_Z - 1) : (abs_pos.z / MAPBLOCK_SIZE_Z),
+      abs_pos.w, abs_pos.world, abs_pos.universe);
+  MapPos<int> min_pos(mb_pos.x - mb_radius, mb_pos.y - mb_radius, mb_pos.z - mb_radius, mb_pos.w - mb_radius_w, mb_pos.world, mb_pos.universe);
+  MapPos<int> max_pos(mb_pos.x + mb_radius, mb_pos.y + mb_radius, mb_pos.z + mb_radius, mb_pos.w + mb_radius_w, mb_pos.world, mb_pos.universe);
   
-  std::vector<Vector3<int>> mb_to_update;
-  for(int x = min_pos.x; x <= max_pos.x; x++) {
-    for(int y = min_pos.y; y <= max_pos.y; y++) {
-      for(int z = min_pos.z; z <= max_pos.z; z++) {
-        Vector3<int> where(x, y, z);
-        auto search = known_mapblocks.find(where);
-        if(search != known_mapblocks.end()) {
-          mb_to_update.push_back(where);
+  std::vector<MapPos<int>> mb_to_update;
+  
+  for(int universe = min_pos.universe; universe <= max_pos.universe; universe++) {
+    for(int world = min_pos.world; world <= max_pos.world; world++) {
+      for(int w = min_pos.w; w <= max_pos.w; w++) {
+        for(int x = min_pos.x; x <= max_pos.x; x++) {
+          for(int y = min_pos.y; y <= max_pos.y; y++) {
+            for(int z = min_pos.z; z <= max_pos.z; z++) {
+              MapPos<int> where(x, y, z, w, world, universe);
+              auto search = known_mapblocks.find(where);
+              if(search != known_mapblocks.end()) {
+                mb_to_update.push_back(where);
+              }
+            }
+          }
         }
       }
     }
@@ -176,10 +202,10 @@ std::vector<Vector3<int>> PlayerState::list_nearby_known_mapblocks(int mb_radius
   
   return mb_to_update;
 }
-void PlayerState::update_nearby_known_mapblocks(int mb_radius, Map& map, WsServer& sender) {
-  std::vector<Vector3<int>> mb_to_update = list_nearby_known_mapblocks(mb_radius);
+void PlayerState::update_nearby_known_mapblocks(int mb_radius, int mb_radius_w, Map& map, WsServer& sender) {
+  std::vector<MapPos<int>> mb_to_update = list_nearby_known_mapblocks(mb_radius, mb_radius_w);
   update_mapblocks(mb_to_update, map, sender);
 }
-void PlayerState::update_nearby_known_mapblocks(std::vector<Vector3<int>> mb_to_update, Map& map, WsServer& sender) {
+void PlayerState::update_nearby_known_mapblocks(std::vector<MapPos<int>> mb_to_update, Map& map, WsServer& sender) {
   update_mapblocks(mb_to_update, map, sender);
 }

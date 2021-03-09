@@ -62,11 +62,81 @@ template <class T> class Vector3 {
     };
     T distance_to(const Vector3<T>& other) {
       return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y) + (z - other.z) * (z - other.z));
-    }
+    };
     
     T x;
     T y;
     T z;
+};
+
+template <class T> class MapPos {
+  public:
+    MapPos() : x(0), y(0), z(0), w(0), world(0), universe(0) {};
+    MapPos(T _x, T _y, T _z, int _w, int _world, int _universe) : x(_x), y(_y), z(_z), w(_w), world(_world), universe(_universe) {};
+    void set(T _x, T _y, T _z, int _w, int _world, int _universe) {
+      x = _x;
+      y = _y;
+      z = _z;
+      w = _w;
+      world = _world;
+      universe = _universe;
+    };
+    friend std::ostream& operator<<(std::ostream &out, const MapPos<T> &v) {
+      out << "(" << v.x << ", " << v.y << ", " << v.z << ") in w=" << v.w << " world=" << v.world << " universe=" << v.universe;
+      return out;
+    };
+    std::string to_string() {
+      return "(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ") in w=" +
+             std::to_string(w) + " world=" + std::to_string(world) + " universe=" + std::to_string(universe);
+    };
+    bool operator<(const MapPos<T>& other) const {
+      if(universe == other.universe) {
+        if(world == other.world) {
+          if(w == other.w) {
+            if(x == other.x) {
+              if(y == other.y) {
+                return z < other.z;
+              } else {
+                return y < other.y;
+              }
+            } else {
+              return x < other.x;
+            }
+          } else {
+            return w < other.w;
+          }
+        } else {
+          return world < other.world;
+        }
+      } else {
+        return universe < other.universe;
+      }
+    };
+    
+    bool operator==(const MapPos<T>& other) const {
+      return (x == other.x) && (y == other.y) && (z == other.z) && (w == other.w) && (world == other.world) && (universe == other.universe);
+    };
+    MapPos<T> operator+(const MapPos<T>& other) {
+      return MapPos<T>(x + other.x, y + other.y, z + other.z, w + other.w, world + other.world, universe + other.universe);
+    };
+    MapPos<T> operator-(const MapPos<T>& other) {
+      return MapPos<T>(x - other.x, y - other.y, z - other.z, w + other.w, world + other.world, universe + other.universe);
+    };
+    
+    //FIXME
+    T distance_to(const MapPos<T>& other) {
+      if(universe != other.universe) { return 1000000; }
+      if(world != other.world) { return 1000000; }
+      if(w != other.w) { return 1000000; }
+      return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y) + (z - other.z) * (z - other.z)); // + (w - other.w) * (w - other.w));
+    };
+    
+    T x;
+    T y;
+    T z;
+    int w;
+    int world;
+    int universe;
 };
 
 class Quaternion {

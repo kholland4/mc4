@@ -16,16 +16,29 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+"use strict";
+
 function collide(box1, box2) {
   return box1.intersectsBox(box2);
 }
 
-function collideMap(box) {
+function collideMap(box, boxMapPos) {
+  var w = 0;
+  var world = 0;
+  var universe = 0;
+  
+  if(boxMapPos != undefined) {
+    w = boxMapPos.w;
+    world = boxMapPos.world;
+    universe = boxMapPos.universe
+  }
+  
   for(var x = Math.round(box.min.x); x <= Math.round(box.max.x); x++) {
     for(var y = Math.round(box.min.y); y <= Math.round(box.max.y); y++) {
       for(var z = Math.round(box.min.z); z <= Math.round(box.max.z); z++) {
         var pos = new THREE.Vector3(x, y, z);
-        var nodeData = server.getNode(pos);
+        var mapPos = new MapPos(x, y, z, w, world, universe);
+        var nodeData = server.getNode(mapPos);
         if(nodeData == null) { return true; }
         var def = getNodeDef(nodeData.itemstring);
         

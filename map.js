@@ -36,7 +36,7 @@ class MapLocal extends MapBase {
   }
   
   getMapBlock(pos) {
-    var index = pos.x + "," + pos.y + "," + pos.z;
+    var index = pos.x + "," + pos.y + "," + pos.z + "," + pos.w + "," + pos.world + "," + pos.universe;
     if(index in this.saved) {
       return this.saved[index];
     } else if(index in this.cache) {
@@ -49,7 +49,7 @@ class MapLocal extends MapBase {
   }
   
   dirtyMapBlock(pos) {
-    var index = pos.x + "," + pos.y + "," + pos.z;
+    var index = pos.x + "," + pos.y + "," + pos.z + "," + pos.w + "," + pos.world + "," + pos.universe;
     if(!(index in this.saved)) {
       if(index in this.cache) {
         this.saved[index] = this.cache[index];

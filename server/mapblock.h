@@ -31,10 +31,10 @@
 
 class Mapblock {
   public:
-    Mapblock(Vector3<int> _pos);
+    Mapblock(MapPos<int> _pos);
     
-    Node get_node_rel(Vector3<int> rel_pos);
-    void set_node_rel(Vector3<int> rel_pos, Node node);
+    Node get_node_rel(MapPos<int> rel_pos);
+    void set_node_rel(MapPos<int> rel_pos, Node node);
     
     //Utility functions for direct modification of the data array (used primarily in mapgen).
     unsigned int itemstring_to_id(std::string itemstring);
@@ -42,7 +42,7 @@ class Mapblock {
     
     std::string as_json();
     
-    const Vector3<int> pos;
+    const MapPos<int> pos;
     
     //These properties are set to sensible defaults upon mapblock initialization, but they are not updated by the Mapblock class.
     //They are managed by other classes that operate on mapblocks.
@@ -64,8 +64,8 @@ class Mapblock {
 
 class MapblockUpdateInfo {
   public:
-    MapblockUpdateInfo() : pos(Vector3<int>(0, 0, 0)), update_num(0), light_update_num(0), light_needs_update(1) {}; //FIXME this constructor shouldn't be needed
-    MapblockUpdateInfo(Vector3<int> _pos) : pos(_pos), update_num(0), light_update_num(0), light_needs_update(1) {};
+    MapblockUpdateInfo() : pos(MapPos<int>(0, 0, 0, 0, 0, 0)), update_num(0), light_update_num(0), light_needs_update(1) {}; //FIXME this constructor shouldn't be needed
+    MapblockUpdateInfo(MapPos<int> _pos) : pos(_pos), update_num(0), light_update_num(0), light_needs_update(1) {};
     MapblockUpdateInfo(Mapblock *mb) : pos(mb->pos), update_num(mb->update_num), light_update_num(mb->light_update_num), light_needs_update(mb->light_needs_update) {};
     /*bool operator!=(Mapblock *mb) const {
       return update_num != mb->update_num || light_update_num != mb->light_update_num || light_needs_update != mb->light_needs_update;
@@ -79,7 +79,7 @@ class MapblockUpdateInfo {
       mb->light_needs_update = light_needs_update;
     };
     
-    Vector3<int> pos;
+    MapPos<int> pos;
     
     unsigned int update_num;
     unsigned int light_update_num;

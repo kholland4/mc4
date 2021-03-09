@@ -24,7 +24,8 @@
 std::map<LogSource, std::string> log_source_messages = {
   {LogSource::SERVER, "server"},
   {LogSource::SQLITEDB, "SQLiteDB"},
-  {LogSource::LOADER, "loader"}
+  {LogSource::LOADER, "loader"},
+  {LogSource::MAP, "map"}
 };
 
 std::map<LogLevel, std::string> log_level_messages = {

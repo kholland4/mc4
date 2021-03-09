@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+"use strict";
+
 var MAPBLOCK_SIZE = new THREE.Vector3(16, 16, 16);
 
 class MapBlock {
@@ -54,7 +56,7 @@ class MapBlock {
     //cascade
     if(this._renderNeedsUpdate > 1) {
       for(var face = 0; face < 6; face++) {
-        var adj = new THREE.Vector3(stdFaces[face].x, stdFaces[face].y, stdFaces[face].z).add(this.pos);
+        var adj = new MapPos(this.pos.x + stdFaces[face].x, this.pos.y + stdFaces[face].y, this.pos.z + stdFaces[face].z, this.pos.w, this.pos.world, this.pos.universe);
         
         var mb = server.getMapBlock(adj);
         if(mb != null) {

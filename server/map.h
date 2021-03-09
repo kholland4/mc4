@@ -30,25 +30,25 @@
 
 class Map {
   public:
-    Map(Database& _db, Mapgen& mapgen);
-    Mapblock* get_mapblock(Vector3<int> mb_pos);
-    void set_mapblock(Vector3<int> mb_pos, Mapblock *mb);
-    Node get_node(Vector3<int> pos);
-    void set_node(Vector3<int> pos, Node node);
+    Map(Database& _db, std::map<int, World*> worlds);
+    Mapblock* get_mapblock(MapPos<int> mb_pos);
+    void set_mapblock(MapPos<int> mb_pos, Mapblock *mb);
+    Node get_node(MapPos<int> pos);
+    void set_node(MapPos<int> pos, Node node);
     void update_mapblock_light(MapblockUpdateInfo info);
-    void update_mapblock_light(Vector3<int> min_pos, Vector3<int> max_pos);
-    void update_mapblock_light(std::set<Vector3<int>>);
-    Vector3<int> containing_mapblock(Vector3<int> pos);
-    MapblockUpdateInfo get_mapblockupdateinfo(Vector3<int> mb_pos);
+    void update_mapblock_light(MapPos<int> min_pos, MapPos<int> max_pos);
+    void update_mapblock_light(std::set<MapPos<int>>);
+    MapPos<int> containing_mapblock(MapPos<int> pos);
+    MapblockUpdateInfo get_mapblockupdateinfo(MapPos<int> mb_pos);
     
-    void tick_fluids(std::set<Vector3<int>> mapblocks);
-  
+    void tick_fluids(std::set<MapPos<int>> mapblocks);
+    
+    std::map<int, World*> worlds;
   private:
-    void update_mapblock_light_optimized_singlenode_transparent(Vector3<int> mb_pos, Vector3<int> rel_pos);
-    void save_changed_lit_mapblocks(std::map<Vector3<int>, Mapblock*>& mapblocks, std::set<Vector3<int>>& mapblocks_to_update, bool do_clear_light_needs_update);
+    void update_mapblock_light_optimized_singlenode_transparent(MapPos<int> mb_pos, MapPos<int> rel_pos);
+    void save_changed_lit_mapblocks(std::map<MapPos<int>, Mapblock*>& mapblocks, std::set<MapPos<int>>& mapblocks_to_update, bool do_clear_light_needs_update);
     
     Database& db;
-    Mapgen& mapgen;
 };
 
 #endif

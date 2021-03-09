@@ -119,7 +119,7 @@ class LightWorker {
       for(var y = dataBox.min.y; y <= dataBox.max.y; y++) {
         for(var z = dataBox.min.z; z <= dataBox.max.z; z++) {
           if(x == 0 && y == 0 && z == 0) { continue; }
-          blocks[x + "," + y + "," + z] = server.getMapBlock(new THREE.Vector3(pos.x + x, pos.y + y, pos.z + z));
+          blocks[x + "," + y + "," + z] = server.getMapBlock(new MapPos(pos.x + x, pos.y + y, pos.z + z, pos.w, pos.world, pos.universe));
         }
       }
     }
@@ -159,7 +159,7 @@ class LightWorker {
         } else {
           //FIXME
           for(var y = updateBox.max.y * size.y + size.y; y <= updateBox.max.y * size.y + size.y * 4; y++) {
-            var p = new THREE.Vector3(x + pos.x * size.x, y + pos.y * size.y, z + pos.z * size.z);
+            var p = new MapPos(x + pos.x * size.x, y + pos.y * size.y, z + pos.z * size.z, pos.w, pos.world, pos.universe);
             var def = server.getNode(p).getDef(); //FIXME may return null
             if(!def.passSunlight) { break; }
             if(((y % size.y) + size.y) % size.y == 0) {
@@ -418,7 +418,7 @@ function lightWorkerCallback(message) {
       for(var y = -1; y <= 1; y++) {
         for(var z = -1; z <= 1; z++) {
           if(x == 0 && y == 0 && z == 0) { continue; }
-          blocks[x + "," + y + "," + z] = server.getMapBlock(new THREE.Vector3(pos.x + x, pos.y + y, pos.z + z));
+          blocks[x + "," + y + "," + z] = server.getMapBlock(new MapPos(pos.x + x, pos.y + y, pos.z + z, pos.w, pos.world, pos.universe));
         }
       }
     }

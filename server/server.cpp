@@ -20,8 +20,8 @@
 
 #include "log.h"
 
-Server::Server(Database& _db, Mapgen& _mapgen)
-    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _mapgen), mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0)
+Server::Server(Database& _db, std::map<int, World*> _worlds)
+    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds), mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0)
 {
   //disable logging
   m_server.clear_access_channels(websocketpp::log::alevel::all);
@@ -152,7 +152,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
     }
     
     if(type == "req_mapblock") {
-      Vector3<int> mb_pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"));
+      MapPos<int> mb_pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), player->pos.world, player->pos.universe);
       
       MapblockUpdateInfo info = map.get_mapblockupdateinfo(mb_pos);
       if(info.light_needs_update > 0) {
@@ -165,13 +165,14 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       player->send_mapblock(mb, m_server);
       delete mb;
     } else if(type == "set_player_pos") {
-      player->pos.set(pt.get<double>("pos.x"), pt.get<double>("pos.y"), pt.get<double>("pos.z"));
-      player->vel.set(pt.get<double>("vel.x"), pt.get<double>("vel.y"), pt.get<double>("vel.z"));
+      player->pos.set(pt.get<double>("pos.x"), pt.get<double>("pos.y"), pt.get<double>("pos.z"), pt.get<int>("pos.w"), player->pos.world, player->pos.universe);
+      player->vel.set(pt.get<double>("vel.x"), pt.get<double>("vel.y"), pt.get<double>("vel.z"), player->vel.w, player->vel.world, player->vel.universe);
       player->rot.set(pt.get<double>("rot.x"), pt.get<double>("rot.y"), pt.get<double>("rot.z"), pt.get<double>("rot.w"));
       
-      player->prepare_nearby_mapblocks(2, 3, map);
+      player->prepare_nearby_mapblocks(2, 3, 0, map);
+      //player->prepare_nearby_mapblocks(1, 2, 1, map);
     } else if(type == "set_node") {
-      Vector3<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"));
+      MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       Node node(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
       
       if(get_node_def(node.itemstring).itemstring == "nothing") {
@@ -194,17 +195,23 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' places '" + node.itemstring + "' at " + pos.to_string());
       
-      Vector3<int> mb_pos = map.containing_mapblock(pos);
-      Vector3<int> min_pos = mb_pos - Vector3<int>(1, 1, 1);
-      Vector3<int> max_pos = mb_pos + Vector3<int>(1, 1, 1);
-      std::vector<Vector3<int>> mapblock_list;
+      MapPos<int> mb_pos = map.containing_mapblock(pos);
+      MapPos<int> min_pos = mb_pos - MapPos<int>(1, 1, 1, 0, 0, 0);
+      MapPos<int> max_pos = mb_pos + MapPos<int>(1, 1, 1, 0, 0, 0);
+      std::vector<MapPos<int>> mapblock_list;
       mapblock_list.push_back(mb_pos); //Send the main affected mapblock first.
-      for(int x = min_pos.x; x <= max_pos.x; x++) {
-        for(int y = min_pos.y; y <= max_pos.y; y++) {
-          for(int z = min_pos.z; z <= max_pos.z; z++) {
-            Vector3<int> rel_mb_pos(x, y, z);
-            if(rel_mb_pos == mb_pos) { continue; }
-            mapblock_list.push_back(rel_mb_pos);
+      for(int universe = min_pos.universe; universe <= max_pos.universe; universe++) {
+        for(int world = min_pos.world; world <= max_pos.world; world++) {
+          for(int w = min_pos.w; w <= max_pos.w; w++) {
+            for(int x = min_pos.x; x <= max_pos.x; x++) {
+              for(int y = min_pos.y; y <= max_pos.y; y++) {
+                for(int z = min_pos.z; z <= max_pos.z; z++) {
+                  MapPos<int> rel_mb_pos(x, y, z, w, world, universe);
+                  if(rel_mb_pos == mb_pos) { continue; }
+                  mapblock_list.push_back(rel_mb_pos);
+                }
+              }
+            }
           }
         }
       }
@@ -242,11 +249,18 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         cmd_status(player, tokens);
       } else if(tokens[0] == "/time") {
         cmd_time(player, tokens);
+      } else if(tokens[0] == "/whereami") {
+        cmd_whereami(player, tokens);
+      } else if(tokens[0] == "/world") {
+        cmd_tp_world(player, tokens);
+      } else if(tokens[0] == "/universe") {
+        cmd_tp_universe(player, tokens);
       } else {
         chat_send_player(player, "server", "unknown command");
       }
     }
   } catch(std::exception const& e) {
+    std::cerr << msg->get_payload() << std::endl;
     std::cerr << e.what() << std::endl;
   }
 }
@@ -255,14 +269,15 @@ void Server::on_open(connection_hdl hdl) {
   PlayerState *player = new PlayerState(hdl);
   m_players[hdl] = player;
   
-  player->pos.set(0, 20, 0);
-  player->vel.set(0, 0, 0);
+  player->pos.set(0, 20, 0, 0, 0, 0);
+  player->vel.set(0, 0, 0, 0, 0, 0);
   player->rot.set(0, 0, 0, 0);
   player->auth = true; //TODO: authenticate player & set their name
   
-  m_server.send(hdl, player->pos_as_json(), websocketpp::frame::opcode::text);
+  player->send_pos(m_server);
   
-  player->prepare_nearby_mapblocks(2, 3, map);
+  player->prepare_nearby_mapblocks(2, 3, 0, map);
+  //player->prepare_nearby_mapblocks(1, 2, 1, map);
   
   log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " connected!");
   chat_send_player(player, "server", status());
@@ -304,12 +319,12 @@ void Server::tick(const boost::system::error_code&) {
   mapblock_tick_counter++;
   fluid_tick_counter++;
   if(mapblock_tick_counter >= SERVER_MAPBLOCK_TICK_RATIO) {
-    std::set<Vector3<int>> interested_mapblocks;
+    std::set<MapPos<int>> interested_mapblocks;
     
     for(auto p : m_players) {
       PlayerState *player = p.second;
       
-      std::vector<Vector3<int>> nearby_known_mapblocks = player->list_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE);
+      std::vector<MapPos<int>> nearby_known_mapblocks = player->list_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, PLAYER_MAPBLOCK_INTEREST_DISTANCE_W);
       
       player->update_nearby_known_mapblocks(nearby_known_mapblocks, map, m_server);
       

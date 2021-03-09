@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+"use strict";
+
 function fmtXYZ(vec) {
   return "(" + vec.x + ", " + vec.y + ", " + vec.z + ")";
 }
@@ -49,3 +51,68 @@ function parseXYZ(str) {
 api.util = {};
 api.util.fmtXYZ = fmtXYZ;
 api.util.parseXYZ = parseXYZ;
+
+class MapPos {
+  constructor(x, y, z, w, world, universe) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.w = w;
+    this.world = world;
+    this.universe = universe;
+  }
+  
+  toString() {
+    return "(" + this.x + ", " + this.y + ", " + this.z + ", w=" + this.w + ", world=" + this.world + ", universe=" + this.universe + ")";
+  }
+  
+  add(other) {
+    return new MapPos(this.x + other.x,
+                      this.y + other.y,
+                      this.z + other.z,
+                      this.w + other.w,
+                      this.world + other.world,
+                      this.universe + other.universe);
+  }
+  
+  equals(other) {
+    return (this.x == other.x) &&
+           (this.y == other.y) &&
+           (this.z == other.z) &&
+           (this.w == other.w) &&
+           (this.world == other.world) &&
+           (this.universe == other.universe);
+  }
+  
+  set(x, y, z, w, world, universe) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.w = w;
+    this.world = world;
+    this.universe = universe;
+  }
+  
+  getComponent(n) {
+    switch(n) {
+      case 0:
+        return this.x;
+      case 1:
+        return this.y;
+      case 2:
+        return this.z;
+      default:
+        throw new Error("can't get component " + n.toString());
+    }
+  }
+  
+  clone() {
+    return new MapPos(this.x, this.y, this.z, this.w, this.world, this.universe);
+  }
+}
+
+function assert(val, message) {
+  if(!val) {
+    throw new Error("assertion failed: " + message);
+  }
+}

@@ -18,14 +18,18 @@
 
 //TODO: scrap and rewrite this file
 
+"use strict";
+
 var RENDER_MAX_WORKERS = 2; //4
 var RENDER_MAX_LIGHTING_UPDATES = 2;
 
 var sunAmount = 1;
 
 //renderDist *must* be greater that unrenderDist in all dimensions
-var renderDist = new THREE.Vector3(2, 2, 2); //4, 2, 4
-var unrenderDist = new THREE.Vector3(7, 4, 7);
+var renderDist = new MapPos(2, 2, 2, 0, 0, 0); //4, 2, 4
+var renderDistExtW = new MapPos(0, 0, 0, 0, 0, 0);
+var unrenderDist = new MapPos(7, 4, 7, 2, 0, 0);
+var hideDist = new MapPos(7, 4, 7, 0, 0, 0);
 
 var renderCurrentMeshes = {};
 
@@ -65,12 +69,12 @@ class RenderWorker {
     var data = [];
     var blocks = {
       "0,0,0": mapBlock,
-      "-1,0,0": server.getMapBlock(new THREE.Vector3(pos.x - 1, pos.y, pos.z), true),
-      "1,0,0": server.getMapBlock(new THREE.Vector3(pos.x + 1, pos.y, pos.z), true),
-      "0,-1,0": server.getMapBlock(new THREE.Vector3(pos.x, pos.y - 1, pos.z), true),
-      "0,1,0": server.getMapBlock(new THREE.Vector3(pos.x, pos.y + 1, pos.z), true),
-      "0,0,-1": server.getMapBlock(new THREE.Vector3(pos.x, pos.y, pos.z - 1), true),
-      "0,0,1": server.getMapBlock(new THREE.Vector3(pos.x, pos.y, pos.z + 1), true)
+      "-1,0,0": server.getMapBlock(new MapPos(pos.x - 1, pos.y, pos.z, pos.w, pos.world, pos.universe), true),
+      "1,0,0": server.getMapBlock(new MapPos(pos.x + 1, pos.y, pos.z, pos.w, pos.world, pos.universe), true),
+      "0,-1,0": server.getMapBlock(new MapPos(pos.x, pos.y - 1, pos.z, pos.w, pos.world, pos.universe), true),
+      "0,1,0": server.getMapBlock(new MapPos(pos.x, pos.y + 1, pos.z, pos.w, pos.world, pos.universe), true),
+      "0,0,-1": server.getMapBlock(new MapPos(pos.x, pos.y, pos.z - 1, pos.w, pos.world, pos.universe), true),
+      "0,0,1": server.getMapBlock(new MapPos(pos.x, pos.y, pos.z + 1, pos.w, pos.world, pos.universe), true)
     };
     
     this.ok = true;
@@ -155,25 +159,41 @@ function renderUpdateMap(centerPos) {
   //FIXME precompute this and only update it when renderDist changes
   var updatePosList = [];
   
-  for(var dist = 0; dist <= Math.max(renderDist.x, renderDist.y, renderDist.z); dist++) {
-    var distX = Math.min(dist, renderDist.x);
-    var distY = Math.min(dist, renderDist.y);
-    var distZ = Math.min(dist, renderDist.z);
-    for(var x = centerPos.x - distX; x <= centerPos.x + distX; x++) {
-      for(var y = centerPos.y - distY; y <= centerPos.y + distY; y++) {
-        for(var z = centerPos.z - distZ; z <= centerPos.z + distZ; z++) {
-          var pos = new THREE.Vector3(x, y, z);
-          
-          var inList = false;
-          for(var i = 0; i < updatePosList.length; i++) {
-            if(pos.equals(updatePosList[i])) {
-              inList = true;
-              break;
+  for(var dist = 0; dist <= Math.max(renderDist.x, renderDist.y, renderDist.z, renderDist.w, renderDist.world, renderDist.universe); dist++) {
+    var distW = Math.min(dist, renderDist.w);
+    var distWorld = Math.min(dist, renderDist.world);
+    var distUniverse = Math.min(dist, renderDist.universe);
+    for(var universe = centerPos.universe - distUniverse; universe <= centerPos.universe + distUniverse; universe++) {
+      for(var world = centerPos.world - distWorld; world <= centerPos.world + distWorld; world++) {
+        for(var w = centerPos.w - distW; w <= centerPos.w + distW; w++) {
+          var distX, distY, distZ;
+          if(w == centerPos.w) {
+            distX = Math.min(dist, renderDist.x);
+            distY = Math.min(dist, renderDist.y);
+            distZ = Math.min(dist, renderDist.z);
+          } else {
+            distX = Math.min(dist, renderDistExtW.x);
+            distY = Math.min(dist, renderDistExtW.y);
+            distZ = Math.min(dist, renderDistExtW.z);
+          }
+          for(var x = centerPos.x - distX; x <= centerPos.x + distX; x++) {
+            for(var y = centerPos.y - distY; y <= centerPos.y + distY; y++) {
+              for(var z = centerPos.z - distZ; z <= centerPos.z + distZ; z++) {
+                var pos = new MapPos(x, y, z, w, world, universe);
+                
+                var inList = false;
+                for(var i = 0; i < updatePosList.length; i++) {
+                  if(pos.equals(updatePosList[i])) {
+                    inList = true;
+                    break;
+                  }
+                }
+                if(inList) { continue; }
+                
+                updatePosList.push(pos);
+              }
             }
           }
-          if(inList) { continue; }
-          
-          updatePosList.push(pos);
         }
       }
     }
@@ -182,7 +202,7 @@ function renderUpdateMap(centerPos) {
   for(var i = 0; i < updatePosList.length; i++) {
     var pos = updatePosList[i];
     
-    var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString();
+    var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString() + "," + pos.w.toString() + "," + pos.world.toString() + "," + pos.universe.toString();
     if(index in renderCurrentMeshes) {
       //calling getMapBlock should cache the block, so it's not a waste of resources
       var mapBlock = server.getMapBlock(pos, true);
@@ -199,7 +219,7 @@ function renderUpdateMap(centerPos) {
       //Request all the data needed to render the mapblock.
       server.requestMapBlock(pos); //does nothing if we already have the mapblock
       for(var n = 0; n < 6; n++) {
-        var adj = new THREE.Vector3(pos.x + stdFaces[n].x, pos.y + stdFaces[n].y, pos.z + stdFaces[n].z);
+        var adj = new MapPos(pos.x + stdFaces[n].x, pos.y + stdFaces[n].y, pos.z + stdFaces[n].z, pos.w, pos.world, pos.universe);
         server.requestMapBlock(adj);
       }
       
@@ -214,12 +234,25 @@ function renderUpdateMap(centerPos) {
   for(var key in renderCurrentMeshes) {
     if(renderCurrentMeshes[key].pos.x < centerPos.x - unrenderDist.x || renderCurrentMeshes[key].pos.x > centerPos.x + unrenderDist.x ||
        renderCurrentMeshes[key].pos.y < centerPos.y - unrenderDist.y || renderCurrentMeshes[key].pos.y > centerPos.y + unrenderDist.y ||
-       renderCurrentMeshes[key].pos.z < centerPos.z - unrenderDist.z || renderCurrentMeshes[key].pos.z > centerPos.z + unrenderDist.z) {
+       renderCurrentMeshes[key].pos.z < centerPos.z - unrenderDist.z || renderCurrentMeshes[key].pos.z > centerPos.z + unrenderDist.z ||
+       renderCurrentMeshes[key].pos.w < centerPos.w - unrenderDist.w || renderCurrentMeshes[key].pos.w > centerPos.w + unrenderDist.w ||
+       renderCurrentMeshes[key].pos.world < centerPos.world - unrenderDist.world || renderCurrentMeshes[key].pos.world > centerPos.world + unrenderDist.world ||
+       renderCurrentMeshes[key].pos.universe < centerPos.universe - unrenderDist.universe || renderCurrentMeshes[key].pos.universe > centerPos.universe + unrenderDist.universe) {
       renderCurrentMeshes[key].obj.geometry.dispose();
       renderCurrentMeshes[key].obj.material.dispose();
       renderMapGroup.remove(renderCurrentMeshes[key].obj);
       renderCurrentMeshes[key] = null;
       delete renderCurrentMeshes[key];
+    } else if(renderCurrentMeshes[key].pos.x < centerPos.x - hideDist.x || renderCurrentMeshes[key].pos.x > centerPos.x + hideDist.x ||
+       renderCurrentMeshes[key].pos.y < centerPos.y - hideDist.y || renderCurrentMeshes[key].pos.y > centerPos.y + hideDist.y ||
+       renderCurrentMeshes[key].pos.z < centerPos.z - hideDist.z || renderCurrentMeshes[key].pos.z > centerPos.z + hideDist.z ||
+       renderCurrentMeshes[key].pos.w < centerPos.w - hideDist.w || renderCurrentMeshes[key].pos.w > centerPos.w + hideDist.w ||
+       renderCurrentMeshes[key].pos.world < centerPos.world - hideDist.world || renderCurrentMeshes[key].pos.world > centerPos.world + hideDist.world ||
+       renderCurrentMeshes[key].pos.universe < centerPos.universe - hideDist.universe || renderCurrentMeshes[key].pos.universe > centerPos.universe + hideDist.universe) {
+      
+      renderCurrentMeshes[key].obj.visible = false;
+    } else if(!renderCurrentMeshes[key].obj.visible) {
+      renderCurrentMeshes[key].obj.visible = true;
     }
   }
   
@@ -278,7 +311,7 @@ function renderUpdateMap(centerPos) {
           }
         }*/
         for(var i = 0; i < 6; i++) {
-          var adj = new THREE.Vector3(mapBlock.pos.x + stdFaces[i].x, mapBlock.pos.y + stdFaces[i].y, mapBlock.pos.z + stdFaces[i].z);
+          var adj = new MapPos(mapBlock.pos.x + stdFaces[i].x, mapBlock.pos.y + stdFaces[i].y, mapBlock.pos.z + stdFaces[i].z, mapBlock.pos.w, mapBlock.pos.world, mapBlock.pos.universe);
           var mb = server.getMapBlock(adj);
           if(mb == null) { continue; }
           if(mb.renderNeedsUpdate == 0) {
@@ -355,7 +388,7 @@ function renderWorkerCallback(message) {
     }
   }
   
-  var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString();
+  var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString() + "," + pos.w.toString() + "," + pos.world.toString() + "," + pos.universe.toString();
   var current = renderCurrentMeshes[index];
   if(current != undefined && current != null) {
     current.obj.geometry.dispose();
@@ -384,7 +417,6 @@ function renderWorkerCallback(message) {
   
   var renderObj = new RenderMesh(pos, updateNum, mesh);
   renderObj.facePos = facePos;
-  var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString();
   renderCurrentMeshes[index] = renderObj;
   
   var mapBlock = server.getMapBlock(pos);
@@ -403,7 +435,7 @@ function renderQueueLightingUpdate(pos) {
 }
 
 function renderUpdateLighting(pos) {
-  var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString();
+  var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString() + "," + pos.w.toString() + "," + pos.world.toString() + "," + pos.universe.toString();
   if(!(index in renderCurrentMeshes)) { return false; }
   
   var renderObj = renderCurrentMeshes[index];
@@ -417,7 +449,7 @@ function renderUpdateLighting(pos) {
   };
   for(var i = 0; i < stdFaces.length; i++) {
     var index = stdFaces[i].x + "," + stdFaces[i].y + "," + stdFaces[i].z;
-    blocks[index] = server.getMapBlock(new THREE.Vector3(stdFaces[i].x, stdFaces[i].y, stdFaces[i].z).add(pos));
+    blocks[index] = server.getMapBlock(new MapPos(pos.x + stdFaces[i].x, pos.y + stdFaces[i].y, pos.z + stdFaces[i].z, pos.w, pos.world, pos.universe));
     //if(blocks[index] == null) { return false; }
   }
   

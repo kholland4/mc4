@@ -64,17 +64,19 @@ class PlayerState {
     std::string pos_as_json();
     std::string entity_data_as_json();
     
+    void send_pos(WsServer& sender);
+    
     bool needs_mapblock_update(MapblockUpdateInfo info);
     void send_mapblock(Mapblock *mb, WsServer& sender);
     
-    void prepare_mapblocks(std::vector<Vector3<int>> mapblock_list, Map& map);
-    void prepare_nearby_mapblocks(int mb_radius, int mb_radius_outer, Map& map);
+    void prepare_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map);
+    void prepare_nearby_mapblocks(int mb_radius, int mb_radius_outer, int mb_radius_w, Map& map);
     
-    void update_mapblocks(std::vector<Vector3<int>> mapblock_list, Map& map, WsServer& sender);
-    void update_nearby_mapblocks(int mb_radius, Map& map, WsServer& sender);
-    std::vector<Vector3<int>> list_nearby_known_mapblocks(int mb_radius);
-    void update_nearby_known_mapblocks(int mb_radius, Map& map, WsServer& sender);
-    void update_nearby_known_mapblocks(std::vector<Vector3<int>> mb_to_update, Map& map, WsServer& sender);
+    void update_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map, WsServer& sender);
+    void update_nearby_mapblocks(int mb_radius, int mb_radius_w, Map& map, WsServer& sender);
+    std::vector<MapPos<int>> list_nearby_known_mapblocks(int mb_radius, int mb_radius_w);
+    void update_nearby_known_mapblocks(int mb_radius, int mb_radius_w, Map& map, WsServer& sender);
+    void update_nearby_known_mapblocks(std::vector<MapPos<int>> mb_to_update, Map& map, WsServer& sender);
     
     void send(std::string msg, WsServer& sender) {
       sender.send(m_connection_hdl, msg, websocketpp::frame::opcode::text);
@@ -84,11 +86,11 @@ class PlayerState {
     
     //Stores the player's physical position.
     //Once 'auth' is set to true, these will contain valid data.
-    Vector3<double> pos;
-    Vector3<double> vel;
+    MapPos<double> pos;
+    MapPos<double> vel;
     Quaternion rot;
     
-    std::map<Vector3<int>, MapblockUpdateInfo> known_mapblocks;
+    std::map<MapPos<int>, MapblockUpdateInfo> known_mapblocks;
     std::set<std::string> known_player_tags;
   private:
     connection_hdl m_connection_hdl;
