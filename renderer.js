@@ -231,6 +231,10 @@ function renderUpdateMap(centerPos) {
   }
   
   //remove out-of-range ones
+  var cameraTestLayers = new THREE.Layers();
+  cameraTestLayers.set(1);
+  var raycastTestLayers = new THREE.Layers();
+  raycastTestLayers.set(2);
   for(var key in renderCurrentMeshes) {
     if(renderCurrentMeshes[key].pos.x < centerPos.x - unrenderDist.x || renderCurrentMeshes[key].pos.x > centerPos.x + unrenderDist.x ||
        renderCurrentMeshes[key].pos.y < centerPos.y - unrenderDist.y || renderCurrentMeshes[key].pos.y > centerPos.y + unrenderDist.y ||
@@ -250,9 +254,28 @@ function renderUpdateMap(centerPos) {
        renderCurrentMeshes[key].pos.world < centerPos.world - hideDist.world || renderCurrentMeshes[key].pos.world > centerPos.world + hideDist.world ||
        renderCurrentMeshes[key].pos.universe < centerPos.universe - hideDist.universe || renderCurrentMeshes[key].pos.universe > centerPos.universe + hideDist.universe) {
       
-      renderCurrentMeshes[key].obj.visible = false;
-    } else if(!renderCurrentMeshes[key].obj.visible) {
-      renderCurrentMeshes[key].obj.visible = true;
+      //renderCurrentMeshes[key].obj.visible = false;
+      renderCurrentMeshes[key].obj.layers.disable(1); //disable the camera layer
+    } else if(!renderCurrentMeshes[key].obj.layers.test(cameraTestLayers)) {
+      //renderCurrentMeshes[key].obj.visible = true;
+      renderCurrentMeshes[key].obj.layers.enable(1); //enable the camera layer
+    }
+    
+    if(key in renderCurrentMeshes) {
+      //raycast to wherever we're peeking
+      if((renderCurrentMeshes[key].pos.w == player.pos.w + player.peekW) && !renderCurrentMeshes[key].obj.layers.test(raycastTestLayers)) {
+        renderCurrentMeshes[key].obj.layers.enable(2);
+      } else if((renderCurrentMeshes[key].pos.w != player.pos.w + player.peekW) && renderCurrentMeshes[key].obj.layers.test(raycastTestLayers)) {
+        renderCurrentMeshes[key].obj.layers.disable(2);
+      }
+      
+      renderCurrentMeshes[key].obj.layers.disable(3); //disable the peek layer
+      
+      if(player.peekW != 0) {
+        if((renderCurrentMeshes[key].pos.w == player.pos.w + player.peekW)) {
+          renderCurrentMeshes[key].obj.layers.enable(3); //enable the peek layer
+        }
+      }
     }
   }
   
@@ -423,6 +446,10 @@ function renderWorkerCallback(message) {
   mesh.position.x = pos.x * MAPBLOCK_SIZE.x;
   mesh.position.y = pos.y * MAPBLOCK_SIZE.y;
   mesh.position.z = pos.z * MAPBLOCK_SIZE.z;
+  
+  mesh.layers.disable(0); //disable the default layer
+  mesh.layers.enable(1); //enable the camera layer
+  mesh.layers.disable(2); //disable the raycast layer (it will be enabled later)
   
   renderMapGroup.add(mesh);
   

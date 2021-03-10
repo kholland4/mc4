@@ -28,6 +28,7 @@ class Player {
       if(!api.ingameKey()) { return; }
       
       var key = e.key;
+      if(key.length == 1) { key = key.toLowerCase(); }
       if(key == "PageUp" || key == "]") {
         this.pos.w++;
         if(this.collide()) {
@@ -38,6 +39,37 @@ class Player {
         if(this.collide()) {
           this.pos.w++;
         }
+      } else if(key == "r") {
+        this.keys.peekWForward = true;
+      } else if(key == "f") {
+        this.keys.peekWBackward = true;
+      }
+      
+      if(this.keys.peekWForward) {
+        this.peekW = 1;
+      } else if(this.keys.peekWBackward) {
+        this.peekW = -1;
+      } else {
+        this.peekW = 0;
+      }
+    }.bind(this));
+    window.addEventListener("keyup", function(e) {
+      if(!api.ingameKey()) { return; }
+      
+      var key = e.key;
+      if(key.length == 1) { key = key.toLowerCase(); }
+      if(key == "r") {
+        this.keys.peekWForward = false;
+      } else if(key == "f") {
+        this.keys.peekWBackward = false;
+      }
+      
+      if(this.keys.peekWForward) {
+        this.peekW = 1;
+      } else if(this.keys.peekWBackward) {
+        this.peekW = -1;
+      } else {
+        this.peekW = 0;
       }
     }.bind(this));
     
@@ -56,35 +88,45 @@ class Player {
     
     this.boundingBox = new THREE.Box3(new THREE.Vector3(-0.3, -1.5, -0.3), new THREE.Vector3(0.3, 0.3, 0.3));
     
+    this.keys = {peekWForward: false, peekWBackward: false};
+    this.peekW = 0;
+    
     this.updateHooks = [];
   }
   
   tick(tscale) {
-    var containingNode = server.getNode(new MapPos(Math.round(this.pos.x), Math.round(this.pos.y), Math.round(this.pos.z), this.pos.w, this.pos.world, this.pos.universe));
-    if(containingNode != null) {
-      var def = containingNode.getDef();
-      var newWaterView;
-      if(def.isFluid) {
-        var h = 16 - ((containingNode.rot >> 4) & 15);
-        if((containingNode.rot & 4) == 4) { h = 16; } //visual_fullheight
-        var fluidHeight = ((h + 1) / 16) - 0.5;
-        var relPosY = this.pos.y - Math.round(this.pos.y);
-        if(relPosY <= fluidHeight) {
-          newWaterView = def.fluidOverlayColor;
+    var newWaterView;
+    
+    if(this.canSee()) {
+      var containingNode = server.getNode(new MapPos(Math.round(this.pos.x), Math.round(this.pos.y), Math.round(this.pos.z), this.pos.w, this.pos.world, this.pos.universe));
+      if(containingNode != null) {
+        var def = containingNode.getDef();
+        if(def.isFluid) {
+          var h = 16 - ((containingNode.rot >> 4) & 15);
+          if((containingNode.rot & 4) == 4) { h = 16; } //visual_fullheight
+          var fluidHeight = ((h + 1) / 16) - 0.5;
+          var relPosY = this.pos.y - Math.round(this.pos.y);
+          if(relPosY <= fluidHeight) {
+            newWaterView = def.fluidOverlayColor;
+          } else {
+            newWaterView = null;
+          }
         } else {
           newWaterView = null;
         }
-      } else {
-        newWaterView = null;
       }
-      if(this.waterView != newWaterView) {
-        this.waterView = newWaterView;
-        if(this.waterView == null) {
-          document.getElementById("fluidOverlay").style.display = "none";
-        } else {
-          document.getElementById("fluidOverlay").style.display = "block";
-          document.getElementById("fluidOverlay").style.backgroundColor = this.waterView;
-        }
+    } else {
+      //can't see
+      newWaterView = "#000000";
+    }
+    
+    if(this.waterView != newWaterView) {
+      this.waterView = newWaterView;
+      if(this.waterView == null) {
+        document.getElementById("fluidOverlay").style.display = "none";
+      } else {
+        document.getElementById("fluidOverlay").style.display = "block";
+        document.getElementById("fluidOverlay").style.backgroundColor = this.waterView;
       }
     }
     
@@ -223,5 +265,27 @@ class Player {
     var stack = this.inventory.getStack("main", this.wieldIndex);
     if(stack == undefined) { return null; }
     return stack;
+  }
+  
+  canSee(wOffset=0) {
+    var containingNode = server.getNode(new MapPos(Math.round(this.pos.x), Math.round(this.pos.y), Math.round(this.pos.z), this.pos.w + wOffset, this.pos.world, this.pos.universe));
+    if(containingNode == null) {
+      return true; //FIXME
+    }
+    
+    var def = containingNode.getDef();
+    
+    if(def.reallyTransparent) { return true; }
+    
+    if(def.meshBox == null) { return false; }
+    
+    for(var i = 0; i < def.meshBox.length; i++) {
+      var newBox = def.meshBox[i].clone().translate(new THREE.Vector3(Math.round(this.pos.x), Math.round(this.pos.y), Math.round(this.pos.z)));
+      if(this.collide(newBox)) {
+        return false;
+      }
+    }
+    
+    return true;
   }
 }

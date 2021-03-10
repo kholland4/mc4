@@ -35,12 +35,14 @@ class NodeBase {
     this.walkable = false;
     this.ladderlike = false;
     this.boundingBox = null;
+    this.meshBox = null;
     
     this.visible = true;
     this.customMesh = false;
     //this.customMeshVerts = null;
     //this.customMeshUVs = null;
     this.transparent = false;
+    this.reallyTransparent = false;
     this.renderAdj = false;
     //this.transFaces = [true, true, true, true, true, true]; //not yet used consistently for performance reasons
     this.passSunlight = false;
@@ -84,6 +86,12 @@ class NodeBase {
     
     if(!("passSunlight" in props)) { this.passSunlight = this.transparent; }
     if(!("renderAdj" in props)) { this.renderAdj = this.transparent; }
+    
+    if(this.meshBox == null) {
+      this.meshBox = this.boundingBox;
+    }
+    
+    if(!("reallyTransparent" in props)) { this.reallyTransparent = !this.visible || (this.transparent && this.walkable); }
     
     //---
     

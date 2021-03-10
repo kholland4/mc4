@@ -487,7 +487,7 @@
     desc: "Water Source",
     tex: {texAll: "default_water_source.png"},
     icon: "default_water_source.png",
-    node: {transparent: true, passSunlight: false, walkable: true, isFluid: true, fluidOverlayColor: "rgba(64, 64, 255, 0.3)", joined: true, canPlaceInside: true}
+    node: {transparent: true, reallyTransparent: true, passSunlight: false, walkable: true, isFluid: true, fluidOverlayColor: "rgba(64, 64, 255, 0.3)", joined: true, canPlaceInside: true}
   });
   
   
@@ -539,7 +539,7 @@
     desc: "Glass",
     tex: {texAll: "default_glass.png"},
     icon: "default_glass.png",
-    node: {groups: {cracky: 1}, transparent: true, joined: true}
+    node: {groups: {cracky: 1}, transparent: true, reallyTransparent: true, joined: true}
   });
   api.registerCraft(new api.CraftEntry("default:glass", ["group:sand"], {shape: null, type: "cook", cookTime: 3}));
   
@@ -882,7 +882,7 @@
       }
     }
     
-    if(key == "r") { //FIXME - ease in/out
+    if(key == "Alt") { //FIXME - ease in/out
       api.player.controls.speed = 10;
       mods.default._sprint = true;
     }
@@ -891,7 +891,7 @@
     if(!api.ingameKey()) { return; }
     key = key.toLowerCase();
     
-    if(key == "r" && mods.default._sprint) {
+    if(key == "Alt" && mods.default._sprint) {
       if(mods.default._fast) {
         api.player.controls.speed = 10;
       } else {

@@ -25,6 +25,7 @@
   hudContainer.style.left = "50%";
   hudContainer.style.bottom = "5px";
   hudContainer.style.transform = "translate(-50%)";
+  hudContainer.style.zIndex = "6";
   mods.hud.dom = hudContainer;
   api.registerHUD(hudContainer);
   

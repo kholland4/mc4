@@ -16,11 +16,13 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.2.0-dev1";
+var VERSION = "0.2.1-dev1";
 
 var scene;
 var camera;
 var renderer;
+var peekCamera;
+var peekRenderer;
 var viewport = {w: 640, h: 480};
 var renderMapGroup;
 var raycaster;
@@ -91,11 +93,19 @@ function init() {
   
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(75, viewport.w / viewport.h, 0.1, 1000);
+  camera.layers.enable(1); //layer 1 is the camera layer, layer 2 is the raycast layer
   renderer = new THREE.WebGLRenderer();
   renderer.setSize(viewport.w, viewport.h);
   //renderer.gammaOutput = true;
   //renderer.gammaFactor = 2.2;
   document.body.appendChild(renderer.domElement);
+  
+  peekCamera = new THREE.PerspectiveCamera(75, viewport.w / viewport.h, 0.1, 1000);
+  peekCamera.layers.set(3); //show only the peek layer
+  peekRenderer = new THREE.WebGLRenderer();
+  peekRenderer.setSize(viewport.w, viewport.h);
+  peekRenderer.domElement.className = "peekRenderer";
+  document.body.appendChild(peekRenderer.domElement);
   
   controls = new THREE.PointerLockControls(camera, document.body);
   renderer.domElement.addEventListener("click", function() {
@@ -110,6 +120,7 @@ function init() {
   scene.add(renderMapGroup);
   
   raycaster = new THREE.Raycaster();
+  raycaster.layers.enable(2); //layer 1 is the camera layer, layer 2 is the raycast layer
   
   api.mouse = new THREE.Vector2(0, 0);
   document.body.addEventListener("mousemove", function(e) {
@@ -149,6 +160,7 @@ function init() {
   var geometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
   var material = new THREE.LineBasicMaterial({color: 0xffffff, linewidth: 2});
   raycasterSel = new THREE.LineSegments(geometry, material);
+  raycasterSel.layers.set(1);
   scene.add(raycasterSel);
   
   var geometry = new THREE.BoxGeometry(1.001, 1.001, 1.001);
@@ -157,11 +169,12 @@ function init() {
     var texture = new THREE.TextureLoader().load("textures/crack_" + i + ".png");
     texture.minFilter = THREE.NearestFilter;
     texture.magFilter = THREE.NearestFilter;
-    var material = new THREE.MeshBasicMaterial({map: texture, transparent: true});
+    var material = new THREE.MeshBasicMaterial({map: texture, transparent: true, side: THREE.DoubleSide});
     materials.push(material);
   }
   digOverlay = new THREE.Mesh(geometry, materials);
   digOverlay.geometry.faces.forEach(function(face) { face.materialIndex = 0; });
+  digOverlay.layers.set(1);
   scene.add(digOverlay);
   
   window.addEventListener("mousedown", function(e) {
@@ -217,6 +230,10 @@ function init() {
     camera.aspect = viewport.w / viewport.h;
     camera.updateProjectionMatrix();
     renderer.setSize(viewport.w, viewport.h);
+    
+    peekCamera.aspect = viewport.w / viewport.h;
+    peekCamera.updateProjectionMatrix();
+    peekRenderer.setSize(viewport.w, viewport.h);
   });
   
   loadMod(new ModMeta("default", "mods/default"));
@@ -308,52 +325,62 @@ function animate() {
   apiOnFrame(frameTime);
   
   if(raycastCounter >= 3 || needsRaycast) {
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    var intersects = raycaster.intersectObjects(renderMapGroup.children);
-    if(intersects.length > 0) {
-      var intersect = intersects[0];
-      if(intersect.distance < RAYCAST_DISTANCE) {
-        var vertices = intersect.object.geometry.getAttribute("position");
-        var a = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.a).add(intersect.object.position);
-        var b = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.b).add(intersect.object.position);
-        var c = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.c).add(intersect.object.position);
-        var box = new THREE.Box3().setFromPoints([a, b, c]);
-        var center = box.getCenter(new THREE.Vector3());
-        
-        var isAxisAligned = true;
-        
-        var plane = 0;
-        if(box.min.x == box.max.x) { plane = 0; } else
-        if(box.min.y == box.max.y) { plane = 1; } else
-        if(box.min.z == box.max.z) { plane = 2; } else
-        { isAxisAligned = false; }
-        
-        if(isAxisAligned) {
-          var side = 1;
-          if(player.pos.getComponent(plane) > center.getComponent(plane)) { side = -1; }
+    if(player.canSee(player.peekW)) {
+      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      var intersects = raycaster.intersectObjects(renderMapGroup.children);
+      if(intersects.length > 0) {
+        var intersect = intersects[0];
+        if(intersect.distance < RAYCAST_DISTANCE) {
+          var vertices = intersect.object.geometry.getAttribute("position");
+          var a = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.a).add(intersect.object.position);
+          var b = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.b).add(intersect.object.position);
+          var c = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.c).add(intersect.object.position);
+          var box = new THREE.Box3().setFromPoints([a, b, c]);
+          var center = box.getCenter(new THREE.Vector3());
           
-          destroySel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * 0.01));
-          destroySel = new MapPos(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z), player.pos.w, player.pos.world, player.pos.universe);
-          placeSel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * -0.99));
-          placeSel = new MapPos(Math.round(placeSel.x), Math.round(placeSel.y), Math.round(placeSel.z), player.pos.w, player.pos.world, player.pos.universe);
+          var isAxisAligned = true;
+          
+          var plane = 0;
+          if(box.min.x == box.max.x) { plane = 0; } else
+          if(box.min.y == box.max.y) { plane = 1; } else
+          if(box.min.z == box.max.z) { plane = 2; } else
+          { isAxisAligned = false; }
+          
+          if(isAxisAligned) {
+            var side = 1;
+            if(player.pos.getComponent(plane) > center.getComponent(plane)) { side = -1; }
+            
+            destroySel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * 0.01));
+            destroySel = new MapPos(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z), player.pos.w + player.peekW, player.pos.world, player.pos.universe);
+            placeSel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * -0.99));
+            placeSel = new MapPos(Math.round(placeSel.x), Math.round(placeSel.y), Math.round(placeSel.z), player.pos.w + player.peekW, player.pos.world, player.pos.universe);
+          } else {
+            //usually flowers or whatever
+            destroySel = center.clone();
+            destroySel = new MapPos(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z), player.pos.w + player.peekW, player.pos.world, player.pos.universe);
+            placeSel = destroySel.clone();
+          }
+          
+          raycasterSel.position.set(destroySel.x, destroySel.y, destroySel.z);
+          raycasterSel.visible = true;
         } else {
-          //usually flowers or whatever
-          destroySel = center.clone();
-          destroySel = new MapPos(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z), player.pos.w, player.pos.world, player.pos.universe);
-          placeSel = destroySel.clone();
+          destroySel = null;
+          placeSel = null;
+          raycasterSel.visible = false;
         }
-        
-        raycasterSel.position.set(destroySel.x, destroySel.y, destroySel.z);
-        raycasterSel.visible = true;
       } else {
         destroySel = null;
         placeSel = null;
         raycasterSel.visible = false;
       }
     } else {
-      destroySel = null;
+      //can't see
+      
+      destroySel = new MapPos(Math.round(player.pos.x), Math.round(player.pos.y), Math.round(player.pos.z), player.pos.w + player.peekW, player.pos.world, player.pos.universe);
       placeSel = null;
-      raycasterSel.visible = false;
+      
+      raycasterSel.position.set(destroySel.x, destroySel.y, destroySel.z);
+      raycasterSel.visible = true;
     }
     
     raycastCounter = 0;
@@ -431,6 +458,8 @@ function animate() {
   
   player.tick(frameTime);
   camera.position.copy(player.pos);
+  peekCamera.position.copy(player.pos);
+  peekCamera.rotation.copy(camera.rotation);
   
   server.onFrame(frameTime);
   server.entityTick(frameTime);
@@ -438,5 +467,31 @@ function animate() {
   lightUpdate();
   renderUpdateMap(new MapPos(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z), player.pos.w, player.pos.world, player.pos.universe));
   
+  var isPeek = false;
+  var isPeekDark = false;
+  if(player.peekW != 0) {
+    if(player.canSee(player.peekW)) {
+      isPeek = true;
+    } else {
+      isPeekDark = true;
+    }
+  }
+  
+  if(isPeek) { // || isPeekDark) {
+    raycasterSel.layers.set(3);
+    digOverlay.layers.set(3);
+  } else {
+    raycasterSel.layers.set(1);
+    digOverlay.layers.set(1);
+  }
+  
   renderer.render(scene, camera);
+  
+  if(isPeek) {
+    peekRenderer.render(scene, peekCamera);
+  }
+  peekRenderer.domElement.style.display = isPeek ? "block" : "none";
+  document.getElementById("peekSep").style.display = isPeek ? "block" : "none";
+  document.getElementById("peekOverlay").style.display = isPeekDark ? "block" : "none";
+  renderer.domElement.style.filter = (isPeek || isPeekDark) ? "grayscale(100%)" : "none";
 }

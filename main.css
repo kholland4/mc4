@@ -30,7 +30,7 @@ body {
   transform: translate(-50%, -50%);
   
   user-select: none;
-  z-index: 3;
+  z-index: 5;
 }
 #fluidOverlay {
   position: fixed;
@@ -40,6 +40,50 @@ body {
   height: 100%;
   z-index: 2;
   display: none;
+  
+  pointer-events: none;
+}
+
+#peekSep {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  display: none;
+  
+  background-color: #888888;
+  opacity: 0.0;
+  
+  pointer-events: none;
+}
+
+.peekRenderer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  
+  opacity: 0.65;
+  
+  z-index: 4;
+  
+  pointer-events: none;
+  
+  display: none;
+}
+
+#peekOverlay {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 4;
+  display: none;
+  
+  background-color: #000000;
+  opacity: 0.65;
   
   pointer-events: none;
 }
