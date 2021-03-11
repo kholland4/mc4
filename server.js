@@ -377,7 +377,7 @@ class ServerRemote extends ServerBase {
     this.cache = {};
     this.saved = {};
     
-    this.requests = [];
+    this.requests = new Set();
     
     this.patches = [];
     
@@ -519,13 +519,13 @@ class ServerRemote extends ServerBase {
     } else {
       if(!this._socketReady) { return null; }
       
-      if(!this.requests.includes(index)) {
+      if(!this.requests.has(index)) {
         //console.log("req " + index);
         this.socket.send(JSON.stringify({
           type: "req_mapblock",
           pos: {x: pos.x, y: pos.y, z: pos.z, w: pos.w, world: pos.world, universe: pos.universe}
         }));
-        this.requests.push(index);
+        this.requests.add(index);
       }
       
       return null;

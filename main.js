@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.2.1-dev1";
+var VERSION = "0.2.1-dev2";
 
 var scene;
 var camera;
@@ -43,6 +43,11 @@ var controls;
 
 var server;
 var player;
+
+var playerMapblock;
+var lastPlayerMapblock;
+var timeSinceLastMapScan = Infinity;
+var MAP_SCAN_INTERVAL = 0.5;
 
 var RAYCAST_DISTANCE = 10;
 
@@ -465,7 +470,20 @@ function animate() {
   server.entityTick(frameTime);
   
   lightUpdate();
-  renderUpdateMap(new MapPos(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z), player.pos.w, player.pos.world, player.pos.universe));
+  var doScan = false;
+  lastPlayerMapblock = playerMapblock;
+  playerMapblock = new MapPos(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z), player.pos.w, player.pos.world, player.pos.universe);
+  
+  timeSinceLastMapScan += frameTime;
+  if(timeSinceLastMapScan > MAP_SCAN_INTERVAL) {
+    doScan = true;
+  } else if(this.lastPlayerMapblock == undefined) {
+    doScan = true;
+  } else if(!this.playerMapblock.equals(this.lastPlayerMapblock)) {
+    doScan = true;
+  }
+  if(doScan) { timeSinceLastMapScan = 0; }
+  renderUpdateMap(new MapPos(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z), player.pos.w, player.pos.world, player.pos.universe), doScan);
   
   var isPeek = false;
   var isPeekDark = false;

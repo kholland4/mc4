@@ -40,9 +40,9 @@ class Player {
           this.pos.w++;
         }
       } else if(key == "r") {
-        this.keys.peekWForward = true;
-      } else if(key == "f") {
         this.keys.peekWBackward = true;
+      } else if(key == "f") {
+        this.keys.peekWForward = true;
       }
       
       if(this.keys.peekWForward) {
@@ -59,9 +59,9 @@ class Player {
       var key = e.key;
       if(key.length == 1) { key = key.toLowerCase(); }
       if(key == "r") {
-        this.keys.peekWForward = false;
-      } else if(key == "f") {
         this.keys.peekWBackward = false;
+      } else if(key == "f") {
+        this.keys.peekWForward = false;
       }
       
       if(this.keys.peekWForward) {

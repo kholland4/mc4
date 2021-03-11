@@ -40,6 +40,8 @@ var renderWorkersActual = [];
 
 var renderLightingUpdateQueue = [];
 
+var updatePosList = [];
+
 function initRenderer() {
   for(var i = 0; i < RENDER_MAX_WORKERS; i++) {
     var _worker = new Worker("meshgen-worker.js?v=" + VERSION);
@@ -153,44 +155,45 @@ class RenderMesh {
   }
 }
 
-function renderUpdateMap(centerPos) {
+function renderUpdateMap(centerPos, doScan) {
   var schedCount = 0;
   
-  //FIXME precompute this and only update it when renderDist changes
-  var updatePosList = [];
-  
-  for(var dist = 0; dist <= Math.max(renderDist.x, renderDist.y, renderDist.z, renderDist.w, renderDist.world, renderDist.universe); dist++) {
-    var distW = Math.min(dist, renderDist.w);
-    var distWorld = Math.min(dist, renderDist.world);
-    var distUniverse = Math.min(dist, renderDist.universe);
-    for(var universe = centerPos.universe - distUniverse; universe <= centerPos.universe + distUniverse; universe++) {
-      for(var world = centerPos.world - distWorld; world <= centerPos.world + distWorld; world++) {
-        for(var w = centerPos.w - distW; w <= centerPos.w + distW; w++) {
-          var distX, distY, distZ;
-          if(w == centerPos.w) {
-            distX = Math.min(dist, renderDist.x);
-            distY = Math.min(dist, renderDist.y);
-            distZ = Math.min(dist, renderDist.z);
-          } else {
-            distX = Math.min(dist, renderDistExtW.x);
-            distY = Math.min(dist, renderDistExtW.y);
-            distZ = Math.min(dist, renderDistExtW.z);
-          }
-          for(var x = centerPos.x - distX; x <= centerPos.x + distX; x++) {
-            for(var y = centerPos.y - distY; y <= centerPos.y + distY; y++) {
-              for(var z = centerPos.z - distZ; z <= centerPos.z + distZ; z++) {
-                var pos = new MapPos(x, y, z, w, world, universe);
-                
-                var inList = false;
-                for(var i = 0; i < updatePosList.length; i++) {
-                  if(pos.equals(updatePosList[i])) {
-                    inList = true;
-                    break;
+  if(doScan || updatePosList.length == 0) {
+    updatePosList = [];
+    
+    for(var dist = 0; dist <= Math.max(renderDist.x, renderDist.y, renderDist.z, renderDist.w, renderDist.world, renderDist.universe); dist++) {
+      var distW = Math.min(dist, renderDist.w);
+      var distWorld = Math.min(dist, renderDist.world);
+      var distUniverse = Math.min(dist, renderDist.universe);
+      for(var universe = centerPos.universe - distUniverse; universe <= centerPos.universe + distUniverse; universe++) {
+        for(var world = centerPos.world - distWorld; world <= centerPos.world + distWorld; world++) {
+          for(var w = centerPos.w - distW; w <= centerPos.w + distW; w++) {
+            var distX, distY, distZ;
+            if(w == centerPos.w) {
+              distX = Math.min(dist, renderDist.x);
+              distY = Math.min(dist, renderDist.y);
+              distZ = Math.min(dist, renderDist.z);
+            } else {
+              distX = Math.min(dist, renderDistExtW.x);
+              distY = Math.min(dist, renderDistExtW.y);
+              distZ = Math.min(dist, renderDistExtW.z);
+            }
+            for(var x = centerPos.x - distX; x <= centerPos.x + distX; x++) {
+              for(var y = centerPos.y - distY; y <= centerPos.y + distY; y++) {
+                for(var z = centerPos.z - distZ; z <= centerPos.z + distZ; z++) {
+                  var pos = new MapPos(x, y, z, w, world, universe);
+                  
+                  var inList = false;
+                  for(var i = 0; i < updatePosList.length; i++) {
+                    if(pos.equals(updatePosList[i])) {
+                      inList = true;
+                      break;
+                    }
                   }
+                  if(inList) { continue; }
+                  
+                  updatePosList.push(pos);
                 }
-                if(inList) { continue; }
-                
-                updatePosList.push(pos);
               }
             }
           }
@@ -199,6 +202,8 @@ function renderUpdateMap(centerPos) {
     }
   }
   
+  var requestsMade = new Set();
+  
   for(var i = 0; i < updatePosList.length; i++) {
     var pos = updatePosList[i];
     
@@ -206,6 +211,7 @@ function renderUpdateMap(centerPos) {
     if(index in renderCurrentMeshes) {
       //calling getMapBlock should cache the block, so it's not a waste of resources
       var mapBlock = server.getMapBlock(pos, true);
+      requestsMade.add(index);
       if(mapBlock != null) {
         /*if(mapBlock.updateNum != renderCurrentMeshes[index].updateNum) {
           renderQueueUpdate(pos);
@@ -216,17 +222,24 @@ function renderUpdateMap(centerPos) {
         }
       }
     } else {
-      //Request all the data needed to render the mapblock.
-      server.requestMapBlock(pos); //does nothing if we already have the mapblock
-      for(var n = 0; n < 6; n++) {
-        var adj = new MapPos(pos.x + stdFaces[n].x, pos.y + stdFaces[n].y, pos.z + stdFaces[n].z, pos.w, pos.world, pos.universe);
-        server.requestMapBlock(adj);
+      if(!requestsMade.has(index)) {
+        //Request all the data needed to render the mapblock.
+        server.requestMapBlock(pos); //does nothing if we already have the mapblock
+        requestsMade.add(index);
+        for(var n = 0; n < 6; n++) {
+          var adj = new MapPos(pos.x + stdFaces[n].x, pos.y + stdFaces[n].y, pos.z + stdFaces[n].z, pos.w, pos.world, pos.universe);
+          var adjIndex = adj.x.toString() + "," + adj.y.toString() + "," + adj.z.toString() + "," + adj.w.toString() + "," + adj.world.toString() + "," + adj.universe.toString();
+          if(!requestsMade.has(adjIndex)) {
+            server.requestMapBlock(adj);
+            requestsMade.add(adjIndex);
+          }
+        }
       }
       
-      if(schedCount < RENDER_MAX_WORKERS) { //FIXME
+      //if(schedCount < RENDER_MAX_WORKERS) { //FIXME
         renderQueueUpdate(pos);
         schedCount++;
-      }
+      //}
     }
   }
   
