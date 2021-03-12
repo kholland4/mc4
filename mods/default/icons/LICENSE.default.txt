@@ -1,0 +1,12 @@
+Abridged from [https://github.com/minetest/minetest_game/blob/master/LICENSE.txt].
+See README.default.txt for more author information.
+Cube-style icons were auto-generated from the original texture files.
+=====
+
+License of media (textures and sounds)
+--------------------------------------
+Copyright (C) 2010-2012 celeron55, Perttu Ahola <celeron55@gmail.com>
+See README.txt in each mod directory for information about other authors.
+
+Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)
+http://creativecommons.org/licenses/by-sa/3.0/
