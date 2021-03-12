@@ -52,7 +52,7 @@ See [LICENSE](LICENSE) and the top of each source code file for license informat
   license information.
 * [minetest-mods/technic](https://github.com/minetest-mods/technic):
   kpoppel, Nekogloop, Nore/Ekdohibs, ShadowNinja, VanessaE, and others (LGPLv2).
-  See [LICENSE.technic.md](mods/minerals/icons/LICENSE.technic.md) for full
+  See [LICENSE.technic.txt](mods/minerals/icons/LICENSE.technic.txt) for full
   license information.
 
 ## NOTICE
