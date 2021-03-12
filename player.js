@@ -18,11 +18,14 @@
 
 "use strict";
 
-var GRAVITY = 20;
+var GRAVITY = 20; //m/s^2
+var PLAYER_W_MOVE_COOLDOWN = 10; //seconds
 
 class Player {
   constructor() {
     this.controls = new KeyboardControls(window, camera);
+    
+    this.wCooldown = 0;
     
     window.addEventListener("keydown", function(e) {
       if(!api.ingameKey()) { return; }
@@ -30,14 +33,23 @@ class Player {
       var key = e.key;
       if(key.length == 1) { key = key.toLowerCase(); }
       if(key == "PageUp" || key == "]") {
-        this.pos.w++;
-        if(this.collide()) {
-          this.pos.w--;
+        //TODO: cool animation
+        if(this.wCooldown == 0) {
+          this.pos.w++;
+          if(this.collide()) {
+            this.pos.w--;
+          } else {
+            this.wCooldown = PLAYER_W_MOVE_COOLDOWN;
+          }
         }
       } else if(key == "PageDown" || key == "[") {
-        this.pos.w--;
-        if(this.collide()) {
-          this.pos.w++;
+        if(this.wCooldown == 0) {
+          this.pos.w--;
+          if(this.collide()) {
+            this.pos.w++;
+          } else {
+            this.wCooldown = PLAYER_W_MOVE_COOLDOWN;
+          }
         }
       } else if(key == "r") {
         this.keys.peekWBackward = true;
@@ -236,6 +248,9 @@ class Player {
         }
       }
     }*/
+    
+    this.wCooldown -= tscale;
+    if(this.wCooldown < 0) { this.wCooldown = 0; }
     
     this.updateHooks.forEach(function(hook) {
       hook(this.pos, this.vel, this.rot);
