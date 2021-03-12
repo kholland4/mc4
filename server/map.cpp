@@ -425,8 +425,8 @@ void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
     }
   }
   
-  std::vector<std::pair<MapPos<int>, unsigned int>> light_sources;
-  std::vector<std::pair<MapPos<int>, unsigned int>> sunlight_sources;
+  std::vector<std::pair<std::pair<Mapblock*, MapPos<int>>, unsigned int>> light_sources;
+  std::vector<std::pair<std::pair<Mapblock*, MapPos<int>>, unsigned int>> sunlight_sources;
   
   //Clear light in the mapblocks being updated.
   //Compute sunlight and find light sources as well.
@@ -463,14 +463,13 @@ void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
         }
         
         for(int y = MAPBLOCK_SIZE_Y - 1; y >= 0; y--) {
-          MapPos<int> abs_pos = MapPos<int>(mb_pos.x * MAPBLOCK_SIZE_X, mb_pos.y * MAPBLOCK_SIZE_Y, mb_pos.z * MAPBLOCK_SIZE_Z, mb_pos.w, mb_pos.world, mb_pos.universe)
-                                + MapPos<int>(x, y, z, 0, 0, 0);
+          MapPos<int> rel_pos(x, y, z, 0, 0, 0);
           
           unsigned int id = mb->data[x][y][z] & 32767;
           NodeDef def = def_table[id];
           
           if(def.light_level > 0) {
-            light_sources.push_back(std::make_pair(abs_pos, def.light_level));
+            light_sources.push_back(std::make_pair(std::make_pair(mb, rel_pos), def.light_level));
           }
           
           if(!def.pass_sunlight) { has_sun = false; }
@@ -478,7 +477,7 @@ void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
           unsigned int sunlight = 0;
           if(has_sun) {
             sunlight = 14;
-            sunlight_sources.push_back(std::make_pair(abs_pos, 15));
+            sunlight_sources.push_back(std::make_pair(std::make_pair(mb, rel_pos), 15));
           }
           
           //Initialize the light level to 1 for transparent and 0 for opaque;
@@ -493,11 +492,12 @@ void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
     }
   }
   
+  MapPos<int> no_face(0, 0, 0, 0, 0, 0);
   for(size_t i = 0; i < light_sources.size(); i++) {
-    light_cascade(mapblocks, mapblocks_to_compute, light_sources[i].first, light_sources[i].second, LC_NORM);
+    light_cascade_fast(mapblocks, mapblocks_to_compute, light_sources[i].first.first, light_sources[i].first.first->pos, light_sources[i].first.second, light_sources[i].second, LC_NORM, no_face);
   }
   for(size_t i = 0; i < sunlight_sources.size(); i++) {
-    light_cascade(mapblocks, mapblocks_to_compute, sunlight_sources[i].first, sunlight_sources[i].second, LC_SUN);
+    light_cascade_fast(mapblocks, mapblocks_to_compute, sunlight_sources[i].first.first, sunlight_sources[i].first.first->pos, sunlight_sources[i].first.second, sunlight_sources[i].second, LC_SUN, no_face);
   }
   
   //Bleed in light from the edges of adjacent mapblocks.
@@ -524,9 +524,9 @@ void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
       for(int x = planes[n].first.x; x <= planes[n].second.x; x++) {
         for(int y = planes[n].first.y; y <= planes[n].second.y; y++) {
           for(int z = planes[n].first.z; z <= planes[n].second.z; z++) {
-            MapPos<int> abs_pos = MapPos<int>(new_pos.x * MAPBLOCK_SIZE_X, new_pos.y * MAPBLOCK_SIZE_Y, new_pos.z * MAPBLOCK_SIZE_Z, new_pos.w, new_pos.world, new_pos.universe) + MapPos<int>(x, y, z, 0, 0, 0);
-            light_cascade(mapblocks, mapblocks_to_update, abs_pos, 0, LC_NORM, 1);
-            light_cascade(mapblocks, mapblocks_to_update, abs_pos, 0, LC_SUN, 1);
+            MapPos<int> rel_pos(x, y, z, 0, 0, 0);
+            light_cascade_fast(mapblocks, mapblocks_to_update, search->second, new_pos, rel_pos, 0, LC_NORM, no_face, 1);
+            light_cascade_fast(mapblocks, mapblocks_to_update, search->second, new_pos, rel_pos, 0, LC_SUN, no_face, 1);
           }
         }
       }
@@ -575,7 +575,7 @@ NodeDef get_node_def_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks, std::
   return search_id->second;
 }
 
-unsigned int get_light_val_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks, MapPos<int> mb_pos, MapPos<int> rel_pos) {
+inline unsigned int get_light_val_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks, MapPos<int> mb_pos, MapPos<int> rel_pos) {
   while(rel_pos.x < 0               ) { rel_pos.x += MAPBLOCK_SIZE_X; mb_pos.x--; }
   while(rel_pos.x >= MAPBLOCK_SIZE_X) { rel_pos.x -= MAPBLOCK_SIZE_X; mb_pos.x++; }
   while(rel_pos.y < 0               ) { rel_pos.y += MAPBLOCK_SIZE_Y; mb_pos.y--; }
@@ -596,7 +596,7 @@ unsigned int get_light_val_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks,
   return light;
 }
 
-void set_light_val_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks, MapPos<int> mb_pos, MapPos<int> rel_pos, unsigned int light) {
+inline void set_light_val_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks, MapPos<int> mb_pos, MapPos<int> rel_pos, unsigned int light) {
   while(rel_pos.x < 0               ) { rel_pos.x += MAPBLOCK_SIZE_X; mb_pos.x--; }
   while(rel_pos.x >= MAPBLOCK_SIZE_X) { rel_pos.x -= MAPBLOCK_SIZE_X; mb_pos.x++; }
   while(rel_pos.y < 0               ) { rel_pos.y += MAPBLOCK_SIZE_Y; mb_pos.y--; }

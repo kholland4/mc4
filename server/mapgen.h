@@ -35,6 +35,7 @@ class Mapgen {
 
 class MapgenDefault : public Mapgen {
   public:
+    MapgenDefault(uint32_t _seed) : Mapgen(_seed) {};
     virtual void generate_at(MapPos<int> pos, Mapblock *mb);
 };
 

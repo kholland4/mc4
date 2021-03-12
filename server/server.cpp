@@ -318,6 +318,10 @@ void Server::on_close(connection_hdl hdl) {
   chat_send("server", "*** " + player->get_name() + " left the server.");
   
   delete player;
+  
+#ifdef EXIT_AFTER_PLAYER_DISCONNECT
+  exit(0);
+#endif
 }
 
 void Server::tick(const boost::system::error_code&) {
