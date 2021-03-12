@@ -127,8 +127,8 @@ function updateTextureMap() {
   textureCtx.fillStyle = "#ff00ff";
   textureCtx.fillRect(0, 0, w, h);
   
-  for(var i = 0; i < textures.length; i++) {[];
-    if(!textures[i].loaded || !textures[i].w == TEXTURE_SIZE.x || !textures[i].h == TEXTURE_SIZE.y) { continue; }
+  for(var i = 0; i < textures.length; i++) {
+    if(!textures[i].loaded || textures[i].w != TEXTURE_SIZE.x || textures[i].h != TEXTURE_SIZE.y) { continue; }
     
     var x = i % texmapWidth;
     var y = Math.floor(i / texmapWidth);
@@ -158,7 +158,6 @@ function updateTextureMap() {
     }
     
     textureCtx.putImageData(imgData, lx, ly);
-    
   }
   
   texmap.needsUpdate = true;
