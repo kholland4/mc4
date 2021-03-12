@@ -22,6 +22,9 @@
 
 Server::Server(Database& _db, std::map<int, World*> _worlds)
     : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds), mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0)
+#ifdef DEBUG_NET
+, mb_out_count(0), mb_out_len(0)
+#endif
 {
   //disable logging
   m_server.clear_access_channels(websocketpp::log::alevel::all);
@@ -162,7 +165,11 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         map.update_mapblock_light(info);
       }
       Mapblock *mb = map.get_mapblock(mb_pos);
-      player->send_mapblock(mb, m_server);
+      unsigned int len = player->send_mapblock(mb, m_server);
+#ifdef DEBUG_NET
+      mb_out_len += len;
+      mb_out_count++;
+#endif
       delete mb;
     } else if(type == "set_player_pos") {
       player->pos.set(pt.get<double>("pos.x"), pt.get<double>("pos.y"), pt.get<double>("pos.z"), pt.get<int>("pos.w"), player->pos.world, player->pos.universe);
@@ -410,6 +417,13 @@ void Server::tick(const boost::system::error_code&) {
     slow_tick_counter = 0;
   }
   
+#ifdef DEBUG_NET
+  //FIXME doesn't include *all* mapblocks sent
+  if(mb_out_count > 0) {
+    std::cout << std::to_string(mb_out_len / mb_out_count) << " avg mb out bytes, " << std::to_string(mb_out_len / 1048576.0) << " MiB total" << std::endl;
+  }
+#endif
+
   m_timer.expires_at(m_timer.expiry() + boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL));
   m_timer.async_wait(boost::bind(&Server::tick, this, boost::asio::placeholders::error));
 }

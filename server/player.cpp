@@ -18,6 +18,8 @@
 
 #include "player.h"
 
+#include <cstring>
+
 PlayerState::PlayerState(connection_hdl hdl)
     : auth(false), m_connection_hdl(hdl), m_tag(boost::uuids::random_generator()()), m_name(get_tag())
 {
@@ -59,10 +61,140 @@ bool PlayerState::needs_mapblock_update(MapblockUpdateInfo info) {
   return true;
 }
 
-void PlayerState::send_mapblock(Mapblock *mb, WsServer& sender) {
+unsigned int PlayerState::send_mapblock(Mapblock *mb, WsServer& sender) {
   known_mapblocks[mb->pos] = MapblockUpdateInfo(mb);
   
-  sender.send(m_connection_hdl, mb->as_json(), websocketpp::frame::opcode::text);
+  //sender.send(m_connection_hdl, mb->as_json(), websocketpp::frame::opcode::text);
+  
+  uint32_t data_compressed[MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z];
+  
+  uint32_t run_val = 0;
+  size_t run_length = 0;
+  size_t out_cursor = 0;
+  
+  uint16_t light_data_compressed[MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z];
+  
+  uint16_t light_run_val = 0;
+  size_t light_run_length = 0;
+  size_t light_cursor = 0;
+  
+  for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
+    for(int x = 0; x < MAPBLOCK_SIZE_X; x++) {
+      for(int z = 0; z < MAPBLOCK_SIZE_Z; z++) {
+        uint32_t val = mb->data[x][y][z] & 0b00000000011111111111111111111111; //exclude lighting information
+        if(run_length == 0) {
+          run_val = val;
+          run_length++;
+        } else if(val == run_val && run_length < 512) { //only 9 bits are used to store the run length, so 512 is the max possible.
+          run_length++;
+        } else {
+          data_compressed[out_cursor] = run_val | ((run_length - 1) << 23);
+          out_cursor++;
+          run_length = 0;
+          
+          run_val = val;
+          run_length++;
+        }
+        
+        uint16_t light_val = (mb->data[x][y][z] >> 23) & 255;
+        if(light_run_length == 0) {
+          light_run_val = light_val;
+          light_run_length++;
+        } else if(light_val == light_run_val && light_run_length < 256) { //only 8 bits are used to store the run length, so 256 is the max possible.
+          light_run_length++;
+        } else {
+          light_data_compressed[light_cursor] = light_run_val | ((light_run_length - 1) << 8);
+          light_cursor++;
+          light_run_length = 0;
+          
+          light_run_val = light_val;
+          light_run_length++;
+        }
+      }
+    }
+  }
+  if(run_length > 0) {
+    data_compressed[out_cursor] = run_val | ((run_length - 1) << 23);
+    out_cursor++;
+    run_length = 0;
+  }
+  if(light_run_length > 0) {
+    light_data_compressed[light_cursor] = light_run_val | ((light_run_length - 1) << 8);
+    light_cursor++;
+    light_run_length = 0;
+  }
+  
+  std::ostringstream IDtoIS_ss;
+  IDtoIS_ss << "[";
+  for(size_t i = 0; i < mb->IDtoIS.size(); i++) {
+    if(i != 0) { IDtoIS_ss << ","; }
+    IDtoIS_ss << "\"" << mb->IDtoIS[i] << "\"";
+  }
+  IDtoIS_ss << "]";
+  std::string IDtoIS_str = IDtoIS_ss.str();
+  const uint8_t *IDtoIS_data = reinterpret_cast<const uint8_t*>(&IDtoIS_str[0]);
+  size_t IDtoIS_len = IDtoIS_str.size();
+  
+  //Format:
+  //0   Magic number (uint32_t)
+  //4   Position (6 * int32_t) -- x, y, z, w, world, universe
+  //28  updateNum (uint32_t)
+  //32  lightUpdateNum (uint32_t)
+  //36  lightNeedsUpdate (uint32_t)
+  //40  flags (uint32_t) -- lowest bit is 'sunlit', others are reserved
+  //44  data len (uint32_t)
+  //48  data (string of uint32_ts)
+  //?   light len (# of uint32_ts) (uint32_t)
+  //+4   light len (# of uint16_ts) (uint32_t)
+  //+8  light data (string of uint16_ts)
+  //?   IDtoIS len (uint32_t)
+  //+4  IDtoIS data (utf-8 chars)
+  
+  uint8_t out_buf[sizeof(uint32_t) +
+                  sizeof(int32_t) * 6 +
+                  sizeof(uint32_t) +
+                  sizeof(uint32_t) +
+                  sizeof(uint32_t) +
+                  sizeof(uint32_t) +
+                  sizeof(uint32_t) +
+                  MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z * sizeof(uint32_t) +
+                  sizeof(uint32_t) +
+                  MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z * sizeof(uint16_t) +
+                  sizeof(uint32_t) +
+                  IDtoIS_len];
+  
+  uint32_t *out_buf_32 = (uint32_t*) out_buf;
+  int32_t *out_buf_i32 = (int32_t*) out_buf;
+  
+  out_buf_32[0] = 0xABCD5678;
+  out_buf_i32[1] = mb->pos.x;
+  out_buf_i32[2] = mb->pos.y;
+  out_buf_i32[3] = mb->pos.z;
+  out_buf_i32[4] = mb->pos.w;
+  out_buf_i32[5] = mb->pos.world;
+  out_buf_i32[6] = mb->pos.universe;
+  out_buf_32[7] = mb->update_num;
+  out_buf_32[8] = mb->light_update_num;
+  out_buf_32[9] = mb->light_needs_update;
+  out_buf_32[10] = mb->sunlit ? 1 : 0;
+  out_buf_32[11] = out_cursor;
+  size_t arr_pos = 12;
+  memcpy(out_buf_32 + arr_pos, data_compressed, out_cursor * sizeof(uint32_t));
+  arr_pos += out_cursor;
+  out_buf_32[arr_pos] = (light_cursor * sizeof(uint16_t) / sizeof(uint32_t)) + 1;
+  arr_pos++;
+  out_buf_32[arr_pos] = light_cursor;
+  arr_pos++;
+  memcpy(out_buf_32 + arr_pos, light_data_compressed, light_cursor * sizeof(uint16_t));
+  arr_pos += (light_cursor * sizeof(uint16_t) / sizeof(uint32_t)) + 1;
+  out_buf_32[arr_pos] = IDtoIS_len;
+  arr_pos++;
+  memcpy(out_buf_32 + arr_pos, IDtoIS_data, IDtoIS_len);
+  arr_pos += (IDtoIS_len / sizeof(uint32_t)) + 1;
+  
+  sender.send(m_connection_hdl, out_buf, arr_pos * sizeof(uint32_t), websocketpp::frame::opcode::binary);
+  
+  return arr_pos * sizeof(uint32_t);
 }
 
 void PlayerState::prepare_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map) {

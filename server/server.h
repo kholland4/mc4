@@ -110,6 +110,10 @@ class Server {
     int mapblock_tick_counter;
     int fluid_tick_counter;
     int slow_tick_counter;
+#ifdef DEBUG_NET
+    unsigned int mb_out_count;
+    unsigned long long mb_out_len;
+#endif
 };
 
 #endif

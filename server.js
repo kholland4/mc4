@@ -391,6 +391,7 @@ class ServerRemote extends ServerBase {
   
   connect() {
     this.socket = new WebSocket(this._url);
+    this.socket.binaryType = "arraybuffer";
     this.socket.onopen = function() {
       this._socketReady = true;
       
@@ -408,16 +409,40 @@ class ServerRemote extends ServerBase {
     }.bind(this);
     
     this.socket.onmessage = function(e) {
-      var data = JSON.parse(e.data);
-      
-      if(data.type == "req_mapblock") {
-        var mdata = data.data;
-        var index = mdata.pos.x + "," + mdata.pos.y + "," + mdata.pos.z + "," + mdata.pos.w + "," + mdata.pos.world + "," + mdata.pos.universe;
+      if(e.data instanceof ArrayBuffer) {
+        //req_mapblock
         
-        var mapBlock = new MapBlock(new MapPos(mdata.pos.x, mdata.pos.y, mdata.pos.z, mdata.pos.w, mdata.pos.world, mdata.pos.universe));
-        mapBlock.updateNum = mdata.updateNum;
-        mapBlock.lightUpdateNum = mdata.lightUpdateNum;
-        mapBlock.lightNeedsUpdate = mdata.lightNeedsUpdate;
+        //console.log(btoa(String.fromCharCode.apply(null, new Uint8Array(e.data))));
+        //location.reload();
+        
+        var dv = new DataView(e.data);
+        var endianness = false;
+        var magic = dv.getUint32(0);
+        if(magic != 0xABCD5678) {
+          endianness = true;
+        }
+        var posX = dv.getInt32(4, endianness);
+        var posY = dv.getInt32(8, endianness);
+        var posZ = dv.getInt32(12, endianness);
+        var posW = dv.getInt32(16, endianness);
+        var posWorld = dv.getInt32(20, endianness);
+        var posUniverse = dv.getInt32(24, endianness);
+        var updateNum = dv.getUint32(28, endianness);
+        var lightUpdateNum = dv.getUint32(32, endianness);
+        var lightNeedsUpdate = dv.getUint32(36, endianness);
+        var sunlit = (dv.getUint32(40, endianness) & 1) == 1 ? true : false;
+        var dataLen = dv.getUint32(44, endianness);
+        var lightDataLen = dv.getUint32(48 + dataLen * 4, endianness) * 2;
+        var lightDataLenActual = dv.getUint32(48 + dataLen * 4 + 4, endianness);
+        var lightDataOffset = 48 + dataLen * 4 + 4 + 4;
+        var IDtoISLen = dv.getUint32(48 + dataLen * 4 + 4 + 4 + lightDataLen * 2, endianness);
+        var IDtoISOffset = 48 + dataLen * 4 + 4 + 4 + lightDataLen * 2 + 4;
+        
+        var index = posX + "," + posY + "," + posZ + "," + posW + "," + posWorld + "," + posUniverse;
+        var mapBlock = new MapBlock(new MapPos(posX, posY, posZ, posW, posWorld, posUniverse));
+        mapBlock.updateNum = updateNum;
+        mapBlock.lightUpdateNum = lightUpdateNum;
+        mapBlock.lightNeedsUpdate = lightNeedsUpdate;
         if(index in this.cache) {
           if(mapBlock.updateNum != this.cache[index].updateNum) {
             mapBlock.renderNeedsUpdate = 2; //getMapBlock will force the lighting to be updated (if lightNeedsUpdate is set) before the render update can happen
@@ -428,10 +453,84 @@ class ServerRemote extends ServerBase {
         } else {
           mapBlock.renderNeedsUpdate = 1;
         }
-        mapBlock.IDtoIS = mdata.IDtoIS;
-        mapBlock.IStoID = mdata.IStoID;
-        Object.assign(mapBlock.props, mdata.props);
-        mapBlock.data = mdata.data;
+        
+        var y = 0;
+        var x = 0;
+        var z = 0;
+        var full = false;
+        for(var i = 0; i < dataLen; i++) {
+          var val = dv.getUint32(48 + i * 4, endianness);
+          var runVal = val & 0b00000000011111111111111111111111;
+          var runLength = ((val >> 23) & 511) + 1; //Run lengths are offset by 1 to allow storing [1, 512] instead of [0, 511]
+          
+          for(var n = 0; n < runLength; n++) {
+            if(full) {
+              throw new Error("decompressed mapblock is too long");
+            }
+            
+            mapBlock.data[x][y][z] = runVal;
+            z++;
+            if(z >= MAPBLOCK_SIZE.z) {
+              z = 0;
+              x++;
+              if(x >= MAPBLOCK_SIZE.x) {
+                x = 0;
+                y++;
+                if(y >= MAPBLOCK_SIZE.y) {
+                  y = 0;
+                  full = true;
+                }
+              }
+            }
+          }
+        }
+        if(!full) {
+          throw new Error("decompressed mapblock is too short");
+        }
+        
+        var y = 0;
+        var x = 0;
+        var z = 0;
+        var full = false;
+        for(var i = 0; i < lightDataLenActual; i++) {
+          var val = dv.getUint16(lightDataOffset + i * 2, endianness);
+          var runVal = val & 0b0000000011111111;
+          var runLength = ((val >> 8) & 255) + 1; //Run lengths are offset by 1 to allow storing [1, 256] instead of [0, 255]
+          
+          for(var n = 0; n < runLength; n++) {
+            if(full) {
+              throw new Error("decompressed mapblock light is too long");
+            }
+            
+            mapBlock.data[x][y][z] |= (runVal << 23);
+            z++;
+            if(z >= MAPBLOCK_SIZE.z) {
+              z = 0;
+              x++;
+              if(x >= MAPBLOCK_SIZE.x) {
+                x = 0;
+                y++;
+                if(y >= MAPBLOCK_SIZE.y) {
+                  y = 0;
+                  full = true;
+                }
+              }
+            }
+          }
+        }
+        if(!full) {
+          throw new Error("decompressed mapblock light is too short");
+        }
+        
+        var dec = new TextDecoder();
+        var IDtoISStr = dec.decode(new DataView(e.data, IDtoISOffset, IDtoISLen));
+        
+        mapBlock.IDtoIS = JSON.parse(IDtoISStr);
+        mapBlock.IStoID = {};
+        for(var i = 0; i < mapBlock.IDtoIS.length; i++) {
+          mapBlock.IStoID[mapBlock.IDtoIS[i]] = i;
+        }
+        mapBlock.props.sunlit = sunlit;
         
         this.cache[index] = mapBlock;
         
@@ -451,7 +550,12 @@ class ServerRemote extends ServerBase {
         //}
         
         //console.log("recv_mapblock (" + index + ") updateNum=" + mdata.updateNum + " lightUpdateNum=" + mdata.lightUpdateNum + " lightNeedsUpdate=" + mdata.lightNeedsUpdate);
-      } else if(data.type == "update_entities") {
+        
+        return;
+      }
+      var data = JSON.parse(e.data);
+      
+      if(data.type == "update_entities") {
         data.actions.forEach(function(action) {
           if(action.type == "create") {
             this.addEntity(new Entity(action.data));

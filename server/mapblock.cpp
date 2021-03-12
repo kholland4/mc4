@@ -95,30 +95,6 @@ std::string Mapblock::id_to_itemstring(unsigned int id) {
 }
 
 std::string Mapblock::as_json() {
-  /*boost::property_tree::ptree pt;
-  
-  pt.put("data.pos.x", pos.x);
-  pt.put("data.pos.y", pos.y);
-  pt.put("data.pos.z", pos.z);
-  
-  pt.put("data.updateNum", update_num);
-  pt.put("data.lightUpdateNum", light_update_num);
-  pt.put("data.lightNeedsUpdate", light_needs_update);
-  pt.put("data.props.sunlit", sunlit);
-  
-  for(auto it : IStoID) {
-    pt.put("data.IStoID." + it->first, it->second); //FIXME data sanitization
-  }
-  
-  boost::property_tree::ptree id_list;
-  for(unsigned int i = 0; i < IDtoIS.size(); i++) {
-    id_list.
-  }
-  
-  std::ostringstream out;
-  boost::property_tree::write_json(out, pt, false);
-  return out.str();*/
-  
   std::ostringstream out;
   
   out << "{\"type\":\"req_mapblock\",\"data\":{"
@@ -127,18 +103,6 @@ std::string Mapblock::as_json() {
       << "\"lightUpdateNum\":" << light_update_num << ","
       << "\"lightNeedsUpdate\":" << light_needs_update << ","
       << "\"props\":{\"sunlit\":" << sunlit << "},";
-  
-  bool first = true;
-  out << "\"IStoID\":{";
-  for(auto it : IStoID) {
-    if(!first) {
-      out << ",";
-    }
-    first = false;
-    
-    out << "\"" << json_escape(it.first) << "\":" << it.second;
-  }
-  out << "},";
   
   out << "\"IDtoIS\":[";
   for(unsigned int i = 0; i < IDtoIS.size(); i++) {
