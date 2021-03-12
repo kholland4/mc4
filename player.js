@@ -20,37 +20,40 @@
 
 var GRAVITY = 20; //m/s^2
 var PLAYER_W_MOVE_COOLDOWN = 10; //seconds
+var PLAYER_W_MOVE_HEATUP = 0.7; //seconds
 
 class Player {
   constructor() {
     this.controls = new KeyboardControls(window, camera);
     
     this.wCooldown = 0;
+    this.wAttemptDir = 0;
+    this.wHeatup = 0;
     
     window.addEventListener("keydown", function(e) {
       if(!api.ingameKey()) { return; }
       
       var key = e.key;
       if(key.length == 1) { key = key.toLowerCase(); }
-      if(key == "PageUp" || key == "]") {
-        //TODO: cool animation
-        if(this.wCooldown == 0) {
-          this.pos.w++;
-          if(this.collide()) {
-            this.pos.w--;
-          } else {
-            this.wCooldown = PLAYER_W_MOVE_COOLDOWN;
+      if(key == "{") { key == "["; }
+      if(key == "}") { key == "]"; }
+      if(key == "PageUp" || key == "]" || key == "PageDown" || key == "[") {
+        if((key == "PageUp" && !this.keys.travelWForward1) || (key == "]" && !this.keys.travelWForward2)) {
+          if(this.wAttemptDir != 1) {
+            this.wAttemptDir = 1;
+            this.wHeatup = PLAYER_W_MOVE_HEATUP;
+          }
+        } else if((key == "PageDown" && !this.keys.travelWBackward1) || (key == "[" && !this.keys.travelWBackward2)) {
+          if(this.wAttemptDir != -1) {
+            this.wAttemptDir = -1;
+            this.wHeatup = PLAYER_W_MOVE_HEATUP;
           }
         }
-      } else if(key == "PageDown" || key == "[") {
-        if(this.wCooldown == 0) {
-          this.pos.w--;
-          if(this.collide()) {
-            this.pos.w++;
-          } else {
-            this.wCooldown = PLAYER_W_MOVE_COOLDOWN;
-          }
-        }
+        
+        if(key == "PageUp") { this.keys.travelWForward1 = true; }
+        else if(key == "]") { this.keys.travelWForward2 = true; }
+        else if(key == "PageDown") { this.keys.travelWBackward1 = true; }
+        else if(key == "[") { this.keys.travelWBackward2 = true; }
       } else if(key == "r") {
         this.keys.peekWBackward = true;
       } else if(key == "f") {
@@ -70,7 +73,23 @@ class Player {
       
       var key = e.key;
       if(key.length == 1) { key = key.toLowerCase(); }
-      if(key == "r") {
+      if(key == "{") { key == "["; }
+      if(key == "}") { key == "]"; }
+      if(key == "PageUp" || key == "]" || key == "PageDown" || key == "[") {
+        if(key == "PageUp") { this.keys.travelWForward1 = false; }
+        else if(key == "]") { this.keys.travelWForward2 = false; }
+        else if(key == "PageDown") { this.keys.travelWBackward1 = false; }
+        else if(key == "[") { this.keys.travelWBackward2 = false; }
+        
+        if(!this.keys.travelWForward1 && !this.keys.travelWForward2 && this.wAttemptDir == 1) {
+          this.wAttemptDir = 0;
+          this.wHeatup = 0;
+        }
+        if(!this.keys.travelWBackward1 && !this.keys.travelWBackward2 && this.wAttemptDir == -1) {
+          this.wAttemptDir = 0;
+          this.wHeatup = 0;
+        }
+      } else if(key == "r") {
         this.keys.peekWBackward = false;
       } else if(key == "f") {
         this.keys.peekWForward = false;
@@ -100,7 +119,7 @@ class Player {
     
     this.boundingBox = new THREE.Box3(new THREE.Vector3(-0.3, -1.5, -0.3), new THREE.Vector3(0.3, 0.3, 0.3));
     
-    this.keys = {peekWForward: false, peekWBackward: false};
+    this.keys = {peekWForward: false, peekWBackward: false, travelWForward1: false, travelWForward2: false, travelWBackward1: false, travelWBackward2: false};
     this.peekW = 0;
     
     this.updateHooks = [];
@@ -251,6 +270,40 @@ class Player {
     
     this.wCooldown -= tscale;
     if(this.wCooldown < 0) { this.wCooldown = 0; }
+    
+    if(this.wAttemptDir == 0) {
+      document.getElementById("wTravelOverlay").style.display = "none";
+    } else {
+      this.pos.w += this.wAttemptDir;
+      var didCollide = this.collide();
+      this.pos.w -= this.wAttemptDir;
+      
+      if(didCollide) {
+        document.getElementById("wTravelOverlay").style.display = "block";
+        document.getElementById("wTravelOverlay").style.backgroundColor = "#000000";
+        document.getElementById("wTravelNumber").style.display = "none";
+      } else {
+        if(this.wCooldown == 0) {
+          this.wHeatup -= tscale;
+          if(this.wHeatup < 0) { this.wHeatup = 0; }
+          if(this.wHeatup == 0) {
+            document.getElementById("wTravelOverlay").style.display = "none";
+            
+            this.pos.w += this.wAttemptDir;
+            this.wAttemptDir = 0;
+            this.wCooldown = PLAYER_W_MOVE_COOLDOWN;
+          } else {
+            document.getElementById("wTravelOverlay").style.display = "none";
+            //heatup effect handled in main.js
+          }
+        } else {
+          document.getElementById("wTravelOverlay").style.display = "block";
+          document.getElementById("wTravelOverlay").style.backgroundColor = "#ff0000";
+          document.getElementById("wTravelNumber").style.display = "block";
+          document.getElementById("wTravelNumber").innerText = Math.ceil(this.wCooldown).toString();
+        }
+      }
+    }
     
     this.updateHooks.forEach(function(hook) {
       hook(this.pos, this.vel, this.rot);

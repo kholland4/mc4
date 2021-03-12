@@ -26,8 +26,7 @@ var RENDER_MAX_LIGHTING_UPDATES = 2;
 var sunAmount = 1;
 
 //renderDist *must* be greater that unrenderDist in all dimensions
-var renderDist = new MapPos(2, 2, 2, 1, 0, 0); //4, 2, 4
-var renderDistExtW = new MapPos(1, 1, 1, 0, 0, 0);
+var renderDist = [new MapPos(2, 2, 2, 0, 0, 0), new MapPos(1, 1, 1, 1, 0, 0)]; //highest priority first
 var unrenderDist = new MapPos(7, 4, 7, 2, 0, 0);
 var hideDist = new MapPos(7, 4, 7, 0, 0, 0);
 
@@ -161,38 +160,35 @@ function renderUpdateMap(centerPos, doScan) {
   if(doScan || updatePosList.length == 0) {
     updatePosList = [];
     
-    for(var dist = 0; dist <= Math.max(renderDist.x, renderDist.y, renderDist.z, renderDist.w, renderDist.world, renderDist.universe); dist++) {
-      var distW = Math.min(dist, renderDist.w);
-      var distWorld = Math.min(dist, renderDist.world);
-      var distUniverse = Math.min(dist, renderDist.universe);
-      for(var universe = centerPos.universe - distUniverse; universe <= centerPos.universe + distUniverse; universe++) {
-        for(var world = centerPos.world - distWorld; world <= centerPos.world + distWorld; world++) {
-          for(var w = centerPos.w - distW; w <= centerPos.w + distW; w++) {
-            var distX, distY, distZ;
-            if(w == centerPos.w) {
-              distX = Math.min(dist, renderDist.x);
-              distY = Math.min(dist, renderDist.y);
-              distZ = Math.min(dist, renderDist.z);
-            } else {
-              distX = Math.min(dist, renderDistExtW.x);
-              distY = Math.min(dist, renderDistExtW.y);
-              distZ = Math.min(dist, renderDistExtW.z);
-            }
-            for(var x = centerPos.x - distX; x <= centerPos.x + distX; x++) {
-              for(var y = centerPos.y - distY; y <= centerPos.y + distY; y++) {
-                for(var z = centerPos.z - distZ; z <= centerPos.z + distZ; z++) {
-                  var pos = new MapPos(x, y, z, w, world, universe);
-                  
-                  var inList = false;
-                  for(var i = 0; i < updatePosList.length; i++) {
-                    if(pos.equals(updatePosList[i])) {
-                      inList = true;
-                      break;
+    for(var i = 0; i < renderDist.length; i++) {
+      var rDist = renderDist[i];
+      
+      for(var dist = 0; dist <= Math.max(rDist.x, rDist.y, rDist.z, rDist.w, rDist.world, rDist.universe); dist++) {
+        var distW = Math.min(dist, rDist.w);
+        var distWorld = Math.min(dist, rDist.world);
+        var distUniverse = Math.min(dist, rDist.universe);
+        var distX = Math.min(dist, rDist.x);
+        var distY = Math.min(dist, rDist.y);
+        var distZ = Math.min(dist, rDist.z);
+        for(var universe = centerPos.universe - distUniverse; universe <= centerPos.universe + distUniverse; universe++) {
+          for(var world = centerPos.world - distWorld; world <= centerPos.world + distWorld; world++) {
+            for(var w = centerPos.w - distW; w <= centerPos.w + distW; w++) {
+              for(var x = centerPos.x - distX; x <= centerPos.x + distX; x++) {
+                for(var y = centerPos.y - distY; y <= centerPos.y + distY; y++) {
+                  for(var z = centerPos.z - distZ; z <= centerPos.z + distZ; z++) {
+                    var pos = new MapPos(x, y, z, w, world, universe);
+                    
+                    var inList = false;
+                    for(var n = 0; n < updatePosList.length; n++) {
+                      if(pos.equals(updatePosList[n])) {
+                        inList = true;
+                        break;
+                      }
                     }
+                    if(inList) { continue; }
+                    
+                    updatePosList.push(pos);
                   }
-                  if(inList) { continue; }
-                  
-                  updatePosList.push(pos);
                 }
               }
             }

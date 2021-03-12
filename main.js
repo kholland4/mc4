@@ -511,5 +511,11 @@ function animate() {
   peekRenderer.domElement.style.display = isPeek ? "block" : "none";
   document.getElementById("peekSep").style.display = isPeek ? "block" : "none";
   document.getElementById("peekOverlay").style.display = isPeekDark ? "block" : "none";
-  renderer.domElement.style.filter = (isPeek || isPeekDark) ? "grayscale(100%)" : "none";
+  if(player.wHeatup > 0) {
+    var prop = (PLAYER_W_MOVE_HEATUP - player.wHeatup) / PLAYER_W_MOVE_HEATUP;
+    var amt = Math.round(prop * 25);
+    renderer.domElement.style.filter = (isPeek || isPeekDark) ? "grayscale(100%) blur(" + amt + "px)" : "blur(" + amt + "px)";
+  } else {
+    renderer.domElement.style.filter = (isPeek || isPeekDark) ? "grayscale(100%)" : "none";
+  }
 }
