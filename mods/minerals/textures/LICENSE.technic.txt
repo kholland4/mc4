@@ -1,4 +1,5 @@
 Textures and icons named technic_*.png are taken or adapted from the Technic modpack for Minetest.
+mineral_lead.png and mineral_zinc.png are a composite of default_stone.png and the matching technic_mineral_*.png file.
 Licensing info abridged from the modpack's README.md file is as follows:
 =====
 

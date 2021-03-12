@@ -152,7 +152,7 @@
     icon: "default_ore_coal.png",
     node: {groups: {cracky: 2}, drops: "default:lump_coal"}
   });
-  api.registerItem(new api.Item("default:lump_coal", {desc: "Coal Lump", iconFile: modpath + "/icons/default_lump_coal.png"}));
+  api.registerItem(new api.Item("default:lump_coal", {desc: "Coal Lump", iconFile: modpath + "/icons/default_coal_lump.png"}));
   registerNodeHelper("default:coal_block", {
     desc: "Coal Block",
     tex: {texAll: "default_coal_block.png"},
@@ -162,41 +162,29 @@
   api.registerCraft(new api.CraftEntry("default:coal_block", Array(9).fill("default:lump_coal"), {shape: {x: 3, y: 3}}));
   api.registerCraft(new api.CraftEntry("default:lump_coal 9", ["default:coal_block"], {shape: null}));
   
-  registerNodeHelper("default:ore_iron", {
-    desc: "Iron Ore",
-    tex: {texAll: "default_ore_iron.png"},
-    icon: "default_ore_iron.png",
-    node: {groups: {cracky: 2}, drops: "default:lump_iron"}
-  });
-  api.registerItem(new api.Item("default:lump_iron", {desc: "Iron Lump", iconFile: modpath + "/icons/default_lump_iron.png"}));
-  api.registerItem(new api.Item("default:ingot_iron", {desc: "Iron Ingot", iconFile: modpath + "/icons/default_ingot_iron.png"}));
-  api.registerCraft(new api.CraftEntry("default:ingot_iron", ["default:lump_iron"], {shape: null, type: "cook", cookTime: 4}));
-  registerNodeHelper("default:iron_block", {
-    desc: "Iron Block",
-    tex: {texAll: "default_iron_block.png"},
-    icon: "default_iron_block.png",
-    node: {groups: {cracky: 3}}
-  });
-  api.registerCraft(new api.CraftEntry("default:iron_block", Array(9).fill("default:ingot_iron"), {shape: {x: 3, y: 3}}));
-  api.registerCraft(new api.CraftEntry("default:ingot_iron 9", ["default:iron_block"], {shape: null}));
-  
-  registerNodeHelper("default:ore_gold", {
-    desc: "Gold Ore",
-    tex: {texAll: "default_ore_gold.png"},
-    icon: "default_ore_gold.png",
-    node: {groups: {cracky: 2}, drops: "default:lump_gold"}
-  });
-  api.registerItem(new api.Item("default:lump_gold", {desc: "Gold Lump", iconFile: modpath + "/icons/default_lump_gold.png"}));
-  api.registerItem(new api.Item("default:ingot_gold", {desc: "Gold Ingot", iconFile: modpath + "/icons/default_ingot_gold.png"}));
-  api.registerCraft(new api.CraftEntry("default:ingot_gold", ["default:lump_gold"], {shape: null, type: "cook", cookTime: 4}));
-  registerNodeHelper("default:gold_block", {
-    desc: "Gold Block",
-    tex: {texAll: "default_gold_block.png"},
-    icon: "default_gold_block.png",
-    node: {groups: {cracky: 3}}
-  });
-  api.registerCraft(new api.CraftEntry("default:gold_block", Array(9).fill("default:ingot_gold"), {shape: {x: 3, y: 3}}));
-  api.registerCraft(new api.CraftEntry("default:ingot_gold 9", ["default:gold_block"], {shape: null}));
+  var minerals = ["iron", "gold", "tin", "copper"];
+  for(var i = 0; i < minerals.length; i++) {
+    var m = minerals[i];
+    var mCaps = itemstringGuessName(m);
+    
+    registerNodeHelper("default:ore_" + m, {
+      desc: mCaps + " Ore",
+      tex: {texAll: "default_ore_" + m + ".png"},
+      icon: "default_ore_" + m + ".png",
+      node: {groups: {cracky: 2}, drops: "default:lump_" + m}
+    });
+    api.registerItem(new api.Item("default:lump_" + m, {desc: mCaps + " Lump", iconFile: modpath + "/icons/default_" + m + "_lump.png"}));
+    api.registerItem(new api.Item("default:ingot_" + m, {desc: mCaps + " Ingot", iconFile: modpath + "/icons/default_" + m + "_ingot.png"}));
+    api.registerCraft(new api.CraftEntry("default:ingot_" + m, ["default:lump_" + m], {shape: null, type: "cook", cookTime: 4}));
+    registerNodeHelper("default:" + m + "_block", {
+      desc: mCaps + " Block",
+      tex: {texAll: "default_" + m + "_block.png"},
+      icon: "default_" + m + "_block.png",
+      node: {groups: {cracky: 3}}
+    });
+    api.registerCraft(new api.CraftEntry("default:" + m + "_block", Array(9).fill("default:ingot_" + m), {shape: {x: 3, y: 3}}));
+    api.registerCraft(new api.CraftEntry("default:ingot_" + m + " 9", ["default:" + m + "_block"], {shape: null}));
+  }
   
   registerNodeHelper("default:ore_diamond", {
     desc: "Diamond Ore",
@@ -213,6 +201,17 @@
   });
   api.registerCraft(new api.CraftEntry("default:diamond_block", Array(9).fill("default:diamond"), {shape: {x: 3, y: 3}}));
   api.registerCraft(new api.CraftEntry("default:diamond 9", ["default:diamond_block"], {shape: null}));
+  
+  //TODO bronze crafts/alloying
+  api.registerItem(new api.Item("default:ingot_bronze", {desc: "Bronze Ingot", iconFile: modpath + "/icons/default_bronze_ingot.png"}));
+  registerNodeHelper("default:bronze_block", {
+    desc: "Bronze Block",
+    tex: {texAll: "default_bronze_block.png"},
+    icon: "default_bronze_block.png",
+    node: {groups: {cracky: 3}}
+  });
+  api.registerCraft(new api.CraftEntry("default:bronze_block", Array(9).fill("default:ingot_bronze"), {shape: {x: 3, y: 3}}));
+  api.registerCraft(new api.CraftEntry("default:ingot_bronze 9", ["default:bronze_block"], {shape: null}));
   
   
   

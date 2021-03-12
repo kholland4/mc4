@@ -54,6 +54,10 @@ See [LICENSE](LICENSE) and the top of each source code file for license informat
   kpoppel, Nekogloop, Nore/Ekdohibs, ShadowNinja, VanessaE, and others (LGPLv2).
   See [LICENSE.technic.txt](mods/minerals/icons/LICENSE.technic.txt) for full
   license information.
+* [minetest-mods/moreores](https://github.com/minetest-mods/moreores):
+  Hugo Locurcio and contributors (CC BY-SA 3.0 Unported).
+  See [README.moreores.txt](mods/minerals/icons/README.moreores.txt) for full
+  license information.
 
 ## NOTICE
 

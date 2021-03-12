@@ -1,5 +1,5 @@
 Abridged from [https://github.com/minetest/minetest_game/blob/master/LICENSE.txt].
-Files named default_ore_*.png were composited from default_mineral_*.png and default_stone.png.
+Applies to all files named default_*.png.
 See README.default.txt for more author information.
 =====
 

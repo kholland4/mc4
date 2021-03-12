@@ -116,6 +116,8 @@
   });
   
   window.addEventListener("wheel", function(e) {
+    if(api.uiWindowOpen()) { return; }
+    
     if(e.deltaY < 0) {
       api.player.wieldIndex--;
       if(api.player.wieldIndex < 0) { api.player.wieldIndex = 7; }
