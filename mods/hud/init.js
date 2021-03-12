@@ -25,7 +25,7 @@
   hudContainer.style.left = "50%";
   hudContainer.style.bottom = "5px";
   hudContainer.style.transform = "translate(-50%)";
-  hudContainer.style.zIndex = "6";
+  hudContainer.style.zIndex = "7";
   mods.hud.dom = hudContainer;
   api.registerHUD(hudContainer);
   
@@ -112,6 +112,16 @@
       if(n >= 1 && n <= 8) {
         api.player.wieldIndex = n - 1;
       }
+    }
+  });
+  
+  window.addEventListener("wheel", function(e) {
+    if(e.deltaY < 0) {
+      api.player.wieldIndex--;
+      if(api.player.wieldIndex < 0) { api.player.wieldIndex = 7; }
+    } else if(e.deltaY > 0) {
+      api.player.wieldIndex++;
+      if(api.player.wieldIndex > 7) { api.player.wieldIndex = 0; }
     }
   });
 })();
