@@ -1,3 +1,4 @@
-server/build/*
+server/build/*.d
+server/build/*.o
 server/mc4-server
 server/*.sqlite
