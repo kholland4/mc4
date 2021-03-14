@@ -154,7 +154,22 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       bool is_auth = player->auth_state.step(msg->get_payload(), m_server, hdl, db);
       if(is_auth) {
-        player->load_data(db.fetch_player_data(player->auth_state.result()));
+        std::string auth_id = player->auth_state.result();
+        
+        for(auto it : m_players) {
+          PlayerState *p = it.second;
+          if(p->auth && p->data.auth_id == auth_id) {
+            chat_send_player(player, "server", "ERROR: player '" + p->data.name + "' is already connected");
+            websocketpp::lib::error_code ec;
+            m_server.close(hdl, websocketpp::close::status::going_away, "kick", ec);
+            if(ec) {
+              log(LogSource::SERVER, LogLevel::ERR, "error closing connection: " + ec.message());
+            }
+            return;
+          }
+        }
+        
+        player->load_data(db.fetch_player_data(auth_id));
         player->auth = true;
       }
       
@@ -167,6 +182,17 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " connected!");
         chat_send_player(player, "server", status());
         chat_send("server", "*** " + player->get_name() + " joined the server!");
+      }
+      
+      return;
+    }
+    
+    //message starts with "auth"
+    if(type.rfind("auth", 0) == 0) {
+      bool is_auth = player->auth_state.step(msg->get_payload(), m_server, hdl, db);
+      if(!is_auth) {
+        db.update_player_data(player->get_data());
+        player->auth = false;
       }
       
       return;

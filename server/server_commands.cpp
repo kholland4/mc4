@@ -26,9 +26,9 @@ void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
   
   std::string new_nick = args[1];
   
-  std::regex nick_allow("^[a-zA-Z0-9\\-_]+$");
+  std::regex nick_allow("^[a-zA-Z0-9\\-_]{1,40}$");
   if(!std::regex_match(new_nick, nick_allow)) {
-    chat_send_player(player, "server", "invalid nickname: allowed characters are a-z A-Z 0-9 - _");
+    chat_send_player(player, "server", "invalid nickname: allowed characters are a-z A-Z 0-9 - _ and length must be 1 to 40 characters");
     return;
   }
   

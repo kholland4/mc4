@@ -583,16 +583,30 @@ class ServerRemote extends ServerBase {
         if(data.message == "auth_mode_ok") {
           this.sendMessage({
             type: "auth_step",
-            step: "IA",
+            step: "login",
             login_name: this._authCredentials.loginName,
             verifier: this._authCredentials.verifier
           });
         } else if(data.message == "auth_ok") {
           this._authReady = true;
-          debug("client", "status", "authenticated to " + this.socket.url);
+          debug("client", "status", "authenticated as " + this._authCredentials.loginName);
+        } else if(data.message == "register_ok") {
+          this._authReady = true;
+          debug("client", "status", "registered new account for " + this._authCredentials.loginName);
         }
       } else if(data.type == "auth_err") {
-        debug("client", "status", "authentication failed for " + this.socket.url + " : " + data.reason);
+        if(data.reason == "login_name_not_found") {
+          //register it
+          this.sendMessage({
+            type: "auth_step",
+            step: "register",
+            login_name: this._authCredentials.loginName,
+            verifier: this._authCredentials.verifier,
+            salt: ""
+          });
+        } else {
+          debug("client", "status", "authentication failed: " + data.reason);
+        }
       }
       
       if(data.type in this.messageHooks) {

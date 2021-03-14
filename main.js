@@ -56,7 +56,9 @@ var CREATIVE_DIG_TIME = 0.15;
 
 var menuConfig = {
   gameType: "local", // local, remote
-  remoteServer: "ws://localhost:8080/"
+  remoteServer: "ws://localhost:8080/",
+  authName: "",
+  authPassword: ""
 };
 
 function initEntryMenu() {
@@ -75,16 +77,37 @@ function initEntryMenu() {
   
   win.add(uiElement("spacer"));
   
-  win.add(uiElement("text", "Join Server"));
-  win.add(uiElement("br"));
+  var joinForm = document.createElement("form");
+  joinForm.onsubmit = function(e) { event.preventDefault(); menuConfig.gameType = "remote"; uiHideWindow(); init(); return false; };
+  
+  joinForm.appendChild(uiElement("text", "Join Server"));
+  joinForm.appendChild(uiElement("br"));
   var serverAddr = uiElement("input", menuConfig.remoteServer);
   serverAddr.onchange = function() { menuConfig.remoteServer = this.value; };
-  win.add(serverAddr);
+  joinForm.appendChild(serverAddr);
+  
+  joinForm.appendChild(uiElement("br"));
+  joinForm.appendChild(uiElement("text", "Name"));
+  var authName = uiElement("input", menuConfig.authName);
+  authName.pattern = "[a-zA-Z0-9\\-_]{1,40}";
+  authName.title = "Use letters, numbers, -, and _ only.";
+  authName.minlength = "1";
+  authName.maxlength = "40";
+  authName.onchange = function() { menuConfig.authName = this.value; };
+  joinForm.appendChild(authName);
+  
+  joinForm.appendChild(uiElement("br"));
+  joinForm.appendChild(uiElement("text", "Password"));
+  var authPassword = uiElement("input", menuConfig.authPassword);
+  authPassword.onchange = function() { menuConfig.authPassword = this.value; };
+  authPassword.type = "password";
+  joinForm.appendChild(authPassword);
   
   var startButton = uiElement("button");
   startButton.innerText = "Connect";
-  startButton.onclick = function() { menuConfig.gameType = "remote"; uiHideWindow(); init(); };
-  win.add(startButton);
+  joinForm.appendChild(startButton);
+  
+  win.add(joinForm);
   
   uiShowWindow(win);
 }
@@ -266,7 +289,8 @@ function loadLoop() {
   
   if(ready) {
     debug("main", "status", "loaded textures, icons, and mods");
-    server.connect({loginName: "test_player", verifier: "2"});
+    //TODO use srp or something
+    server.connect({loginName: menuConfig.authName, verifier: menuConfig.authPassword});
     loadLoop2();
   } else {
     requestAnimationFrame(loadLoop);

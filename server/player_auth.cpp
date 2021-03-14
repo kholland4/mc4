@@ -19,6 +19,7 @@
 #include "player_auth.h"
 
 #include <sstream>
+#include <regex>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -58,6 +59,15 @@ void init_player_data(PlayerData &data) {
   data.pos.set(0, 20, 0, 0, 0, 0);
   data.vel.set(0, 0, 0, 0, 0, 0);
   data.rot.set(0, 0, 0, 0);
+}
+
+bool validate_player_name(std::string name) {
+  std::regex nick_allow("^[a-zA-Z0-9\\-_]{1,40}$");
+  if(!std::regex_match(name, nick_allow)) {
+    //not ok
+    return false;
+  }
+  return true;
 }
 
 
@@ -126,7 +136,10 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
         std::string salt = pt.get<std::string>("salt");
         std::string verifier = pt.get<std::string>("verifier");
         
-        //TODO validate input parameters
+        if(!validate_player_name(login_name)) {
+          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"register_login_name_invalid\"}", websocketpp::frame::opcode::text);
+          return false;
+        }
         
         PlayerPasswordAuthInfo existing = db.fetch_pw_info(login_name);
         if(!existing.is_nil) {
@@ -152,10 +165,14 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
         db.store_player_data(new_data);
         
         server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"register_ok\"}", websocketpp::frame::opcode::text);
-        return false;
+        server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"auth_ok\"}", websocketpp::frame::opcode::text);
+        
+        auth_info = new_info;
+        auth_success = true;
+        return true;
       }
       
-      if(step == "IA") {
+      if(step == "login") {
         std::string login_name = pt.get<std::string>("login_name");
         //std::string A_str = pt.get<std::string>("A");
         
@@ -182,6 +199,45 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
         
         server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"invalid_verifier\"}", websocketpp::frame::opcode::text);
         return false;
+      }
+      
+      if(step == "update_pw") {
+        if(!auth_success) {
+          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"not_auth\"}", websocketpp::frame::opcode::text);
+          return false;
+        }
+        
+        std::string login_name = pt.get<std::string>("login_name");
+        std::string salt = pt.get<std::string>("salt");
+        std::string verifier = pt.get<std::string>("verifier");
+        
+        if(!validate_player_name(login_name)) {
+          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"update_login_name_invalid\"}", websocketpp::frame::opcode::text);
+          return false;
+        }
+        
+        PlayerPasswordAuthInfo search = db.fetch_pw_info(auth_info.login_name);
+        if(search.is_nil) {
+          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"login_name_not_found\"}", websocketpp::frame::opcode::text);
+          return true;
+        }
+        
+        PlayerPasswordAuthInfo existing = db.fetch_pw_info(login_name);
+        if(!existing.is_nil) {
+          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"update_login_name_exists\"}", websocketpp::frame::opcode::text);
+          return true;
+        }
+        
+        search.login_name = login_name;
+        search.salt = salt;
+        search.verifier = verifier;
+        
+        db.update_pw_info(auth_info.login_name, search);
+        
+        auth_info = search;
+        
+        server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"update_ok\"}", websocketpp::frame::opcode::text);
+        return true;
       }
       
       server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"invalid_step\"}", websocketpp::frame::opcode::text);
