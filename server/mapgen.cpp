@@ -27,6 +27,10 @@
 
 #define TREE_ITERATION_DEPTH 3
 
+//Recommended parameters are 0 for water depth and 3 for sand depth.
+#define MAPGENALPHA_WATER_DEPTH -16
+#define MAPGENALPHA_SAND_DEPTH -15
+
 //Mapgens can safely ignore the 'world' and 'universe' dimensions.
 //The map itself is responsible for picking the correct mapgen for a given world,
 //and all universes should have identical mapgen.
@@ -405,15 +409,15 @@ void MapgenAlpha::generate_at(MapPos<int> pos, Mapblock *mb) {
   for(int x = 0; x < MAPBLOCK_SIZE_X; x++) {
     for(int z = 0; z < MAPBLOCK_SIZE_Z; z++) {
       int height = height_map[x][z] - global_offset.y;
-      if(height >= 0 || global_offset.y <= 0) {
+      if(height >= 0 || global_offset.y < MAPGENALPHA_WATER_DEPTH) {
         mb->sunlit = false;
         
         for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
           if(y > height) {
-            if(y + global_offset.y <= 0) {
+            if(y + global_offset.y < MAPGENALPHA_WATER_DEPTH) {
               //water
               mb->data[x][y][z] = water_id;
-            } else if(y == height + 1 && y + global_offset.y > 3) {
+            } else if(y == height + 1 && y + global_offset.y > MAPGENALPHA_SAND_DEPTH) {
               //possibly flowers/grass, otherwise air
               double flowerNoise = perlin.noise3D((x + global_offset.x) / 2.0, (z + global_offset.z) / 2.0, global_offset.w / 2.0);
               if(flowerNoise > 0.4) {
@@ -438,13 +442,13 @@ void MapgenAlpha::generate_at(MapPos<int> pos, Mapblock *mb) {
               //air, which is already there
             }
           } else if(y == height) {
-            if(y + global_offset.y < 3) {
+            if(y + global_offset.y < MAPGENALPHA_SAND_DEPTH) {
               mb->data[x][y][z] = sand_id;
             } else {
               mb->data[x][y][z] = grass_id;
             }
           } else if(y >= height - 2) {
-            if(y + global_offset.y < 3) {
+            if(y + global_offset.y < MAPGENALPHA_SAND_DEPTH) {
               mb->data[x][y][z] = sand_id;
             } else {
               mb->data[x][y][z] = dirt_id;
@@ -480,7 +484,7 @@ void MapgenAlpha::generate_at(MapPos<int> pos, Mapblock *mb) {
           if(height < global_offset.y - max_tree_spread_up.y || height > global_offset.y + MAPBLOCK_SIZE_Y + max_tree_spread_down.y) { continue; }
           
           double treeNoise = perlin.noise3D(x / 1.5, z / 1.5, w / 1.5);
-          if(treeNoise > 0.75) {
+          if(treeNoise > 0.7) {
             tree_list.push_back(MapPos<int>(x, height + 1, z, w, global_offset.world, global_offset.universe));
           }
         }
