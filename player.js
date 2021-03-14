@@ -122,6 +122,8 @@ class Player {
     this.keys = {peekWForward: false, peekWBackward: false, travelWForward1: false, travelWForward2: false, travelWBackward1: false, travelWBackward2: false};
     this.peekW = 0;
     
+    this.privs = [];
+    
     this.updateHooks = [];
   }
   

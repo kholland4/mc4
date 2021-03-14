@@ -92,6 +92,7 @@ class Server {
     void cmd_whereami(PlayerState *player, std::vector<std::string> args);
     void cmd_tp_world(PlayerState *player, std::vector<std::string> args);
     void cmd_tp_universe(PlayerState *player, std::vector<std::string> args);
+    void cmd_grantme(PlayerState *player, std::vector<std::string> args);
     
     void on_open(connection_hdl hdl);
     void on_close(connection_hdl hdl);

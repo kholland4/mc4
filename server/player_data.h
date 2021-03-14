@@ -21,6 +21,8 @@
 
 #include "vector.h"
 
+#include <set>
+
 class PlayerData {
   public:
     PlayerData() : is_nil(true) {}
@@ -30,6 +32,8 @@ class PlayerData {
     MapPos<double> pos;
     MapPos<double> vel;
     Quaternion rot;
+    
+    std::set<std::string> privs;
     
     bool is_nil;
     

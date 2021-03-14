@@ -18,6 +18,9 @@
 
 #include "server.h"
 
+std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime"};
+
+
 void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
   if(args.size() != 2) {
     chat_send_player(player, "server", "invalid command: wrong number of args, expected '/nick <new_nickname>'");
@@ -42,6 +45,11 @@ void Server::cmd_status(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
+  if(player->data.privs.find("settime") == player->data.privs.end()) {
+    chat_send_player(player, "server", "missing priv: settime");
+    return;
+  }
+  
   if(args.size() != 2) {
     chat_send_player(player, "server", "invalid command: wrong number of args, expected '/time hh:mm'");
     return;
@@ -77,6 +85,11 @@ void Server::cmd_whereami(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
+  if(player->data.privs.find("teleport") == player->data.privs.end()) {
+    chat_send_player(player, "server", "missing priv: teleport");
+    return;
+  }
+  
   if(args.size() != 2) {
     chat_send_player(player, "server", "invalid command: wrong number of args, expected '/world <name>'");
     return;
@@ -98,6 +111,11 @@ void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args) {
+  if(player->data.privs.find("teleport") == player->data.privs.end()) {
+    chat_send_player(player, "server", "missing priv: teleport");
+    return;
+  }
+  
   if(args.size() != 2) {
     chat_send_player(player, "server", "invalid command: wrong number of args, expected '/universe <number>'");
     return;
@@ -116,4 +134,28 @@ void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args)
   } catch(std::exception const& e) {
     chat_send_player(player, "server", "invalid command: invalid input, expected '/universe <number>'");
   }
+}
+
+void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
+  if(args.size() != 2) {
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/grantme <priv>'");
+    return;
+  }
+  
+  std::string new_priv = args[1];
+  
+  if(allowed_privs.find(new_priv) == allowed_privs.end()) {
+    chat_send_player(player, "server", "invalid priv");
+    return;
+  }
+  
+  if(player->data.privs.find(new_priv) != player->data.privs.end()) {
+    chat_send_player(player, "server", "you already have '" + new_priv + "'");
+    return;
+  }
+  
+  player->data.privs.insert(new_priv);
+  player->send_privs(m_server);
+  
+  chat_send_player(player, "server", "granted '" + new_priv + "'");
 }

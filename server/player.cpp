@@ -48,8 +48,25 @@ std::string PlayerState::entity_data_as_json() {
   return out.str();
 }
 
+std::string PlayerState::privs_as_json() {
+  std::ostringstream out;
+  
+  out << "{\"type\":\"set_player_privs\",\"privs\":[";
+  bool first = true;
+  for(auto p : data.privs) {
+    if(!first) { out << ","; }
+    first = false;
+    out << "\"" + json_escape(p) + "\"";
+  }
+  out << "]}";
+  return out.str();
+}
+
 void PlayerState::send_pos(WsServer& sender) {
   sender.send(m_connection_hdl, pos_as_json(), websocketpp::frame::opcode::text);
+}
+void PlayerState::send_privs(WsServer& sender) {
+  sender.send(m_connection_hdl, privs_as_json(), websocketpp::frame::opcode::text);
 }
 
 bool PlayerState::needs_mapblock_update(MapblockUpdateInfo info) {

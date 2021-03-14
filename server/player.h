@@ -65,8 +65,10 @@ class PlayerState {
     
     std::string pos_as_json();
     std::string entity_data_as_json();
+    std::string privs_as_json();
     
     void send_pos(WsServer& sender);
+    void send_privs(WsServer& sender);
     
     bool needs_mapblock_update(MapblockUpdateInfo info);
     unsigned int send_mapblock(Mapblock *mb, WsServer& sender);

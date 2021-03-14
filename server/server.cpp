@@ -175,6 +175,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       if(player->auth) {
         player->send_pos(m_server);
+        player->send_privs(m_server);
         
         player->prepare_nearby_mapblocks(2, 3, 0, map);
         player->prepare_nearby_mapblocks(1, 2, 1, map);
@@ -308,6 +309,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         cmd_tp_world(player, tokens);
       } else if(tokens[0] == "/universe") {
         cmd_tp_universe(player, tokens);
+      } else if(tokens[0] == "/grantme") {
+        cmd_grantme(player, tokens);
       } else {
         chat_send_player(player, "server", "unknown command");
       }
@@ -372,6 +375,7 @@ void Server::tick(const boost::system::error_code&) {
     
     for(auto p : m_players) {
       PlayerState *player = p.second;
+      if(!player->auth) { continue; }
       
       std::vector<MapPos<int>> nearby_known_mapblocks = player->list_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, PLAYER_MAPBLOCK_INTEREST_DISTANCE_W);
       
@@ -403,6 +407,7 @@ void Server::tick(const boost::system::error_code&) {
   
   for(auto p : m_players) {
     PlayerState *player = p.second;
+    if(!player->auth) { continue; }
     
     std::ostringstream out;
     out << "{\"type\":\"update_entities\",\"actions\":[";

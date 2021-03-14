@@ -870,19 +870,33 @@
     if(!api.ingameKey()) { return; }
     key = key.toLowerCase();
     
-    if(key == "k") { api.player.fly = !api.player.fly; }
+    if(key == "k") {
+      if(api.player.fly) {
+        api.player.fly = false;
+      } else {
+        if(api.player.privs.includes("fly")) {
+          api.player.fly = true;
+        } else {
+          mods.chat.print("no fly priv");
+        }
+      }
+    }
     if(key == "j") {
       if(mods.default._fast) {
         api.player.controls.speed = 4;
         mods.default._fast = false;
       } else {
-        api.player.controls.speed = 10;
-        mods.default._fast = true;
+        if(api.player.privs.includes("fast")) {
+          api.player.controls.speed = 12;
+          mods.default._fast = true;
+        } else {
+          mods.chat.print("no fast priv");
+        }
       }
     }
     
     if(key == "Alt") { //FIXME - ease in/out
-      api.player.controls.speed = 10;
+      api.player.controls.speed = 8;
       mods.default._sprint = true;
     }
   });
@@ -891,11 +905,7 @@
     key = key.toLowerCase();
     
     if(key == "Alt" && mods.default._sprint) {
-      if(mods.default._fast) {
-        api.player.controls.speed = 10;
-      } else {
-        api.player.controls.speed = 4;
-      }
+      api.player.controls.speed = 4;
       mods.default._sprint = false;
     }
   });
