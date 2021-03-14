@@ -59,6 +59,8 @@
 #include "database.h"
 
 #include "player.h"
+#include "player_data.h"
+#include "player_auth.h"
 
 using WsServer = websocketpp::server<websocketpp::config::asio>;
 using websocketpp::connection_hdl;

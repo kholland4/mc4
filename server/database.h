@@ -26,6 +26,7 @@
 
 #include "vector.h"
 #include "mapblock.h"
+#include "player_data.h"
 
 class Database {
   public:
@@ -34,6 +35,16 @@ class Database {
     virtual Mapblock* get_mapblock(MapPos<int> pos) = 0;
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb) = 0;
     virtual void clean_cache() = 0;
+    
+    virtual void store_pw_info(PlayerPasswordAuthInfo info) = 0;
+    virtual PlayerPasswordAuthInfo fetch_pw_info(std::string login_name) = 0;
+    virtual void update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo info) = 0;
+    virtual void delete_pw_info(std::string login_name) = 0;
+    
+    virtual void store_player_data(PlayerData data) = 0;
+    virtual PlayerData fetch_player_data(std::string auth_id) = 0;
+    virtual void update_player_data(PlayerData data) = 0;
+    virtual void delete_player_data(std::string auth_id) = 0;
 };
 
 class MemoryDB : public Database {
@@ -43,9 +54,21 @@ class MemoryDB : public Database {
     virtual Mapblock* get_mapblock(MapPos<int> pos);
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
+    
+    virtual void store_pw_info(PlayerPasswordAuthInfo info);
+    virtual PlayerPasswordAuthInfo fetch_pw_info(std::string login_name);
+    virtual void update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo info); //might change login name
+    virtual void delete_pw_info(std::string login_name);
+    
+    virtual void store_player_data(PlayerData data);
+    virtual PlayerData fetch_player_data(std::string auth_id);
+    virtual void update_player_data(PlayerData data);
+    virtual void delete_player_data(std::string auth_id);
   
   private:
     std::map<MapPos<int>, Mapblock*> datastore;
+    std::map<std::string, PlayerPasswordAuthInfo*> pw_auth_store;
+    std::map<std::string, PlayerData*> player_data_store;
 };
 
 class SQLiteDB: public Database {

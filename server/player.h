@@ -25,6 +25,8 @@
 #include "mapblock.h"
 #include "map.h"
 #include "json.h"
+#include "player_data.h"
+#include "player_auth.h"
 
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -82,6 +84,23 @@ class PlayerState {
       sender.send(m_connection_hdl, msg, websocketpp::frame::opcode::text);
     }
     
+    void load_data(PlayerData _data) {
+      data = _data;
+      
+      pos = data.pos;
+      vel = data.vel;
+      rot = data.rot;
+      m_name = data.name;
+    }
+    PlayerData get_data() {
+      data.pos = pos;
+      data.vel = vel;
+      data.rot = rot;
+      //don't save name
+      
+      return data;
+    }
+    
     bool auth;
     
     //Stores the player's physical position.
@@ -92,6 +111,9 @@ class PlayerState {
     
     std::map<MapPos<int>, MapblockUpdateInfo> known_mapblocks;
     std::set<std::string> known_player_tags;
+    
+    PlayerAuthenticator auth_state;
+    PlayerData data;
   private:
     connection_hdl m_connection_hdl;
     boost::uuids::uuid m_tag;

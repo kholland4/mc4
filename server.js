@@ -385,17 +385,26 @@ class ServerRemote extends ServerBase {
     this.timeSinceUpdateSent = 0;
     this._socketReady = false;
     this._invReady = true;
+    this._authReady = false;
+    this._authCredentials = null;
     
     this._url = url;
   }
   
-  connect() {
+  connect(credentials) {
+    this._authCredentials = credentials;
+    
     this.socket = new WebSocket(this._url);
     this.socket.binaryType = "arraybuffer";
-    this.socket.onopen = function() {
+    this.socket.onopen = function(credentials) {
       this._socketReady = true;
       
       debug("client", "status", "connected to " + this.socket.url);
+      
+      this.sendMessage({
+        type: "auth_mode",
+        mode: "password-srp"
+      });
     }.bind(this);
     this.socket.onclose = function() {
       this._socketReady = false;
@@ -403,7 +412,7 @@ class ServerRemote extends ServerBase {
       debug("client", "status", "disconnected from " + this.socket.url);
     }.bind(this);
     this.socket.onerror = function() {
-      this._socketReady = true;
+      this._socketReady = false;
       
       debug("client", "error", "unable to connect to " + this.socket.url);
     }.bind(this);
@@ -570,6 +579,20 @@ class ServerRemote extends ServerBase {
       } else if(data.type == "set_player_pos") {
         this.player.pos.set(data.pos.x, data.pos.y, data.pos.z, data.pos.w, data.pos.world, data.pos.universe);
         this.player.rot.set(data.rot.x, data.rot.y, data.rot.z, data.rot.w);
+      } else if(data.type == "auth_step") {
+        if(data.message == "auth_mode_ok") {
+          this.sendMessage({
+            type: "auth_step",
+            step: "IA",
+            login_name: this._authCredentials.loginName,
+            verifier: this._authCredentials.verifier
+          });
+        } else if(data.message == "auth_ok") {
+          this._authReady = true;
+          debug("client", "status", "authenticated to " + this.socket.url);
+        }
+      } else if(data.type == "auth_err") {
+        debug("client", "status", "authentication failed for " + this.socket.url + " : " + data.reason);
       }
       
       if(data.type in this.messageHooks) {
@@ -719,7 +742,7 @@ class ServerRemote extends ServerBase {
   }
   
   get ready() {
-    return this._socketReady && this._invReady;
+    return this._socketReady && this._invReady && this._authReady;
   }
   
   onFrame(tscale) {

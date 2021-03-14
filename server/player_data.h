@@ -16,32 +16,35 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __LOG_H__
-#define __LOG_H__
+#ifndef __PLAYER_DATA_H__
+#define __PLAYER_DATA_H__
 
-#include <string>
+#include "vector.h"
 
-enum class LogSource {
-  SERVER,
-  SQLITEDB,
-  MEMORYDB,
-  LOADER,
-  MAP,
-  MAPGEN
+class PlayerData {
+  public:
+    PlayerData() : is_nil(true) {}
+    
+    std::string name; //player's display name (by default it's their login username)
+    
+    MapPos<double> pos;
+    MapPos<double> vel;
+    Quaternion rot;
+    
+    bool is_nil;
+    
+    std::string auth_id; //unique identifier of player in database
 };
 
-//Based on https://en.wikipedia.org/wiki/Syslog#Severity_level
-enum class LogLevel {
-  EMERG,
-  ALERT,
-  ERR,
-  WARNING,
-  NOTICE,
-  INFO,
-  EXTRA,
-  DEBUG
+class PlayerPasswordAuthInfo {
+  public:
+    PlayerPasswordAuthInfo() : is_nil(true) {}
+    
+    bool is_nil;
+    std::string login_name;
+    std::string salt;
+    std::string verifier;
+    std::string auth_id;
 };
-
-void log(LogSource src, LogLevel lvl, std::string message);
 
 #endif

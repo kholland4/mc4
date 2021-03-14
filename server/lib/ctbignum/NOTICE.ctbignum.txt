@@ -1,0 +1,35 @@
+CTBignum 
+C++ Library for Compile-Time and Run-Time Multi-Precision and Modular Arithmetic
+
+Copyright 2018 Authors
+   
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use the files in this repository except in compliance 
+   with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+   
+
+The following is a list of people who have contributed to the ctbignum library.
+If you have contributed a patch or made some other contribution to ctbignum,
+please submit a patch to this file to add yourself, and it will be done!
+
+The list is sorted by surname and formatted to allow automatic processing.
+The fields are: name (N), email (E), web-address (W), description (D)
+
+N: Niek J. Bouman
+E: n.j.bouman@tue.nl
+D: main designer/author
+
+N: Johan Engelen
+E: jbc.engelen@gmail.com
+D: CI scripts / code reviews / bugfixes / advice
+

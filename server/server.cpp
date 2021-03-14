@@ -151,6 +151,24 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
     if(!player->auth) {
       //TODO handle auth messages
       //TODO send reply saying unauthorized (if not an auth message)
+      
+      bool is_auth = player->auth_state.step(msg->get_payload(), m_server, hdl, db);
+      if(is_auth) {
+        player->load_data(db.fetch_player_data(player->auth_state.result()));
+        player->auth = true;
+      }
+      
+      if(player->auth) {
+        player->send_pos(m_server);
+        
+        player->prepare_nearby_mapblocks(2, 3, 0, map);
+        player->prepare_nearby_mapblocks(1, 2, 1, map);
+        
+        log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " connected!");
+        chat_send_player(player, "server", status());
+        chat_send("server", "*** " + player->get_name() + " joined the server!");
+      }
+      
       return;
     }
     
@@ -175,6 +193,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       player->pos.set(pt.get<double>("pos.x"), pt.get<double>("pos.y"), pt.get<double>("pos.z"), pt.get<int>("pos.w"), player->pos.world, player->pos.universe);
       player->vel.set(pt.get<double>("vel.x"), pt.get<double>("vel.y"), pt.get<double>("vel.z"), player->vel.w, player->vel.world, player->vel.universe);
       player->rot.set(pt.get<double>("rot.x"), pt.get<double>("rot.y"), pt.get<double>("rot.z"), pt.get<double>("rot.w"));
+      
+      db.update_player_data(player->get_data());
       
       player->prepare_nearby_mapblocks(2, 3, 0, map);
       player->prepare_nearby_mapblocks(1, 2, 1, map);
@@ -276,46 +296,38 @@ void Server::on_open(connection_hdl hdl) {
   PlayerState *player = new PlayerState(hdl);
   m_players[hdl] = player;
   
-  player->pos.set(0, 20, 0, 0, 0, 0);
-  player->vel.set(0, 0, 0, 0, 0, 0);
-  player->rot.set(0, 0, 0, 0);
-  player->auth = true; //TODO: authenticate player & set their name
-  
-  player->send_pos(m_server);
-  
-  player->prepare_nearby_mapblocks(2, 3, 0, map);
-  player->prepare_nearby_mapblocks(1, 2, 1, map);
-  
-  log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " connected!");
-  chat_send_player(player, "server", status());
-  chat_send("server", "*** " + player->get_name() + " joined the server!");
+  player->auth = false; //TODO: authenticate player & set their name
 }
 
 void Server::on_close(connection_hdl hdl) {
   PlayerState *player = m_players[hdl];
   m_players.erase(hdl);
   
-  //Clean up entities.
-  for(auto p : m_players) {
-    PlayerState *receiver = p.second;
+  if(player->auth) {
+    db.update_player_data(player->get_data());
     
-    //Player should *not* know about candidate entity
-    if(receiver->known_player_tags.find(player->get_tag()) != receiver->known_player_tags.end()) {
-      //...but they do
-      //so delete it
+    //Clean up entities.
+    for(auto p : m_players) {
+      PlayerState *receiver = p.second;
       
-      std::ostringstream out;
-      out << "{\"type\":\"update_entities\",\"actions\":[";
-      out << "{\"type\":\"delete\",\"data\":" << player->entity_data_as_json() << "}";
-      out << "]}";
-      receiver->send(out.str(), m_server);
-      
-      receiver->known_player_tags.erase(player->get_tag());
+      //Player should *not* know about candidate entity
+      if(receiver->known_player_tags.find(player->get_tag()) != receiver->known_player_tags.end()) {
+        //...but they do
+        //so delete it
+        
+        std::ostringstream out;
+        out << "{\"type\":\"update_entities\",\"actions\":[";
+        out << "{\"type\":\"delete\",\"data\":" << player->entity_data_as_json() << "}";
+        out << "]}";
+        receiver->send(out.str(), m_server);
+        
+        receiver->known_player_tags.erase(player->get_tag());
+      }
     }
+    
+    log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " disconnected.");
+    chat_send("server", "*** " + player->get_name() + " left the server.");
   }
-  
-  log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " disconnected.");
-  chat_send("server", "*** " + player->get_name() + " left the server.");
   
   delete player;
   

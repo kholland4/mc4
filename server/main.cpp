@@ -23,8 +23,8 @@
 int main() {
   load_node_defs("defs.json");
   
-  SQLiteDB db("test_map.sqlite");
-  //MemoryDB db;
+  //SQLiteDB db("test_map.sqlite");
+  MemoryDB db;
   MapgenAlpha mapgen0(82);
   World *world0 = new World("Earth", mapgen0);
   MapgenHeck mapgen1(82);

@@ -266,7 +266,7 @@ function loadLoop() {
   
   if(ready) {
     debug("main", "status", "loaded textures, icons, and mods");
-    server.connect();
+    server.connect({loginName: "test_player", verifier: "2"});
     loadLoop2();
   } else {
     requestAnimationFrame(loadLoop);

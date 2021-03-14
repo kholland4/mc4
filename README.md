@@ -24,6 +24,11 @@ See [LICENSE](LICENSE) and the top of each source code file for license informat
 * [PerlinNoise.hpp](https://github.com/Reputeless/PerlinNoise):
   Ryo Suzuki.
   See [PerlinNoise.hpp](server/lib/PerlinNoise.hpp) for license information.
+* [CTBignum](https://github.com/niekbouman/ctbignum):
+  Niek J. Bouman, Johan Engelen (Apache License 2.0).
+  See [LICENSE.ctbignum.txt](server/lib/ctbignum/LICENSE.ctbignum.txt) and
+  [NOTICE.ctbignum.txt](server/lib/ctbignum/NOTICE.ctbignum.txt) for full
+  license information.
 
 #### Assets
 
