@@ -479,7 +479,7 @@ void MapgenAlpha::generate_at(MapPos<int> pos, Mapblock *mb) {
           }
           
           //no trees below shoreline
-          if(height <= 3) { continue; }
+          if(height <= MAPGENALPHA_SAND_DEPTH) { continue; }
           
           if(height < global_offset.y - max_tree_spread_up.y || height > global_offset.y + MAPBLOCK_SIZE_Y + max_tree_spread_down.y) { continue; }
           
