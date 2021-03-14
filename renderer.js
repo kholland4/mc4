@@ -447,9 +447,9 @@ function renderWorkerCallback(message) {
   var facePos = message.data.facePos;
   
   var geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(verts), 3));
-  geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(uvs), 2));
-  geometry.setAttribute("color", new THREE.BufferAttribute(new Uint8Array(colors), 3, true));
+  geometry.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+  geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3, true));
   var material = new THREE.MeshBasicMaterial({map: texmap, vertexColors: THREE.VertexColors, alphaTest: 0.5});
   var mesh = new THREE.Mesh(geometry, material);
   mesh.position.x = pos.x * MAPBLOCK_SIZE.x;

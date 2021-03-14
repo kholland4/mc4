@@ -495,9 +495,9 @@ onmessage = function(e) {
   }
   
   var res = {
-    verts: verts,
-    uvs: uvs,
-    colors: colors,
+    verts: new Float32Array(verts),
+    uvs: new Float32Array(uvs),
+    colors: new Uint8Array(colors),
     facePos: facePos
   }
   /*if(lightNeedsUpdate) {

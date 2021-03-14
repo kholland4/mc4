@@ -27,6 +27,7 @@
   mods.chat.dom.style.left = "0px";
   mods.chat.dom.style.top = "0px";
   mods.chat.dom.style.width = "100%";
+  mods.chat.dom.style.zIndex = "7";
   api.registerHUD(mods.chat.dom);
   
   mods.chat.textbox = document.createElement("div");

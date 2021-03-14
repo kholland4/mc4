@@ -37,9 +37,9 @@ function parseXYZ(str) {
   if(delim == "") { return null; }
   
   var s = str.split(delim);
-  if(s.length < 3) { return null; }
-  var res = new THREE.Vector3();
-  for(var i = 0; i < 3; i++) {
+  if(s.length < 3 || s.length > 6) { return null; }
+  var res = new MapPos();
+  for(var i = 0; i < s.length; i++) {
     var n = parseInt(s[i]);
     if(isNaN(n)) { return null; }
     res.setComponent(i, n);
@@ -94,20 +94,42 @@ class MapPos {
   }
   
   getComponent(n) {
-    switch(n) {
-      case 0:
-        return this.x;
-      case 1:
-        return this.y;
-      case 2:
-        return this.z;
-      default:
-        throw new Error("can't get component " + n.toString());
+    if(n >= 0 && n < 6) {
+      return [this.x, this.y, this.z, this.w, this.world, this.universe][n];
+    } else {
+      throw new Error("can't get component " + n.toString());
+    }
+  }
+  
+  setComponent(n, val) {
+    if(n == 0) {
+      this.x = val;
+    } else if(n == 1) {
+      this.y = val;
+    } else if(n == 2) {
+      this.z = val;
+    } else if(n == 3) {
+      this.w = val;
+    } else if(n == 4) {
+      this.world = val;
+    } else if(n == 5) {
+      this.universe = val;
+    } else {
+      throw new Error("can't set component " + n.toString());
     }
   }
   
   clone() {
     return new MapPos(this.x, this.y, this.z, this.w, this.world, this.universe);
+  }
+  
+  copy(other) {
+    if(other.x != undefined) { this.x = other.x; }
+    if(other.y != undefined) { this.y = other.y; }
+    if(other.z != undefined) { this.z = other.z; }
+    if(other.w != undefined) { this.w = other.w; }
+    if(other.world != undefined) { this.world = other.world; }
+    if(other.universe != undefined) { this.universe = other.universe; }
   }
 }
 

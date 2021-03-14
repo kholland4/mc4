@@ -147,12 +147,14 @@ void Map::tick_fluids(std::set<MapPos<int>> mapblocks) {
             make_source = nearby_source_count >= 2;
             int target_height = make_source ? 0 : (largest_adj_height + 2);
             
-            Node rel_n_above = get_node_rel_prefetch(input_mapblocks, mb_pos, rel_pos + MapPos<int>(0, 1, 0, 0, 0, 0));
-            if(rel_n_above.itemstring == n.itemstring) {
-              int height_above = (rel_n_above.rot >> 4) & 15;
-              if(height_above < target_height) {
-                target_height = height_above;
-                visual_fullheight = true;
+            if(!make_source) {
+              Node rel_n_above = get_node_rel_prefetch(input_mapblocks, mb_pos, rel_pos + MapPos<int>(0, 1, 0, 0, 0, 0));
+              if(rel_n_above.itemstring == n.itemstring) {
+                int height_above = (rel_n_above.rot >> 4) & 15;
+                if(height_above < target_height) {
+                  target_height = height_above;
+                  visual_fullheight = true;
+                }
               }
             }
             
@@ -203,6 +205,8 @@ void Map::tick_fluids(std::set<MapPos<int>> mapblocks) {
           
           if(new_height <= 15) {
             if(n_below.itemstring == "air" || n_below.itemstring == n.itemstring) {
+              //Don't spread if there's a source below
+              if((n_below.rot & 8) == 0) { continue; }
               //Spread down
               int height_below = new_height;
               int rot = ((height_below & 15) << 4) | 8 | 4; //flags: not source, visual_fullheight
