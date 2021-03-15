@@ -883,11 +883,11 @@
     }
     if(key == "j") {
       if(mods.default._fast) {
-        api.player.controls.speed = 4;
+        api.player.controls.speed = mods.default._sprint ? 8 : 4;
         mods.default._fast = false;
       } else {
         if(api.player.privs.includes("fast")) {
-          api.player.controls.speed = 12;
+          api.player.controls.speed = mods.default._sprint ? 16 : 12;
           mods.default._fast = true;
         } else {
           mods.chat.print("no fast priv");
@@ -895,8 +895,8 @@
       }
     }
     
-    if(key == "Alt") { //FIXME - ease in/out
-      api.player.controls.speed = 8;
+    if(key == "alt") { //FIXME - ease in/out
+      api.player.controls.speed = mods.default._fast ? 16 : 8;
       mods.default._sprint = true;
     }
   });
@@ -904,8 +904,8 @@
     if(!api.ingameKey()) { return; }
     key = key.toLowerCase();
     
-    if(key == "Alt" && mods.default._sprint) {
-      api.player.controls.speed = 4;
+    if(key == "alt" && mods.default._sprint) {
+      api.player.controls.speed = mods.default._fast ? 12 : 4;
       mods.default._sprint = false;
     }
   });

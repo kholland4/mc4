@@ -28,7 +28,7 @@ Server::Server(Database& _db, std::map<int, World*> _worlds)
 {
   //disable logging
   m_server.clear_access_channels(websocketpp::log::alevel::all);
-  m_server.clear_error_channels(websocketpp::log::elevel::all);
+  //m_server.clear_error_channels(websocketpp::log::elevel::all);
   
   m_server.init_asio(&m_io);
   
@@ -148,32 +148,47 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
     
     std::string type = pt.get<std::string>("type");
     
-    if(!player->auth) {
-      //TODO handle auth messages
+    if(!player->auth && !player->auth_guest) {
       //TODO send reply saying unauthorized (if not an auth message)
       
-      bool is_auth = player->auth_state.step(msg->get_payload(), m_server, hdl, db);
-      if(is_auth) {
-        std::string auth_id = player->auth_state.result();
+      if(type == "auth_guest") {
+        PlayerData new_data;
+        new_data.name = player->get_tag();
+        new_data.pos.set(0, 20, 0, 0, 0, 0);
+        new_data.vel.set(0, 0, 0, 0, 0, 0);
+        new_data.rot.set(0, 0, 0, 0);
+        new_data.is_nil = false;
+        player->load_data(new_data);
         
-        for(auto it : m_players) {
-          PlayerState *p = it.second;
-          if(p->auth && p->data.auth_id == auth_id) {
-            chat_send_player(player, "server", "ERROR: player '" + p->data.name + "' is already connected");
-            websocketpp::lib::error_code ec;
-            m_server.close(hdl, websocketpp::close::status::going_away, "kick", ec);
-            if(ec) {
-              log(LogSource::SERVER, LogLevel::ERR, "error closing connection: " + ec.message());
+        player->auth_guest = true;
+        
+        m_server.send(hdl, "{\"type\":\"auth_guest\",\"message\":\"guest_ok\"}", websocketpp::frame::opcode::text);
+      } else {
+        //Authenticate to an account.
+        
+        bool is_auth = player->auth_state.step(msg->get_payload(), m_server, hdl, db);
+        if(is_auth) {
+          std::string auth_id = player->auth_state.result();
+          
+          for(auto it : m_players) {
+            PlayerState *p = it.second;
+            if(p->auth && p->data.auth_id == auth_id) {
+              chat_send_player(player, "server", "ERROR: player '" + p->data.name + "' is already connected");
+              websocketpp::lib::error_code ec;
+              m_server.close(hdl, websocketpp::close::status::going_away, "kick", ec);
+              if(ec) {
+                log(LogSource::SERVER, LogLevel::ERR, "error closing connection: " + ec.message());
+              }
+              return;
             }
-            return;
           }
+          
+          player->load_data(db.fetch_player_data(auth_id));
+          player->auth = true;
         }
-        
-        player->load_data(db.fetch_player_data(auth_id));
-        player->auth = true;
       }
       
-      if(player->auth) {
+      if(player->auth || player->auth_guest) {
         player->send_pos(m_server);
         player->send_privs(m_server);
         
@@ -189,7 +204,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
     }
     
     //message starts with "auth"
-    if(type.rfind("auth", 0) == 0) {
+    if(type.rfind("auth", 0) == 0 && player->auth) {
       bool is_auth = player->auth_state.step(msg->get_payload(), m_server, hdl, db);
       if(!is_auth) {
         db.update_player_data(player->get_data());
@@ -221,7 +236,9 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       player->vel.set(pt.get<double>("vel.x"), pt.get<double>("vel.y"), pt.get<double>("vel.z"), player->vel.w, player->vel.world, player->vel.universe);
       player->rot.set(pt.get<double>("rot.x"), pt.get<double>("rot.y"), pt.get<double>("rot.z"), pt.get<double>("rot.w"));
       
-      db.update_player_data(player->get_data());
+      if(player->auth) {
+        db.update_player_data(player->get_data());
+      }
       
       player->prepare_nearby_mapblocks(2, 3, 0, map);
       player->prepare_nearby_mapblocks(1, 2, 1, map);
@@ -325,7 +342,8 @@ void Server::on_open(connection_hdl hdl) {
   PlayerState *player = new PlayerState(hdl);
   m_players[hdl] = player;
   
-  player->auth = false; //TODO: authenticate player & set their name
+  //player is by default auth=false, auth_guest=false
+  //player will be authenticated later at the client's request
 }
 
 void Server::on_close(connection_hdl hdl) {
@@ -334,7 +352,9 @@ void Server::on_close(connection_hdl hdl) {
   
   if(player->auth) {
     db.update_player_data(player->get_data());
-    
+  }
+  
+  if(player->auth || player->auth_guest) {
     //Clean up entities.
     for(auto p : m_players) {
       PlayerState *receiver = p.second;
@@ -375,7 +395,7 @@ void Server::tick(const boost::system::error_code&) {
     
     for(auto p : m_players) {
       PlayerState *player = p.second;
-      if(!player->auth) { continue; }
+      if(!player->auth && !player->auth_guest) { continue; }
       
       std::vector<MapPos<int>> nearby_known_mapblocks = player->list_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, PLAYER_MAPBLOCK_INTEREST_DISTANCE_W);
       
@@ -407,7 +427,7 @@ void Server::tick(const boost::system::error_code&) {
   
   for(auto p : m_players) {
     PlayerState *player = p.second;
-    if(!player->auth) { continue; }
+    if(!player->auth && !player->auth_guest) { continue; }
     
     std::ostringstream out;
     out << "{\"type\":\"update_entities\",\"actions\":[";

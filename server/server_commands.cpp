@@ -104,6 +104,9 @@ void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
       player->pos.world = it.first;
       chat_send_player(player, "server", "Welcome to " + it.second->name + "!");
       player->send_pos(m_server);
+      if(player->auth) {
+        db.update_player_data(player->get_data());
+      }
       return;
     }
   }
@@ -130,6 +133,10 @@ void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args)
       player->pos.universe = universe;
       chat_send_player(player, "server", "Welcome to universe " + std::to_string(player->pos.universe) + "!");
       player->send_pos(m_server);
+      if(player->auth) {
+        db.update_player_data(player->get_data());
+      }
+      return;
     }
   } catch(std::exception const& e) {
     chat_send_player(player, "server", "invalid command: invalid input, expected '/universe <number>'");
@@ -156,6 +163,10 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
   
   player->data.privs.insert(new_priv);
   player->send_privs(m_server);
+  
+  if(player->auth) {
+    db.update_player_data(player->get_data());
+  }
   
   chat_send_player(player, "server", "granted '" + new_priv + "'");
 }

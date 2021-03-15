@@ -104,6 +104,7 @@ class PlayerState {
     }
     
     bool auth;
+    bool auth_guest;
     
     //Stores the player's physical position.
     //Once 'auth' is set to true, these will contain valid data.

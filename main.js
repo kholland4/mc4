@@ -58,7 +58,8 @@ var menuConfig = {
   gameType: "local", // local, remote
   remoteServer: "ws://localhost:8080/",
   authName: "",
-  authPassword: ""
+  authPassword: "",
+  authGuest: false
 };
 
 function initEntryMenu() {
@@ -104,8 +105,14 @@ function initEntryMenu() {
   joinForm.appendChild(authPassword);
   
   var startButton = uiElement("button");
-  startButton.innerText = "Connect";
+  startButton.innerText = "Login";
   joinForm.appendChild(startButton);
+  
+  var guestStartButton = uiElement("button");
+  guestStartButton.innerText = "Connect as guest";
+  guestStartButton.type = "button";
+  guestStartButton.onclick = function() { menuConfig.gameType = "remote"; menuConfig.authGuest = true; uiHideWindow(); init(); };
+  joinForm.appendChild(guestStartButton);
   
   win.add(joinForm);
   
@@ -290,7 +297,7 @@ function loadLoop() {
   if(ready) {
     debug("main", "status", "loaded textures, icons, and mods");
     //TODO use srp or something
-    server.connect({loginName: menuConfig.authName, verifier: menuConfig.authPassword});
+    server.connect({guest: menuConfig.authGuest, loginName: menuConfig.authName, verifier: menuConfig.authPassword});
     loadLoop2();
   } else {
     requestAnimationFrame(loadLoop);

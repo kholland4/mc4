@@ -401,10 +401,16 @@ class ServerRemote extends ServerBase {
       
       debug("client", "status", "connected to " + this.socket.url);
       
-      this.sendMessage({
-        type: "auth_mode",
-        mode: "password-srp"
-      });
+      if(this._authCredentials.guest) {
+        this.sendMessage({
+          type: "auth_guest"
+        });
+      } else {
+        this.sendMessage({
+          type: "auth_mode",
+          mode: "password-srp"
+        });
+      }
     }.bind(this);
     this.socket.onclose = function() {
       this._socketReady = false;
@@ -595,6 +601,11 @@ class ServerRemote extends ServerBase {
         } else if(data.message == "register_ok") {
           this._authReady = true;
           debug("client", "status", "registered new account for " + this._authCredentials.loginName);
+        }
+      } else if(data.type == "auth_guest") {
+        if(data.message == "guest_ok") {
+          this._authReady = true;
+          debug("client", "status", "connected as guest");
         }
       } else if(data.type == "auth_err") {
         if(data.reason == "login_name_not_found") {

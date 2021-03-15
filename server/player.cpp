@@ -21,7 +21,7 @@
 #include <cstring>
 
 PlayerState::PlayerState(connection_hdl hdl)
-    : auth(false), m_connection_hdl(hdl), m_tag(boost::uuids::random_generator()()), m_name(get_tag())
+    : auth(false), auth_guest(false), m_connection_hdl(hdl), m_tag(boost::uuids::random_generator()()), m_name(get_tag())
 {
   
 }
@@ -174,11 +174,12 @@ unsigned int PlayerState::send_mapblock(Mapblock *mb, WsServer& sender) {
                   sizeof(uint32_t) +
                   sizeof(uint32_t) +
                   sizeof(uint32_t) +
-                  MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z * sizeof(uint32_t) +
+                  MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z * sizeof(uint32_t) + 4 +
                   sizeof(uint32_t) +
-                  MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z * sizeof(uint16_t) +
                   sizeof(uint32_t) +
-                  IDtoIS_len];
+                  MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z * sizeof(uint16_t) + 4 +
+                  sizeof(uint32_t) +
+                  IDtoIS_len + 4] = {0};
   
   uint32_t *out_buf_32 = (uint32_t*) out_buf;
   int32_t *out_buf_i32 = (int32_t*) out_buf;
