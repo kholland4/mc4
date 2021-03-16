@@ -503,5 +503,5 @@ onmessage = function(e) {
   /*if(lightNeedsUpdate) {
     res.data = data;
   }*/
-  this.postMessage(res);
+  this.postMessage(res, [res.verts.buffer, res.uvs.buffer, res.colors.buffer]);
 };

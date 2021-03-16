@@ -245,56 +245,68 @@ function renderUpdateMap(centerPos, doScan) {
   var raycastTestLayers = new THREE.Layers();
   raycastTestLayers.set(2);
   for(var key in renderCurrentMeshes) {
-    if(renderCurrentMeshes[key].pos.x < centerPos.x - unrenderDist.x || renderCurrentMeshes[key].pos.x > centerPos.x + unrenderDist.x ||
-       renderCurrentMeshes[key].pos.y < centerPos.y - unrenderDist.y || renderCurrentMeshes[key].pos.y > centerPos.y + unrenderDist.y ||
-       renderCurrentMeshes[key].pos.z < centerPos.z - unrenderDist.z || renderCurrentMeshes[key].pos.z > centerPos.z + unrenderDist.z ||
-       renderCurrentMeshes[key].pos.w < centerPos.w - unrenderDist.w || renderCurrentMeshes[key].pos.w > centerPos.w + unrenderDist.w ||
-       renderCurrentMeshes[key].pos.world < centerPos.world - unrenderDist.world || renderCurrentMeshes[key].pos.world > centerPos.world + unrenderDist.world ||
-       renderCurrentMeshes[key].pos.universe < centerPos.universe - unrenderDist.universe || renderCurrentMeshes[key].pos.universe > centerPos.universe + unrenderDist.universe) {
-      renderCurrentMeshes[key].obj.geometry.dispose();
-      renderCurrentMeshes[key].obj.material.dispose();
-      renderMapGroup.remove(renderCurrentMeshes[key].obj);
+    var curr = renderCurrentMeshes[key];
+    var curr_pos = curr.pos;
+    
+    if(curr_pos.x < centerPos.x - unrenderDist.x || curr_pos.x > centerPos.x + unrenderDist.x ||
+       curr_pos.y < centerPos.y - unrenderDist.y || curr_pos.y > centerPos.y + unrenderDist.y ||
+       curr_pos.z < centerPos.z - unrenderDist.z || curr_pos.z > centerPos.z + unrenderDist.z ||
+       curr_pos.w < centerPos.w - unrenderDist.w || curr_pos.w > centerPos.w + unrenderDist.w ||
+       curr_pos.world < centerPos.world - unrenderDist.world || curr_pos.world > centerPos.world + unrenderDist.world ||
+       curr_pos.universe < centerPos.universe - unrenderDist.universe || curr_pos.universe > centerPos.universe + unrenderDist.universe) {
+      curr.obj.geometry.dispose();
+      curr.obj.material.dispose();
+      renderMapGroup.remove(curr.obj);
       renderCurrentMeshes[key] = null;
       delete renderCurrentMeshes[key];
-    } else if(renderCurrentMeshes[key].pos.x < centerPos.x - hideDist.x || renderCurrentMeshes[key].pos.x > centerPos.x + hideDist.x ||
-       renderCurrentMeshes[key].pos.y < centerPos.y - hideDist.y || renderCurrentMeshes[key].pos.y > centerPos.y + hideDist.y ||
-       renderCurrentMeshes[key].pos.z < centerPos.z - hideDist.z || renderCurrentMeshes[key].pos.z > centerPos.z + hideDist.z ||
-       renderCurrentMeshes[key].pos.w < centerPos.w - hideDist.w || renderCurrentMeshes[key].pos.w > centerPos.w + hideDist.w ||
-       renderCurrentMeshes[key].pos.world < centerPos.world - hideDist.world || renderCurrentMeshes[key].pos.world > centerPos.world + hideDist.world ||
-       renderCurrentMeshes[key].pos.universe < centerPos.universe - hideDist.universe || renderCurrentMeshes[key].pos.universe > centerPos.universe + hideDist.universe) {
+    } else if(curr_pos.x < centerPos.x - hideDist.x || curr_pos.x > centerPos.x + hideDist.x ||
+       curr_pos.y < centerPos.y - hideDist.y || curr_pos.y > centerPos.y + hideDist.y ||
+       curr_pos.z < centerPos.z - hideDist.z || curr_pos.z > centerPos.z + hideDist.z ||
+       curr_pos.w < centerPos.w - hideDist.w || curr_pos.w > centerPos.w + hideDist.w ||
+       curr_pos.world < centerPos.world - hideDist.world || curr_pos.world > centerPos.world + hideDist.world ||
+       curr_pos.universe < centerPos.universe - hideDist.universe || curr_pos.universe > centerPos.universe + hideDist.universe) {
       
-      //renderCurrentMeshes[key].obj.visible = false;
-      renderCurrentMeshes[key].obj.layers.disable(1); //disable the camera layer
-    } else if(!renderCurrentMeshes[key].obj.layers.test(cameraTestLayers)) {
-      //renderCurrentMeshes[key].obj.visible = true;
-      renderCurrentMeshes[key].obj.layers.enable(1); //enable the camera layer
+      //curr.obj.visible = false;
+      curr.obj.layers.disable(1); //disable the camera layer
+    } else if(!curr.obj.layers.test(cameraTestLayers)) {
+      //curr.obj.visible = true;
+      curr.obj.layers.enable(1); //enable the camera layer
     }
     
     if(key in renderCurrentMeshes) {
       //raycast to wherever we're peeking
-      if((renderCurrentMeshes[key].pos.w == player.pos.w + player.peekW) && !renderCurrentMeshes[key].obj.layers.test(raycastTestLayers)) {
-        renderCurrentMeshes[key].obj.layers.enable(2);
-      } else if((renderCurrentMeshes[key].pos.w != player.pos.w + player.peekW) && renderCurrentMeshes[key].obj.layers.test(raycastTestLayers)) {
-        renderCurrentMeshes[key].obj.layers.disable(2);
+      if((curr_pos.w == player.pos.w + player.peekW) && !curr.obj.layers.test(raycastTestLayers)) {
+        curr.obj.layers.enable(2);
+      } else if((curr_pos.w != player.pos.w + player.peekW) && curr.obj.layers.test(raycastTestLayers)) {
+        curr.obj.layers.disable(2);
       }
       
-      renderCurrentMeshes[key].obj.layers.disable(3); //disable the peek layer
+      curr.obj.layers.disable(3); //disable the peek layer
       
       if(player.peekW != 0) {
-        if((renderCurrentMeshes[key].pos.w == player.pos.w + player.peekW)) {
-          renderCurrentMeshes[key].obj.layers.enable(3); //enable the peek layer
+        if((curr_pos.w == player.pos.w + player.peekW)) {
+          curr.obj.layers.enable(3); //enable the peek layer
         }
       }
     }
   }
   
   for(var i = renderUpdateQueue.length - 1; i >= 0; i--) {
-    if(renderUpdateQueue[i].x < centerPos.x - renderDist.x || renderUpdateQueue[i].x > centerPos.x + renderDist.x ||
-       renderUpdateQueue[i].y < centerPos.y - renderDist.y || renderUpdateQueue[i].y > centerPos.y + renderDist.y ||
-       renderUpdateQueue[i].z < centerPos.z - renderDist.z || renderUpdateQueue[i].z > centerPos.z + renderDist.z ||
-       renderUpdateQueue[i].w < centerPos.w - renderDist.w || renderUpdateQueue[i].w > centerPos.w + renderDist.w ||
-       renderUpdateQueue[i].world < centerPos.world - renderDist.world || renderUpdateQueue[i].world > centerPos.world + renderDist.world ||
-       renderUpdateQueue[i].universe < centerPos.universe - renderDist.universe || renderUpdateQueue[i].universe > centerPos.universe + renderDist.universe) {
+    var ok = false;
+    for(var n = 0; n < renderDist.length; n++) {
+      if(renderUpdateQueue[i].x < centerPos.x - renderDist[n].x || renderUpdateQueue[i].x > centerPos.x + renderDist[n].x ||
+         renderUpdateQueue[i].y < centerPos.y - renderDist[n].y || renderUpdateQueue[i].y > centerPos.y + renderDist[n].y ||
+         renderUpdateQueue[i].z < centerPos.z - renderDist[n].z || renderUpdateQueue[i].z > centerPos.z + renderDist[n].z ||
+         renderUpdateQueue[i].w < centerPos.w - renderDist[n].w || renderUpdateQueue[i].w > centerPos.w + renderDist[n].w ||
+         renderUpdateQueue[i].world < centerPos.world - renderDist[n].world || renderUpdateQueue[i].world > centerPos.world + renderDist[n].world ||
+         renderUpdateQueue[i].universe < centerPos.universe - renderDist[n].universe || renderUpdateQueue[i].universe > centerPos.universe + renderDist[n].universe) {
+        
+      } else {
+        ok = true;
+        break;
+      }
+    }
+    if(!ok) {
       renderUpdateQueue.splice(i, 1);
     }
   }

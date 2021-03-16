@@ -458,16 +458,6 @@ class ServerRemote extends ServerBase {
         mapBlock.updateNum = updateNum;
         mapBlock.lightUpdateNum = lightUpdateNum;
         mapBlock.lightNeedsUpdate = lightNeedsUpdate;
-        if(index in this.cache) {
-          if(mapBlock.updateNum != this.cache[index].updateNum) {
-            mapBlock.renderNeedsUpdate = 2; //getMapBlock will force the lighting to be updated (if lightNeedsUpdate is set) before the render update can happen
-          } else if(mapBlock.lightUpdateNum != this.cache[index].lightUpdateNum) {
-            //FIXME?
-            renderQueueLightingUpdate(mapBlock.pos);
-          }
-        } else {
-          mapBlock.renderNeedsUpdate = 1;
-        }
         
         var y = 0;
         var x = 0;
@@ -547,6 +537,9 @@ class ServerRemote extends ServerBase {
         }
         mapBlock.props.sunlit = sunlit;
         
+        var oldMapBlock = null;
+        if(index in this.cache) { oldMapBlock = this.cache[index]; }
+        
         this.cache[index] = mapBlock;
         
         //Since updates are only queued, they won't happen until after this code runs
@@ -558,6 +551,67 @@ class ServerRemote extends ServerBase {
               this.patches[i].doApply();
             }
           }
+        }
+        
+        
+        if(oldMapBlock != null) {
+          if(mapBlock.updateNum != oldMapBlock.updateNum) {
+            //see if any existing IDtoIS entries have changed different
+            var changedIDtoIS = false;
+            if(mapBlock.IDtoIS.length < oldMapBlock.IDtoIS.length) {
+              changedIDtoIS = true;
+            }
+            if(!changedIDtoIS) {
+              for(var i = 0; i < oldMapBlock.IDtoIS.length; i++) {
+                if(mapBlock.IDtoIS[i] != oldMapBlock.IDtoIS[i]) {
+                  changedIDtoIS = true;
+                  break;
+                }
+              }
+            }
+            
+            if(changedIDtoIS) {
+              mapBlock.renderNeedsUpdate = 2; //getMapBlock will force the lighting to be updated (if lightNeedsUpdate is set) before the render update can happen
+            } else {
+              //see where nodes have changed (disregarding lighting)
+              var sides = [false, false, false, false, false, false];
+              var anyDiff = false;
+              for(var x = 0; x < mapBlock.size.x; x++) {
+                for(var y = 0; y < mapBlock.size.y; y++) {
+                  for(var z = 0; z < mapBlock.size.z; z++) {
+                    if((mapBlock.data[x][y][z] & 0b00000000011111111111111111111111) == (oldMapBlock.data[x][y][z] & 0b00000000011111111111111111111111)) { continue; }
+                    
+                    if(x == 0) { sides[0] = true; }
+                    if(x == mapBlock.size.x - 1) { sides[1] = true; }
+                    if(y == 0) { sides[2] = true; }
+                    if(y == mapBlock.size.y - 1) { sides[3] = true; }
+                    if(z == 0) { sides[4] = true; }
+                    if(z == mapBlock.size.z - 1) { sides[5] = true; }
+                    
+                    anyDiff = true;
+                  }
+                }
+              }
+              
+              for(var i = 0; i < sides.length; i++) {
+                if(!sides[i]) { continue; }
+                
+                renderQueueUpdate(new MapPos(mapBlock.pos.x + stdFaces[i].x, mapBlock.pos.y + stdFaces[i].y, mapBlock.pos.z + stdFaces[i].z, mapBlock.pos.w, mapBlock.pos.world, mapBlock.pos.universe), true);
+              }
+              
+              if(anyDiff) {
+                //mapBlock.renderNeedsUpdate = 1;
+                renderQueueUpdate(mapBlock.pos, true);
+              } else if(mapBlock.lightUpdateNum != oldMapBlock.lightUpdateNum) {
+                renderQueueLightingUpdate(mapBlock.pos);
+              }
+            }
+          } else if(mapBlock.lightUpdateNum != oldMapBlock.lightUpdateNum) {
+            //FIXME?
+            renderQueueLightingUpdate(mapBlock.pos);
+          }
+        } else {
+          mapBlock.renderNeedsUpdate = 1;
         }
         
         //if(mapBlock.lightNeedsUpdate > 0 && needLight) {
