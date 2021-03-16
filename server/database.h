@@ -19,6 +19,9 @@
 #ifndef __DATABASE_H__
 #define __DATABASE_H__
 
+//Target maximum number of mapblocks to cache in memory at a time.
+#define TARGET_CACHE_COUNT 9000
+
 #include <map>
 #include <chrono>
 
@@ -38,7 +41,7 @@ class Database {
     
     virtual void store_pw_info(PlayerPasswordAuthInfo info) = 0;
     virtual PlayerPasswordAuthInfo fetch_pw_info(std::string login_name) = 0;
-    virtual void update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo info) = 0;
+    virtual void update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo info) = 0; //might change login name
     virtual void delete_pw_info(std::string login_name) = 0;
     
     virtual void store_player_data(PlayerData data) = 0;
@@ -57,7 +60,7 @@ class MemoryDB : public Database {
     
     virtual void store_pw_info(PlayerPasswordAuthInfo info);
     virtual PlayerPasswordAuthInfo fetch_pw_info(std::string login_name);
-    virtual void update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo info); //might change login name
+    virtual void update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo info);
     virtual void delete_pw_info(std::string login_name);
     
     virtual void store_player_data(PlayerData data);
@@ -80,6 +83,16 @@ class SQLiteDB: public Database {
     virtual Mapblock* get_mapblock(MapPos<int> pos);
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
+    
+    virtual void store_pw_info(PlayerPasswordAuthInfo info);
+    virtual PlayerPasswordAuthInfo fetch_pw_info(std::string login_name);
+    virtual void update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo info);
+    virtual void delete_pw_info(std::string login_name);
+    
+    virtual void store_player_data(PlayerData data);
+    virtual PlayerData fetch_player_data(std::string auth_id);
+    virtual void update_player_data(PlayerData data);
+    virtual void delete_player_data(std::string auth_id);
   
   private:
     sqlite3 *db;

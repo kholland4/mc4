@@ -16,9 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//Target maximun number of mapblocks to cache in memory at a time.
-#define TARGET_CACHE_COUNT 9000
-
 #include "database.h"
 #include "json.h"
 #include "log.h"
@@ -27,44 +24,6 @@
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-
-MapblockUpdateInfo MemoryDB::get_mapblockupdateinfo(MapPos<int> pos) {
-  auto search = datastore.find(pos);
-  if(search != datastore.end()) {
-    return MapblockUpdateInfo(search->second);
-  }
-  return MapblockUpdateInfo(pos);
-}
-
-void MemoryDB::set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) {
-  auto search = datastore.find(pos);
-  if(search != datastore.end()) {
-    info.write_to_mapblock(search->second);
-  }
-}
-
-Mapblock* MemoryDB::get_mapblock(MapPos<int> pos) {
-  auto search = datastore.find(pos);
-  if(search != datastore.end()) {
-    return new Mapblock(*(search->second));
-  }
-  return new Mapblock(pos);
-}
-
-void MemoryDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
-  auto search = datastore.find(pos);
-  if(search != datastore.end()) {
-    delete search->second;
-  }
-  Mapblock *mb_store = new Mapblock(*mb);
-  datastore[pos] = mb_store;
-}
-
-void MemoryDB::clean_cache() {
-  //TODO purge non-dirty mapblocks using similar algorithm to SQLiteDB
-}
-
-
 
 //SQLiteDB row versions:
 /* Version 1:

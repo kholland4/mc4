@@ -17,27 +17,33 @@
 */
 
 #include "database.h"
-#include "mapgen.h"
-#include "server.h"
+#include "log.h"
 
-int main() {
-  load_node_defs("defs.json");
+void SQLiteDB::store_pw_info(PlayerPasswordAuthInfo info) {
   
-  SQLiteDB db("test_map.sqlite");
-  //MemoryDB db;
-  MapgenAlpha mapgen0(82);
-  World *world0 = new World("Earth", mapgen0);
-  MapgenHeck mapgen1(82);
-  World *world1 = new World("Heck", mapgen1);
+}
+
+PlayerPasswordAuthInfo SQLiteDB::fetch_pw_info(std::string login_name) {
+  return PlayerPasswordAuthInfo();
+}
+void SQLiteDB::update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo info) {
   
-  std::map<int, World*> worlds = {
-    {0, world0},
-    {1, world1}
-  };
+}
+void SQLiteDB::delete_pw_info(std::string login_name) {
   
-  Server server(db, worlds);
+}
+
+
+
+void SQLiteDB::store_player_data(PlayerData data) {
   
-  server.set_motd("-- Highly Experimental Test Server (tm)\n-- Use '/gamemode creative' for creative, '/nick new_nickname_here' to change your name, '/status' to view this message, '/help' for other commands\n-- Press 'k' to toggle fly, 'j' to toggle fast");
+}
+PlayerData SQLiteDB::fetch_player_data(std::string auth_id) {
+  return PlayerData();
+}
+void SQLiteDB::update_player_data(PlayerData data) {
   
-  server.run(8080);
+}
+void SQLiteDB::delete_player_data(std::string auth_id) {
+  
 }

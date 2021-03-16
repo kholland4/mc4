@@ -34,12 +34,6 @@ class PlayerGenericAuthenticator {
     virtual std::string result() = 0;
 };
 
-class PlayerUnknownAuthenticator : public PlayerGenericAuthenticator {
-  public:
-    virtual bool step(std::string message, WsServer& server, connection_hdl& hdl, Database& db) { return false; };
-    virtual std::string result() { return ""; };
-};
-
 class PlayerPasswordAuthenticator : public PlayerGenericAuthenticator {
   public:
     PlayerPasswordAuthenticator() : auth_success(false) {}
@@ -56,7 +50,7 @@ class PlayerPasswordAuthenticator : public PlayerGenericAuthenticator {
 class PlayerAuthenticator {
   public:
     PlayerAuthenticator() : has_backend(false), auth_backend(NULL) {}
-    ~PlayerAuthenticator() { delete auth_backend; };
+    ~PlayerAuthenticator() { if(has_backend) { delete auth_backend; } };
     bool step(std::string message, WsServer& server, connection_hdl& hdl, Database& db);
     std::string result();
   
