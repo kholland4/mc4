@@ -328,6 +328,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         cmd_tp_universe(player, tokens);
       } else if(tokens[0] == "/grantme") {
         cmd_grantme(player, tokens);
+      } else if(tokens[0] == "/privs") {
+        cmd_privs(player, tokens);
       } else {
         chat_send_player(player, "server", "unknown command");
       }

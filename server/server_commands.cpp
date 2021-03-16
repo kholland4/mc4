@@ -152,7 +152,7 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
   std::string new_priv = args[1];
   
   if(allowed_privs.find(new_priv) == allowed_privs.end()) {
-    chat_send_player(player, "server", "invalid priv");
+    chat_send_player(player, "server", "invalid privilege");
     return;
   }
   
@@ -169,4 +169,16 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
   }
   
   chat_send_player(player, "server", "granted '" + new_priv + "'");
+}
+
+void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {
+  //TODO: /privs <any player nick or login name>
+  
+  std::ostringstream ss;
+  ss << "privileges of " << player->get_name() << ":";
+  for(auto p : player->data.privs) {
+    ss << " " << p;
+  }
+  
+  chat_send_player(player, "server", ss.str());
 }

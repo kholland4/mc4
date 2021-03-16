@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.2.1"
+#define VERSION "0.2.2"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -93,6 +93,7 @@ class Server {
     void cmd_tp_world(PlayerState *player, std::vector<std::string> args);
     void cmd_tp_universe(PlayerState *player, std::vector<std::string> args);
     void cmd_grantme(PlayerState *player, std::vector<std::string> args);
+    void cmd_privs(PlayerState *player, std::vector<std::string> args);
     
     void on_open(connection_hdl hdl);
     void on_close(connection_hdl hdl);
