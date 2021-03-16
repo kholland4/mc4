@@ -87,7 +87,7 @@ function initEntryMenu() {
   serverAddr.onchange = function() { menuConfig.remoteServer = this.value; };
   joinForm.appendChild(serverAddr);
   
-  joinForm.appendChild(uiElement("br"));
+  /*joinForm.appendChild(uiElement("br"));
   joinForm.appendChild(uiElement("text", "Name"));
   var authName = uiElement("input", menuConfig.authName);
   authName.pattern = "[a-zA-Z0-9\\-_]{1,40}";
@@ -106,7 +106,7 @@ function initEntryMenu() {
   
   var startButton = uiElement("button");
   startButton.innerText = "Login";
-  joinForm.appendChild(startButton);
+  joinForm.appendChild(startButton);*/
   
   var guestStartButton = uiElement("button");
   guestStartButton.innerText = "Connect as guest";
