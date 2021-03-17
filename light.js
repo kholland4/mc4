@@ -24,9 +24,7 @@ var lightWorkersActual = [];
 
 function initLightWorker() {
   for(var i = 0; i < LIGHT_MAX_WORKERS; i++) {
-    var _worker = new Worker("light-worker.js");
-    _worker.onmessage = lightWorkerCallback;
-    lightWorkersActual.push(_worker);
+    lightWorkersActual.push(i + "_worker");
   }
 }
 
@@ -38,66 +36,6 @@ class LightWorker {
     this.worker = worker;
     
     this.ok = true;
-    
-    /*var pos = this.pos;
-    var data = [];
-    var blocks = {
-      "0,0,0": mapBlock
-    };
-    for(var x = -1; x <= 1; x++) {
-      for(var y = -1; y <= 1; y++) {
-        for(var z = -1; z <= 1; z++) {
-          if(x == 0 && y == 0 && z == 0) { continue; }
-          blocks[x + "," + y + "," + z] = server.getMapBlock(new THREE.Vector3(pos.x + x, pos.y + y, pos.z + z));
-        }
-      }
-    }
-    
-    this.ok = true;
-    for(var key in blocks) {
-      if(blocks[key] == null) {
-        this.ok = false;
-        return;
-      }
-    }
-    
-    for(var x = -mapBlock.size.x; x < mapBlock.size.x * 2; x++) {
-      var s1 = [];
-      for(var y = -mapBlock.size.y; y < mapBlock.size.y * 2; y++) {
-        var s2 = [];
-        for(var z = -mapBlock.size.z; z < mapBlock.size.z * 2; z++) {
-          var mbPos = new THREE.Vector3(Math.floor(x / mapBlock.size.x), Math.floor(y / mapBlock.size.y), Math.floor(z / mapBlock.size.z));
-          var mbIndex = mbPos.x + "," + mbPos.y + "," + mbPos.z;
-          
-          s2.push(blocks[mbIndex].data[x - mbPos.x * mapBlock.size.x][y - mbPos.y * mapBlock.size.y][z - mbPos.z * mapBlock.size.z]);
-        }
-        s1.push(s2);
-      }
-      data.push(s1);
-    }
-    
-    var nodeDefAdj = {};
-    for(var key in blocks) {
-      var def = [];
-      for(var i = 0; i < blocks[key].IDtoIS.length; i++) {
-        var itemstring = blocks[key].IDtoIS[i];
-        if(itemstring == null) {
-          def.push(null);
-        } else {
-          def.push(getNodeDef(itemstring));
-        }
-      }
-      
-      nodeDefAdj[key] = def;
-    }
-    
-    this.worker.postMessage({
-      pos: {x: this.pos.x, y: this.pos.y, z: this.pos.z},
-      size: {x: mapBlock.size.x, y: mapBlock.size.y, z: mapBlock.size.z},
-      nodeDefAdj: nodeDefAdj,
-      data: data,
-      lightNeedsUpdate: mapBlock.lightNeedsUpdate
-    });*/
   }
   
   runLocal() {
