@@ -19,6 +19,7 @@
 "use strict";
 
 var SERVER_REMOTE_UPDATE_INTERVAL = 0.25; //how often to send updates about, i. e., the player position to the remote server
+var serverUncacheDist = new MapPos(7, 4, 7, 2, 0, 0);
 
 class ServerBase {
   constructor() {
@@ -37,6 +38,7 @@ class ServerBase {
     
   }
   requestMapBlock(pos) {}
+  suggestUncacheMapBlock(pos) {}
   
   getNodeRaw(pos) {
     var mapBlockPos = new MapPos(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z), pos.w, pos.world, pos.universe);
@@ -776,6 +778,12 @@ class ServerRemote extends ServerBase {
       this.getMapBlock(pos);
     }
   }
+  suggestUncacheMapBlock(pos) {
+    var index = pos.x + "," + pos.y + "," + pos.z + "," + pos.w + "," + pos.world + "," + pos.universe;
+    if(index in this.cache) {
+      delete this.cache[index];
+    }
+  }
   
   setNode(pos, nodeData) {
     //FIXME
@@ -866,6 +874,19 @@ class ServerRemote extends ServerBase {
       }
       
       this.timeSinceUpdateSent = 0;
+    }
+    
+    
+    for(var key in this.cache) {
+      var pos = this.cache[key].pos;
+      if(pos.x < playerMapblock.x - serverUncacheDist.x || pos.x > playerMapblock.x + serverUncacheDist.x ||
+         pos.y < playerMapblock.y - serverUncacheDist.y || pos.y > playerMapblock.y + serverUncacheDist.y ||
+         pos.z < playerMapblock.z - serverUncacheDist.z || pos.z > playerMapblock.z + serverUncacheDist.z ||
+         pos.w < playerMapblock.w - serverUncacheDist.w || pos.w > playerMapblock.w + serverUncacheDist.w ||
+         pos.world < playerMapblock.world - serverUncacheDist.world || pos.world > playerMapblock.world + serverUncacheDist.world ||
+         pos.universe < playerMapblock.universe - serverUncacheDist.universe || pos.universe > playerMapblock.universe + serverUncacheDist.universe) {
+        this.suggestUncacheMapBlock(pos);
+      }
     }
   }
   
