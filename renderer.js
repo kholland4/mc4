@@ -1,6 +1,6 @@
 /*
     mc4, a web voxel building game
-    Copyright (C) 2019 kholland4
+    Copyright (C) 2019-2021 kholland4
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,7 +20,9 @@
 
 "use strict";
 
-var RENDER_MAX_WORKERS = 2; //4
+var RENDER_MESHGEN_USE_WORKER = false;
+
+var RENDER_MAX_WORKERS = RENDER_MESHGEN_USE_WORKER ? 2 : 1; //4
 var RENDER_MAX_LIGHTING_UPDATES = 2;
 
 var sunAmount = 1;
@@ -51,9 +53,11 @@ function initRenderer() {
 
 class RenderWorker {
   constructor(mapBlock, worker) {
+    this.onComplete = [];
+    
     this.pos = mapBlock.pos;
     this.updateNum = mapBlock.updateNum;
-    this.startTime = performance.now();
+    //this.startTime = performance.now();
     this.worker = worker;
     var nodeDef = [];
     for(var i = 0; i < mapBlock.IDtoIS.length; i++) {
@@ -131,9 +135,9 @@ class RenderWorker {
       nodeDefAdj[key] = def;
     }
     
-    this.worker.postMessage({
-      pos: {x: this.pos.x, y: this.pos.y, z: this.pos.z},
-      size: {x: mapBlock.size.x, y: mapBlock.size.y, z: mapBlock.size.z},
+    this.msg = {
+      pos: {x: this.pos.x, y: this.pos.y, z: this.pos.z, w: this.pos.w, world: this.pos.world, universe: this.pos.universe},
+      size: {x: mapBlock.size.x, y: mapBlock.size.y, z: mapBlock.size.z, w: 1, world: 1, universe: 1},
       nodeDef: nodeDef,
       nodeDefAdj: nodeDefAdj,
       unknownDef: getNodeDef("unknown"),
@@ -141,7 +145,25 @@ class RenderWorker {
       lightNeedsUpdate: mapBlock.lightNeedsUpdate,
       sunAmount: sunAmount
       //ldata: ldata
-    });
+    };
+  }
+  
+  exec() {
+    if(RENDER_MESHGEN_USE_WORKER) {
+      this.worker.postMessage(this.msg);
+    } else {
+      var res = generateMapblockMesh(this.msg);
+      renderWorkerCallback({data: res});
+    }
+  }
+  
+  registerOnComplete(f) {
+    this.onComplete.push(f);
+  }
+  runComplete() {
+    for(var i = 0; i < this.onComplete.length; i++) {
+      this.onComplete[i]();
+    }
   }
 }
 
@@ -239,58 +261,6 @@ function renderUpdateMap(centerPos, doScan) {
     }
   }
   
-  //remove out-of-range ones
-  var cameraTestLayers = new THREE.Layers();
-  cameraTestLayers.set(1);
-  var raycastTestLayers = new THREE.Layers();
-  raycastTestLayers.set(2);
-  for(var key in renderCurrentMeshes) {
-    var curr = renderCurrentMeshes[key];
-    var curr_pos = curr.pos;
-    
-    if(curr_pos.x < centerPos.x - unrenderDist.x || curr_pos.x > centerPos.x + unrenderDist.x ||
-       curr_pos.y < centerPos.y - unrenderDist.y || curr_pos.y > centerPos.y + unrenderDist.y ||
-       curr_pos.z < centerPos.z - unrenderDist.z || curr_pos.z > centerPos.z + unrenderDist.z ||
-       curr_pos.w < centerPos.w - unrenderDist.w || curr_pos.w > centerPos.w + unrenderDist.w ||
-       curr_pos.world < centerPos.world - unrenderDist.world || curr_pos.world > centerPos.world + unrenderDist.world ||
-       curr_pos.universe < centerPos.universe - unrenderDist.universe || curr_pos.universe > centerPos.universe + unrenderDist.universe) {
-      curr.obj.geometry.dispose();
-      curr.obj.material.dispose();
-      renderMapGroup.remove(curr.obj);
-      renderCurrentMeshes[key] = null;
-      delete renderCurrentMeshes[key];
-    } else if(curr_pos.x < centerPos.x - hideDist.x || curr_pos.x > centerPos.x + hideDist.x ||
-       curr_pos.y < centerPos.y - hideDist.y || curr_pos.y > centerPos.y + hideDist.y ||
-       curr_pos.z < centerPos.z - hideDist.z || curr_pos.z > centerPos.z + hideDist.z ||
-       curr_pos.w < centerPos.w - hideDist.w || curr_pos.w > centerPos.w + hideDist.w ||
-       curr_pos.world < centerPos.world - hideDist.world || curr_pos.world > centerPos.world + hideDist.world ||
-       curr_pos.universe < centerPos.universe - hideDist.universe || curr_pos.universe > centerPos.universe + hideDist.universe) {
-      
-      //curr.obj.visible = false;
-      curr.obj.layers.disable(1); //disable the camera layer
-    } else if(!curr.obj.layers.test(cameraTestLayers)) {
-      //curr.obj.visible = true;
-      curr.obj.layers.enable(1); //enable the camera layer
-    }
-    
-    if(key in renderCurrentMeshes) {
-      //raycast to wherever we're peeking
-      if((curr_pos.w == player.pos.w + player.peekW) && !curr.obj.layers.test(raycastTestLayers)) {
-        curr.obj.layers.enable(2);
-      } else if((curr_pos.w != player.pos.w + player.peekW) && curr.obj.layers.test(raycastTestLayers)) {
-        curr.obj.layers.disable(2);
-      }
-      
-      curr.obj.layers.disable(3); //disable the peek layer
-      
-      if(player.peekW != 0) {
-        if((curr_pos.w == player.pos.w + player.peekW)) {
-          curr.obj.layers.enable(3); //enable the peek layer
-        }
-      }
-    }
-  }
-  
   for(var i = renderUpdateQueue.length - 1; i >= 0; i--) {
     var ok = false;
     for(var n = 0; n < renderDist.length; n++) {
@@ -381,11 +351,15 @@ function renderUpdateMap(centerPos, doScan) {
     }
   }
   
+  for(var i = 0; i < renderWorkers.length; i++) {
+    renderWorkers[i].exec();
+  }
+  
   //FIXME
   for(var i = 0; i < RENDER_MAX_LIGHTING_UPDATES; i++) {
     var ok_index = 0;
     var ok = false;
-    if(ok_index < renderLightingUpdateQueue.length && !ok) {
+    while(ok_index < renderLightingUpdateQueue.length && !ok) {
       ok = true;
       for(var n = 0; n < renderWorkers.length; n++) {
         if(renderWorkers[n].pos.equals(renderLightingUpdateQueue[ok_index])) {
@@ -407,6 +381,59 @@ function renderUpdateMap(centerPos, doScan) {
       }
     }
   }
+  
+  
+  //remove out-of-range ones
+  var cameraTestLayers = new THREE.Layers();
+  cameraTestLayers.set(1);
+  var raycastTestLayers = new THREE.Layers();
+  raycastTestLayers.set(2);
+  for(var key in renderCurrentMeshes) {
+    var curr = renderCurrentMeshes[key];
+    var curr_pos = curr.pos;
+    
+    if(curr_pos.x < centerPos.x - unrenderDist.x || curr_pos.x > centerPos.x + unrenderDist.x ||
+       curr_pos.y < centerPos.y - unrenderDist.y || curr_pos.y > centerPos.y + unrenderDist.y ||
+       curr_pos.z < centerPos.z - unrenderDist.z || curr_pos.z > centerPos.z + unrenderDist.z ||
+       curr_pos.w < centerPos.w - unrenderDist.w || curr_pos.w > centerPos.w + unrenderDist.w ||
+       curr_pos.world < centerPos.world - unrenderDist.world || curr_pos.world > centerPos.world + unrenderDist.world ||
+       curr_pos.universe < centerPos.universe - unrenderDist.universe || curr_pos.universe > centerPos.universe + unrenderDist.universe) {
+      curr.obj.geometry.dispose();
+      curr.obj.material.dispose();
+      renderMapGroup.remove(curr.obj);
+      renderCurrentMeshes[key] = null;
+      delete renderCurrentMeshes[key];
+    } else if(curr_pos.x < centerPos.x - hideDist.x || curr_pos.x > centerPos.x + hideDist.x ||
+       curr_pos.y < centerPos.y - hideDist.y || curr_pos.y > centerPos.y + hideDist.y ||
+       curr_pos.z < centerPos.z - hideDist.z || curr_pos.z > centerPos.z + hideDist.z ||
+       curr_pos.w < centerPos.w - hideDist.w || curr_pos.w > centerPos.w + hideDist.w ||
+       curr_pos.world < centerPos.world - hideDist.world || curr_pos.world > centerPos.world + hideDist.world ||
+       curr_pos.universe < centerPos.universe - hideDist.universe || curr_pos.universe > centerPos.universe + hideDist.universe) {
+      
+      //curr.obj.visible = false;
+      curr.obj.layers.disable(1); //disable the camera layer
+    } else if(!curr.obj.layers.test(cameraTestLayers)) {
+      //curr.obj.visible = true;
+      curr.obj.layers.enable(1); //enable the camera layer
+    }
+    
+    if(key in renderCurrentMeshes) {
+      //raycast to wherever we're peeking
+      if((curr_pos.w == player.pos.w + player.peekW) && !curr.obj.layers.test(raycastTestLayers)) {
+        curr.obj.layers.enable(2);
+      } else if((curr_pos.w != player.pos.w + player.peekW) && curr.obj.layers.test(raycastTestLayers)) {
+        curr.obj.layers.disable(2);
+      }
+      
+      curr.obj.layers.disable(3); //disable the peek layer
+      
+      if(player.peekW != 0) {
+        if((curr_pos.w == player.pos.w + player.peekW)) {
+          curr.obj.layers.enable(3); //enable the peek layer
+        }
+      }
+    }
+  }
 }
 
 function renderQueueUpdate(pos, priority=false) {
@@ -425,10 +452,12 @@ function renderQueueUpdate(pos, priority=false) {
 function renderWorkerCallback(message) {
   var pos;
   var updateNum;
+  var wk;
   for(var i = 0; i < renderWorkers.length; i++) {
-    if(renderWorkers[i].worker == this) {
+    if(renderWorkers[i].pos.equals(message.data.pos)) {
       pos = renderWorkers[i].pos;
       updateNum = renderWorkers[i].updateNum;
+      wk = renderWorkers[i];
       //console.log(performance.now() - renderWorkers[i].startTime);
       renderWorkers.splice(i, 1);
       break;
@@ -482,6 +511,8 @@ function renderWorkerCallback(message) {
   if(updateNum == mapBlock.updateNum) {
     mapBlock.renderNeedsUpdate = 0;
   }
+  
+  wk.runComplete();
 }
 
 function renderQueueLightingUpdate(pos) {

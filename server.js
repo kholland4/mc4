@@ -603,7 +603,28 @@ class ServerRemote extends ServerBase {
                 //mapBlock.renderNeedsUpdate = 1;
                 renderQueueUpdate(mapBlock.pos, true);
               } else if(mapBlock.lightUpdateNum != oldMapBlock.lightUpdateNum) {
-                renderQueueLightingUpdate(mapBlock.pos);
+                //we've verified that there's no difference in mapblock content
+                var hasWorker = false;
+                var worker;
+                for(var i = 0; i < renderWorkers.length; i++) {
+                  if(renderWorkers[i].pos.equals(mapBlock.pos)) {
+                    hasWorker = true;
+                    worker = renderWorkers[i];
+                  }
+                }
+                if(index in renderCurrentMeshes) {
+                  if(hasWorker) {
+                    worker.registerOnComplete(function(pos, updateNum) {
+                      renderCurrentMeshes[index].updateNum = updateNum;
+                      renderQueueLightingUpdate(pos);
+                    }.bind(null, mapBlock.pos, mapBlock.updateNum));
+                  } else {
+                    renderCurrentMeshes[index].updateNum = updateNum;
+                    renderQueueLightingUpdate(mapBlock.pos);
+                  }
+                } else {
+                  renderQueueUpdate(mapBlock.pos, true);
+                }
               }
             }
           } else if(mapBlock.lightUpdateNum != oldMapBlock.lightUpdateNum) {
