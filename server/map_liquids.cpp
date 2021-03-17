@@ -206,7 +206,7 @@ void Map::tick_fluids(std::set<MapPos<int>> mapblocks) {
           if(new_height <= 15) {
             if(n_below.itemstring == "air" || n_below.itemstring == n.itemstring) {
               //Don't spread if there's a source below
-              if((n_below.rot & 8) == 0) { continue; }
+              if((n_below.rot & 8) == 0 && n_below.itemstring == n.itemstring) { continue; }
               //Spread down
               int height_below = new_height;
               int rot = ((height_below & 15) << 4) | 8 | 4; //flags: not source, visual_fullheight
