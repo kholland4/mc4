@@ -637,6 +637,8 @@ class ServerRemote extends ServerBase {
           mapBlock.renderNeedsUpdate = 1;
         }
         
+        this.requests.delete(index);
+        
         //if(mapBlock.lightNeedsUpdate > 0 && needLight) {
         //  lightQueueUpdate(mapBlock.pos);
         //}
