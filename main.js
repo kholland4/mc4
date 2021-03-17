@@ -1,6 +1,6 @@
 /*
     mc4, a web voxel building game
-    Copyright (C) 2019 kholland4
+    Copyright (C) 2019-2021 kholland4
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.2.4-dev5";
+var VERSION = "0.2.4-dev6";
 
 var scene;
 var camera;
@@ -27,6 +27,7 @@ var viewport = {w: 640, h: 480};
 var renderMapGroup;
 var raycaster;
 var raycasterSel;
+var skybox;
 
 var destroySel = null;
 var placeSel = null;
@@ -117,6 +118,8 @@ function initEntryMenu() {
   win.add(joinForm);
   
   uiShowWindow(win);
+  
+  document.getElementById("versionBlurb").innerText = "v" + VERSION;
 }
 document.addEventListener("DOMContentLoaded", initEntryMenu);
 
@@ -191,6 +194,12 @@ function init() {
   server.addPlayer(player);
   
   api.player = player;
+  
+  var geometry = new THREE.SphereGeometry(1000, 25, 25);
+  var material = new THREE.MeshBasicMaterial({color: 0x7ec0ee});
+  skybox = new THREE.Mesh(geometry, material);
+  skybox.material.side = THREE.BackSide;
+  scene.add(skybox);
   
   var geometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
   var material = new THREE.LineBasicMaterial({color: 0xffffff, linewidth: 2});
@@ -497,6 +506,7 @@ function animate() {
   camera.position.copy(player.pos);
   peekCamera.position.copy(player.pos);
   peekCamera.rotation.copy(camera.rotation);
+  skybox.position.copy(player.pos);
   
   server.onFrame(frameTime);
   server.entityTick(frameTime);
