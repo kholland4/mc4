@@ -18,6 +18,10 @@
 
 #include "server.h"
 
+#include "player_util.h"
+
+#include <regex>
+
 std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime"};
 
 
@@ -29,11 +33,18 @@ void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
   
   std::string new_nick = args[1];
   
-  std::regex nick_allow("^[a-zA-Z0-9\\-_]{1,40}$");
-  if(!std::regex_match(new_nick, nick_allow)) {
-    chat_send_player(player, "server", "invalid nickname: allowed characters are a-z A-Z 0-9 - _ and length must be 1 to 40 characters");
+  if(!validate_player_name(new_nick)) {
+    chat_send_player(player, "server", BAD_PLAYER_NAME_MESSAGE);
     return;
   }
+  for(auto p : m_players) {
+    PlayerState *check = p->second;
+    if(check->get_name() == new_nick) {
+      chat_send_player(player, "server", "that nickname is already in use, try another one?");
+      return;
+    }
+  }
+  //TODO check against login database?
   
   std::string old_nick = player->get_name();
   player->set_name(new_nick);

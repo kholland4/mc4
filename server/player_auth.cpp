@@ -18,11 +18,11 @@
 
 #include "player_auth.h"
 
+#include "player_util.h"
 #include "json.h"
 #include "log.h"
 
 #include <sstream>
-#include <regex>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -108,21 +108,6 @@ std::string hash_password(std::string password, std::string salt) {
   return password_hashed;
 }
 
-void init_player_data(PlayerData &data) {
-  data.pos.set(0, 20, 0, 0, 0, 0);
-  data.vel.set(0, 0, 0, 0, 0, 0);
-  data.rot.set(0, 0, 0, 0);
-}
-
-bool validate_player_name(std::string name) {
-  std::regex nick_allow("^[a-zA-Z0-9\\-_]{1,40}$");
-  if(!std::regex_match(name, nick_allow)) {
-    //not ok
-    return false;
-  }
-  return true;
-}
-
 
 bool PlayerAuthenticator::step(std::string message, WsServer& server, connection_hdl& hdl, Database& db) {
   if(has_backend) {
@@ -193,6 +178,7 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"register_login_name_invalid\"}", websocketpp::frame::opcode::text);
           return false;
         }
+        //TODO what about names used by currently online players?
         
         PlayerAuthInfo existing = db.fetch_pw_info(login_name);
         if(!existing.is_nil) {
@@ -283,6 +269,7 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"update_login_name_invalid\"}", websocketpp::frame::opcode::text);
           return false;
         }
+        //TODO what about names used by currently online players?
         
         PlayerAuthInfo search = db.fetch_pw_info(auth_info.login_name);
         if(search.is_nil) {
