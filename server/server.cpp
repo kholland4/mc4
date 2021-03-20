@@ -45,6 +45,9 @@ void Server::run(uint16_t port) {
   
   m_server.listen(port);
   m_server.start_accept();
+  
+  log(LogSource::SERVER, LogLevel::INFO, "Server v" + std::string(VERSION) + " starting");
+  
   m_io.run();
 }
 
