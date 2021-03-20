@@ -675,6 +675,7 @@ class ServerRemote extends ServerBase {
             password: this._authCredentials.verifier,
             client_salt: ""
           });
+          this._authCredentials.verifier = null;
         } else if(data.message == "auth_ok") {
           this._authReady = true;
           debug("client", "status", "authenticated as " + this._authCredentials.loginName);
@@ -697,6 +698,7 @@ class ServerRemote extends ServerBase {
             password: this._authCredentials.verifier,
             client_salt: ""
           });
+          this._authCredentials.verifier = null;
         } else {
           debug("client", "status", "authentication failed: " + data.reason);
         }

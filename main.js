@@ -307,6 +307,7 @@ function loadLoop() {
     debug("main", "status", "loaded textures, icons, and mods");
     //TODO use srp or something
     server.connect({guest: menuConfig.authGuest, loginName: menuConfig.authName, verifier: menuConfig.authPassword});
+    menuConfig.authPassword = null;
     loadLoop2();
   } else {
     requestAnimationFrame(loadLoop);
