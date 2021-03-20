@@ -16,14 +16,21 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __PLAYER_UTIL_H__
-#define __PLAYER_UTIL_H__
+#include "player_util.h"
 
-#include "player_data.h"
+#include <regex>
 
-#define BAD_PLAYER_NAME_MESSAGE "invalid nickname: allowed characters are a-z A-Z 0-9 - _ and length must be 1 to 40 characters"
+void init_player_data(PlayerData &data) {
+  data.pos.set(0, 20, 0, 0, 0, 0);
+  data.vel.set(0, 0, 0, 0, 0, 0);
+  data.rot.set(0, 0, 0, 0);
+}
 
-void init_player_data(PlayerData &data);
-bool validate_player_name(std::string name);
-
-#endif
+bool validate_player_name(std::string name) {
+  std::regex nick_allow("^[a-zA-Z0-9\\-_]{1,40}$");
+  if(!std::regex_match(name, nick_allow)) {
+    //not ok
+    return false;
+  }
+  return true;
+}

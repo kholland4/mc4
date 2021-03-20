@@ -38,7 +38,7 @@ void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
     return;
   }
   for(auto p : m_players) {
-    PlayerState *check = p->second;
+    PlayerState *check = p.second;
     if(check->get_name() == new_nick) {
       chat_send_player(player, "server", "that nickname is already in use, try another one?");
       return;
