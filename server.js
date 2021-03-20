@@ -664,6 +664,7 @@ class ServerRemote extends ServerBase {
       } else if(data.type == "set_player_pos") {
         this.player.pos.set(data.pos.x, data.pos.y, data.pos.z, data.pos.w, data.pos.world, data.pos.universe);
         this.player.rot.set(data.rot.x, data.rot.y, data.rot.z, data.rot.w);
+        camera.quaternion.copy(this.player.rot);
       } else if(data.type == "set_player_privs") {
         this.player.privs = data.privs;
       } else if(data.type == "auth_step") {
