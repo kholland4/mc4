@@ -19,7 +19,7 @@
 #include "database.h"
 #include "log.h"
 
-void MemoryDB::store_pw_info(PlayerAuthInfo info) {
+void MemoryDB::store_pw_info(PlayerAuthInfo& info) {
   std::string login_name = info.login_name;
   
   auto search = pw_auth_store.find(login_name);

@@ -211,6 +211,7 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
         std::string auth_id = boost::uuids::to_string(boost::uuids::random_generator()());
         
         PlayerAuthInfo new_info;
+        new_info.type = "password-plain";
         new_info.login_name = login_name;
         new_info.auth_id = auth_id;
         new_info.data = "{\"password_hashed\":\"" + json_escape(password_hashed) + "\",\"salt\":\"" + json_escape(salt) + "\",\"client_salt\":\"" + json_escape(client_salt) + "\"}";

@@ -39,7 +39,7 @@ class Database {
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb) = 0;
     virtual void clean_cache() = 0;
     
-    virtual void store_pw_info(PlayerAuthInfo info) = 0;
+    virtual void store_pw_info(PlayerAuthInfo& info) = 0;
     virtual PlayerAuthInfo fetch_pw_info(std::string login_name) = 0;
     virtual void update_pw_info(std::string old_login_name, PlayerAuthInfo info) = 0; //might change login name
     virtual void delete_pw_info(std::string login_name) = 0;
@@ -58,7 +58,7 @@ class MemoryDB : public Database {
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
     
-    virtual void store_pw_info(PlayerAuthInfo info);
+    virtual void store_pw_info(PlayerAuthInfo& info);
     virtual PlayerAuthInfo fetch_pw_info(std::string login_name);
     virtual void update_pw_info(std::string old_login_name, PlayerAuthInfo info);
     virtual void delete_pw_info(std::string login_name);
@@ -84,7 +84,7 @@ class SQLiteDB: public Database {
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
     
-    virtual void store_pw_info(PlayerAuthInfo info);
+    virtual void store_pw_info(PlayerAuthInfo& info);
     virtual PlayerAuthInfo fetch_pw_info(std::string login_name);
     virtual void update_pw_info(std::string old_login_name, PlayerAuthInfo info);
     virtual void delete_pw_info(std::string login_name);

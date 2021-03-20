@@ -95,6 +95,41 @@ CREATE TABLE IF NOT EXISTS map ( \
 );
 
 */
+/* Version 4:
+
+//Changes:
+//  - new player auth table
+//  - new player data table
+
+//Upgrade path:
+//  - create the new tables
+
+CREATE TABLE IF NOT EXISTS map ( \
+  x INT,\
+  y INT,\
+  z INT,\
+  w INT,\
+  world INT,\
+  universe INT,\
+  data MEDIUMBLOB,\
+  id_to_is TEXT,\
+  sunlit BOOLEAN,\
+  dirty BOOLEAN,\
+  version SMALLINT UNSIGNED,\
+  primary key (x, y, z, w, world, universe)\
+);
+CREATE TABLE IF NOT EXISTS player_auth ( \
+  entry_id INTEGER PRIMARY KEY,\
+  type VARCHAR(32),\
+  login_name VARCHAR(255),\
+  auth_id VARCHAR(80),\
+  data TEXT\
+);
+CREATE TABLE IF NOT EXISTS player_data ( \
+  auth_id VARCHAR(80) PRIMARY KEY,\
+  data MEDIUMTEXT\
+);
+*/
 
 SQLiteDB::SQLiteDB(const char* filename) {
   int rc = sqlite3_open(filename, &db);
@@ -149,9 +184,10 @@ SQLiteDB::SQLiteDB(const char* filename) {
   //If version is still 0, the database is empty and uninitialized.
   //Create the appropriate table(s) and set the 'user_version' pragma.
   if(db_version == 0) {
-    db_version = 3;
+    db_version = 4;
     
-    const char *sql =
+    std::map<std::string, const char*> sql = {
+{"map",
 "CREATE TABLE IF NOT EXISTS map ( \
   x INT,\
   y INT,\
@@ -165,18 +201,34 @@ SQLiteDB::SQLiteDB(const char* filename) {
   dirty BOOLEAN,\
   version SMALLINT UNSIGNED,\
   primary key (x, y, z, w, world, universe)\
-);";
+);"},
+{"player_auth",
+"CREATE TABLE IF NOT EXISTS player_auth ( \
+  entry_id INTEGER PRIMARY KEY,\
+  type VARCHAR(32),\
+  login_name VARCHAR(255),\
+  auth_id VARCHAR(80),\
+  data TEXT\
+);"},
+{"player_data",
+"CREATE TABLE IF NOT EXISTS player_data ( \
+  auth_id VARCHAR(80) PRIMARY KEY,\
+  data MEDIUMTEXT\
+);"}
+    };
     
-    sqlite3_stmt *statement;
-    if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
-      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to create table 'map': ") + std::string(sqlite3_errmsg(db)));
-      exit(1);
+    for(auto it : sql) {
+      sqlite3_stmt *statement;
+      if(sqlite3_prepare_v2(db, it.second, -1, &statement, NULL) != SQLITE_OK) {
+        log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to create table '" + it.first + "': ") + std::string(sqlite3_errmsg(db)));
+        exit(1);
+      }
+      if(sqlite3_step(statement) != SQLITE_DONE) {
+        log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to create table '" + it.first + "': ") + std::string(sqlite3_errmsg(db)));
+        exit(1);
+      }
+      sqlite3_finalize(statement);
     }
-    if(sqlite3_step(statement) != SQLITE_DONE) {
-      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to create table 'map': ") + std::string(sqlite3_errmsg(db)));
-      exit(1);
-    }
-    sqlite3_finalize(statement);
     
     log(LogSource::SQLITEDB, LogLevel::NOTICE, std::string("Initialized new SQLite database with version ") + std::to_string(db_version));
   }
@@ -270,6 +322,43 @@ SQLiteDB::SQLiteDB(const char* filename) {
     db_version = 3;
   }
   
+  //Upgrades from version 3 to version 4
+  if(db_version == 3) {
+    log(LogSource::SQLITEDB, LogLevel::NOTICE, "Upgrading database from version 3 to version 4");
+    
+    std::array<std::string, 5> sql_str = {
+      "BEGIN EXCLUSIVE TRANSACTION;",
+      "CREATE TABLE player_auth ( \
+        entry_id INTEGER PRIMARY KEY,\
+        type VARCHAR(32),\
+        login_name VARCHAR(255),\
+        auth_id VARCHAR(80),\
+        data TEXT\
+      );",
+      "CREATE TABLE player_data ( \
+        auth_id VARCHAR(80) PRIMARY KEY,\
+        data MEDIUMTEXT\
+      );",
+      "PRAGMA user_version = 4;",
+      "COMMIT TRANSACTION;"
+    };
+    
+    for(size_t i = 0; i < sql_str.size(); i++) {
+      sqlite3_stmt *statement;
+      if(sqlite3_prepare_v2(db, sql_str[i].c_str(), -1, &statement, NULL) != SQLITE_OK) {
+        log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to migrate database: ") + std::string(sqlite3_errmsg(db)));
+        exit(1);
+      }
+      if(sqlite3_step(statement) != SQLITE_DONE) {
+        log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to migrate database: ") + std::string(sqlite3_errmsg(db)));
+        exit(1);
+      }
+      sqlite3_finalize(statement);
+    }
+    
+    db_version = 4;
+  }
+  
   
   //Store the DB user_version, if changed.
   if(db_version != orig_db_version) {
@@ -292,9 +381,10 @@ SQLiteDB::SQLiteDB(const char* filename) {
   //Get number of stored mapblock rows (to show to the user).
   std::map<int, std::string> sql_str;
   std::map<int, int> row_counts;
+  sql_str[-2] = "SELECT COUNT(*) FROM player_data;";
   sql_str[-1] = "SELECT COUNT(*) FROM map;";
   //Iterate over possible versions.
-  for(int i = 1; i <= 3; i++) {
+  for(int i = 1; i <= 2; i++) {
     sql_str[i] = "SELECT COUNT(*) FROM map WHERE version=" + std::to_string(i) + ";";
   }
   
@@ -302,17 +392,17 @@ SQLiteDB::SQLiteDB(const char* filename) {
   for(auto it : sql_str) {
     sqlite3_stmt *count_checker;
     if(sqlite3_prepare_v2(db, it.second.c_str(), -1, &count_checker, NULL) != SQLITE_OK) {
-      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to count rows in 'map' table: ") + std::string(sqlite3_errmsg(db)));
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to count rows in table: ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     if(sqlite3_step(count_checker) == SQLITE_ROW) {
       row_counts[it.first] = sqlite3_column_int(count_checker, 0);
     } else {
-      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to count rows in 'map' table: ") + std::string(sqlite3_errmsg(db)));
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to count rows in table: ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     if(sqlite3_step(count_checker) != SQLITE_DONE) {
-      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to count rows in 'map' table: ") + std::string(sqlite3_errmsg(db)));
+      log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to count rows in table: ") + std::string(sqlite3_errmsg(db)));
       exit(1);
     }
     sqlite3_finalize(count_checker);
@@ -320,10 +410,11 @@ SQLiteDB::SQLiteDB(const char* filename) {
   
   log(LogSource::SQLITEDB, LogLevel::INFO,
       std::string("Loaded SQLite database with ") + std::to_string(row_counts[-1]) +
-      std::string(" mapblocks (version ") + std::to_string(db_version) + std::string(")"));
+      std::string(" mapblocks and ") + std::to_string(row_counts[-2]) +
+      std::string(" players (version ") + std::to_string(db_version) + std::string(")"));
   for(auto it : row_counts) {
     int version = it.first;
-    if(version == -1) { continue; }
+    if(version < 1) { continue; }
     int count = it.second;
     if(count == 0) { continue; }
     log(LogSource::SQLITEDB, LogLevel::INFO, std::to_string(count) + std::string(" mapblocks are version ") + std::to_string(version));
@@ -416,7 +507,8 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
     return mb;
   }
   
-  if(sqlite3_step(statement) == SQLITE_ROW) {
+  int step_result = sqlite3_step(statement);
+  if(step_result == SQLITE_ROW) {
     //Have row.
     int row_version = sqlite3_column_int(statement, 4);
     
@@ -432,6 +524,7 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
     boost::property_tree::ptree pt;
     boost::property_tree::read_json(ss, pt);
     
+    //FIXME: try-catch?
     mb->IDtoIS.clear();
     mb->IStoID.clear();
     for(auto& it : pt) {
@@ -519,7 +612,7 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
     Mapblock *mb_store = new Mapblock(*mb);
     read_cache[pos] = mb_store;
     read_cache_hits[pos] = std::chrono::steady_clock::now();
-  } else if(sqlite3_step(statement) != SQLITE_DONE) {
+  } else if(step_result != SQLITE_DONE) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
     mb->dont_write_to_db = true;

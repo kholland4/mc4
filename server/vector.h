@@ -89,6 +89,10 @@ template <class T> class MapPos {
       return "(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ") in w=" +
              std::to_string(w) + " world=" + std::to_string(world) + " universe=" + std::to_string(universe);
     };
+    std::string to_json() {
+      return "{\"x\":" + std::to_string(x) + ",\"y\":" + std::to_string(y) + ",\"z\":" + std::to_string(z) + ",\"w\":" +
+             std::to_string(w) + ",\"world\":" + std::to_string(world) + ",\"universe\":" + std::to_string(universe) + "}";
+    };
     bool operator<(const MapPos<T>& other) const {
       if(universe == other.universe) {
         if(world == other.world) {
@@ -144,6 +148,10 @@ class Quaternion {
     Quaternion();
     Quaternion(double _x, double _y, double _z, double _w);
     void set(double _x, double _y, double _z, double _w);
+    
+    std::string to_json() {
+      return "{\"x\":" + std::to_string(x) + ",\"y\":" + std::to_string(y) + ",\"z\":" + std::to_string(z) + ",\"w\":" + std::to_string(w) + "}";
+    };
     
     double x;
     double y;

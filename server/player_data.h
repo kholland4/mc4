@@ -26,6 +26,9 @@
 class PlayerData {
   public:
     PlayerData() : is_nil(true) {}
+    PlayerData(std::string json, std::string _auth_id);
+    
+    std::string to_json();
     
     std::string name; //player's display name (by default it's their login username)
     
@@ -42,9 +45,12 @@ class PlayerData {
 
 class PlayerAuthInfo {
   public:
-    PlayerAuthInfo() : is_nil(true) {}
+    PlayerAuthInfo() : is_nil(true), has_db_unique_id(false), db_unique_id(0) {}
     
     bool is_nil;
+    bool has_db_unique_id;
+    int64_t db_unique_id;
+    std::string type;
     std::string login_name;
     std::string auth_id;
     
