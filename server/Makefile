@@ -1,5 +1,5 @@
 CXXFLAGS = -std=c++17 -pthread -Wall -Wextra -O3
-LIBS = -lsqlite3
+LIBS = -lsqlite3 -lcrypto
 SRCS = $(wildcard *.cpp)
 OBJDIR = build
 OBJS = $(SRCS:%.cpp=$(OBJDIR)/%.o)

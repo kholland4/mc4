@@ -27,7 +27,8 @@ enum class LogSource {
   MEMORYDB,
   LOADER,
   MAP,
-  MAPGEN
+  MAPGEN,
+  AUTH
 };
 
 //Based on https://en.wikipedia.org/wiki/Syslog#Severity_level

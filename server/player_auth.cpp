@@ -18,6 +18,9 @@
 
 #include "player_auth.h"
 
+#include "json.h"
+#include "log.h"
+
 #include <sstream>
 #include <regex>
 
@@ -27,6 +30,9 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+
+#include <openssl/evp.h>
+#include <openssl/kdf.h>
 
 //#include "lib/ctbignum/ctbignum.hpp"
 //#include "lib/ctbignum/mod_exp.hpp"
@@ -54,6 +60,53 @@ YOIauNjfKVEgcrtDFQYXi685xbvnZi371JQV7t/gJYBqSOCtmZ6jAgEC
 //'N' in srp
 //using GF1024 = decltype(cbn::Zq(146198920325700438841009225581592483916990556834762974961884344477099509713950442942736459626001468444398384711851720189354446011771742470546010913184050612491768178355190281957995078048762050765279860273669354370726575968618577949364684625891111055473909172902453230789469007622019404840370187910048156065443_Z));
 //#define srp_g 2
+
+constexpr char hexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+
+std::string hash_password(std::string password, std::string salt) {
+  EVP_PKEY_CTX *kdf = EVP_PKEY_CTX_new_id(EVP_PKEY_SCRYPT, NULL);
+  if(EVP_PKEY_derive_init(kdf) <= 0) {
+    log(LogSource::AUTH, LogLevel::ERR, "error in EVP_PKEY_derive_init");
+    return "";
+  }
+  if(EVP_PKEY_CTX_set1_pbe_pass(kdf, password.c_str(), password.length()) <= 0) {
+    log(LogSource::AUTH, LogLevel::ERR, "error in EVP_PKEY_CTX_set1_pbe_pass");
+    return "";
+  }
+  if(EVP_PKEY_CTX_set1_scrypt_salt(kdf, salt.c_str(), salt.length()) <= 0) {
+    log(LogSource::AUTH, LogLevel::ERR, "error in EVP_PKEY_CTX_set1_scrypt_salt");
+    return "";
+  }
+  if(EVP_PKEY_CTX_set_scrypt_N(kdf, 1024) <= 0) {
+    log(LogSource::AUTH, LogLevel::ERR, "error in EVP_PKEY_CTX_set_scrypt_N");
+    return "";
+  }
+  if(EVP_PKEY_CTX_set_scrypt_r(kdf, 8) <= 0) {
+    log(LogSource::AUTH, LogLevel::ERR, "error in EVP_PKEY_CTX_set_scrypt_r");
+    return "";
+  }
+  if(EVP_PKEY_CTX_set_scrypt_p(kdf, 16) <= 0) {
+    log(LogSource::AUTH, LogLevel::ERR, "error in EVP_PKEY_CTX_set_scrypt_p");
+    return "";
+  }
+  
+  unsigned char hash_out[64];
+  size_t hash_out_len = sizeof(hash_out);
+  if(EVP_PKEY_derive(kdf, hash_out, &hash_out_len) <= 0) {
+    log(LogSource::AUTH, LogLevel::ERR, "error in EVP_PKEY_derive");
+    return "";
+  }
+  
+  EVP_PKEY_CTX_free(kdf);
+  
+  std::string password_hashed(128, ' ');
+  for(size_t i = 0; i < 64; i++) {
+    password_hashed[i * 2] = hexmap[(hash_out[i] >> 4) & 15];
+    password_hashed[i * 2 + 1] = hexmap[hash_out[i] & 15];
+  }
+  
+  return password_hashed;
+}
 
 void init_player_data(PlayerData &data) {
   data.pos.set(0, 20, 0, 0, 0, 0);
@@ -87,7 +140,7 @@ bool PlayerAuthenticator::step(std::string message, WsServer& server, connection
     
     if(type == "auth_mode") {
       std::string mode = pt.get<std::string>("mode");
-      if(mode == "password-srp") {
+      if(mode == "password-plain") {
         //delete auth_backend;
         auth_backend = new PlayerPasswordAuthenticator();
         has_backend = true;
@@ -133,27 +186,34 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
       
       if(step == "register") {
         std::string login_name = pt.get<std::string>("login_name");
-        std::string salt = pt.get<std::string>("salt");
-        std::string verifier = pt.get<std::string>("verifier");
+        std::string client_salt = pt.get<std::string>("client_salt");
+        std::string password = pt.get<std::string>("password");
         
         if(!validate_player_name(login_name)) {
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"register_login_name_invalid\"}", websocketpp::frame::opcode::text);
           return false;
         }
         
-        PlayerPasswordAuthInfo existing = db.fetch_pw_info(login_name);
+        PlayerAuthInfo existing = db.fetch_pw_info(login_name);
         if(!existing.is_nil) {
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"register_login_name_exists\"}", websocketpp::frame::opcode::text);
           return false;
         }
         
+        //Salts only need to be unique, not necessarily cryptographically random.
+        std::string salt = boost::uuids::to_string(boost::uuids::random_generator()());
+        std::string password_hashed = hash_password(password, salt);
+        if(password_hashed == "") {
+          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"internal_error\"}", websocketpp::frame::opcode::text);
+          return false;
+        }
+        
         std::string auth_id = boost::uuids::to_string(boost::uuids::random_generator()());
         
-        PlayerPasswordAuthInfo new_info;
+        PlayerAuthInfo new_info;
         new_info.login_name = login_name;
-        new_info.salt = salt;
-        new_info.verifier = verifier;
         new_info.auth_id = auth_id;
+        new_info.data = "{\"password_hashed\":\"" + json_escape(password_hashed) + "\",\"salt\":\"" + json_escape(salt) + "\",\"client_salt\":\"" + json_escape(client_salt) + "\"}";
         new_info.is_nil = false;
         db.store_pw_info(new_info);
         
@@ -174,30 +234,37 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
       
       if(step == "login") {
         std::string login_name = pt.get<std::string>("login_name");
-        //std::string A_str = pt.get<std::string>("A");
+        std::string password = pt.get<std::string>("password");
         
-        //TODO validate input parameters
-        
-        PlayerPasswordAuthInfo search = db.fetch_pw_info(login_name);
+        PlayerAuthInfo search = db.fetch_pw_info(login_name);
         if(search.is_nil) {
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"login_name_not_found\"}", websocketpp::frame::opcode::text);
           return false;
         }
         
-        //TODO
-        //unsigned long A_l = stol(A_str);
-        //cbn::big_int<1, unsigned long> A {A_l};
+        std::string pw_json = search.data;
+        std::stringstream pw_ss;
+        pw_ss << pw_json;
+        boost::property_tree::ptree pw_pt;
+        boost::property_tree::read_json(pw_ss, pw_pt);
         
-        //TODO use real SRP algorithm
-        std::string verifier = pt.get<std::string>("verifier");
-        if(verifier == search.verifier) {
+        std::string salt = pw_pt.get<std::string>("salt");
+        std::string password_hashed = pw_pt.get<std::string>("password_hashed");
+        
+        std::string input_pw_hashed = hash_password(password, salt);
+        if(input_pw_hashed == "") {
+          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"internal_error\"}", websocketpp::frame::opcode::text);
+          return false;
+        }
+        
+        if(input_pw_hashed == password_hashed) {
           server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"auth_ok\"}", websocketpp::frame::opcode::text);
           auth_info = search;
           auth_success = true;
           return true;
         }
         
-        server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"invalid_verifier\"}", websocketpp::frame::opcode::text);
+        server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"invalid_password\"}", websocketpp::frame::opcode::text);
         return false;
       }
       
@@ -208,29 +275,36 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
         }
         
         std::string login_name = pt.get<std::string>("login_name");
-        std::string salt = pt.get<std::string>("salt");
-        std::string verifier = pt.get<std::string>("verifier");
+        std::string client_salt = pt.get<std::string>("client_salt");
+        std::string password = pt.get<std::string>("password");
         
         if(!validate_player_name(login_name)) {
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"update_login_name_invalid\"}", websocketpp::frame::opcode::text);
           return false;
         }
         
-        PlayerPasswordAuthInfo search = db.fetch_pw_info(auth_info.login_name);
+        PlayerAuthInfo search = db.fetch_pw_info(auth_info.login_name);
         if(search.is_nil) {
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"login_name_not_found\"}", websocketpp::frame::opcode::text);
           return true;
         }
         
-        PlayerPasswordAuthInfo existing = db.fetch_pw_info(login_name);
+        PlayerAuthInfo existing = db.fetch_pw_info(login_name);
         if(!existing.is_nil) {
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"update_login_name_exists\"}", websocketpp::frame::opcode::text);
           return true;
         }
         
+        //Salts only need to be unique, not necessarily cryptographically random.
+        std::string salt = boost::uuids::to_string(boost::uuids::random_generator()());
+        std::string password_hashed = hash_password(password, salt);
+        if(password_hashed == "") {
+          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"internal_error\"}", websocketpp::frame::opcode::text);
+          return false;
+        }
+        
         search.login_name = login_name;
-        search.salt = salt;
-        search.verifier = verifier;
+        search.data = "{\"password_hashed\":\"" + json_escape(password_hashed) + "\",\"salt\":\"" + json_escape(salt) + "\",\"client_salt\":\"" + json_escape(client_salt) + "\"}";
         
         db.update_pw_info(auth_info.login_name, search);
         

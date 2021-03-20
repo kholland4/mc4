@@ -183,7 +183,13 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
             }
           }
           
-          player->load_data(db.fetch_player_data(auth_id));
+          PlayerData pdata = db.fetch_player_data(auth_id);
+          if(pdata.is_nil) {
+            chat_send_player(player, "server", "internal error: no such player");
+            log(LogSource::SERVER, LogLevel::ERR, "no such player (auth id " + auth_id + ")");
+            return;
+          }
+          player->load_data(pdata);
           player->auth = true;
         }
       }

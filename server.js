@@ -410,7 +410,7 @@ class ServerRemote extends ServerBase {
       } else {
         this.sendMessage({
           type: "auth_mode",
-          mode: "password-srp"
+          mode: "password-plain"
         });
       }
     }.bind(this);
@@ -672,7 +672,8 @@ class ServerRemote extends ServerBase {
             type: "auth_step",
             step: "login",
             login_name: this._authCredentials.loginName,
-            verifier: this._authCredentials.verifier
+            password: this._authCredentials.verifier,
+            client_salt: ""
           });
         } else if(data.message == "auth_ok") {
           this._authReady = true;
@@ -693,8 +694,8 @@ class ServerRemote extends ServerBase {
             type: "auth_step",
             step: "register",
             login_name: this._authCredentials.loginName,
-            verifier: this._authCredentials.verifier,
-            salt: ""
+            password: this._authCredentials.verifier,
+            client_salt: ""
           });
         } else {
           debug("client", "status", "authentication failed: " + data.reason);

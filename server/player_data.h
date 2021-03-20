@@ -40,15 +40,15 @@ class PlayerData {
     std::string auth_id; //unique identifier of player in database
 };
 
-class PlayerPasswordAuthInfo {
+class PlayerAuthInfo {
   public:
-    PlayerPasswordAuthInfo() : is_nil(true) {}
+    PlayerAuthInfo() : is_nil(true) {}
     
     bool is_nil;
     std::string login_name;
-    std::string salt;
-    std::string verifier;
     std::string auth_id;
+    
+    std::string data; //other auth data as JSON
 };
 
 #endif

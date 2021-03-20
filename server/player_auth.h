@@ -41,7 +41,7 @@ class PlayerPasswordAuthenticator : public PlayerGenericAuthenticator {
     virtual std::string result();
   
   private:
-    PlayerPasswordAuthInfo auth_info;
+    PlayerAuthInfo auth_info;
     bool auth_success;
 };
 

@@ -19,14 +19,14 @@
 #include "database.h"
 #include "log.h"
 
-void SQLiteDB::store_pw_info(PlayerPasswordAuthInfo info) {
+void SQLiteDB::store_pw_info(PlayerAuthInfo info) {
   
 }
 
-PlayerPasswordAuthInfo SQLiteDB::fetch_pw_info(std::string login_name) {
-  return PlayerPasswordAuthInfo();
+PlayerAuthInfo SQLiteDB::fetch_pw_info(std::string login_name) {
+  return PlayerAuthInfo();
 }
-void SQLiteDB::update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo info) {
+void SQLiteDB::update_pw_info(std::string old_login_name, PlayerAuthInfo info) {
   
 }
 void SQLiteDB::delete_pw_info(std::string login_name) {

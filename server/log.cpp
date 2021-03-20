@@ -27,7 +27,8 @@ std::map<LogSource, std::string> log_source_messages = {
   {LogSource::MEMORYDB, "MemoryDB"},
   {LogSource::LOADER, "loader"},
   {LogSource::MAP, "map"},
-  {LogSource::MAPGEN, "mapgen"}
+  {LogSource::MAPGEN, "mapgen"},
+  {LogSource::AUTH, "auth"}
 };
 
 std::map<LogLevel, std::string> log_level_messages = {

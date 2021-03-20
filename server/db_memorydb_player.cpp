@@ -19,7 +19,7 @@
 #include "database.h"
 #include "log.h"
 
-void MemoryDB::store_pw_info(PlayerPasswordAuthInfo info) {
+void MemoryDB::store_pw_info(PlayerAuthInfo info) {
   std::string login_name = info.login_name;
   
   auto search = pw_auth_store.find(login_name);
@@ -28,20 +28,20 @@ void MemoryDB::store_pw_info(PlayerPasswordAuthInfo info) {
     return;
   }
   
-  PlayerPasswordAuthInfo *info_store = new PlayerPasswordAuthInfo(info);
+  PlayerAuthInfo *info_store = new PlayerAuthInfo(info);
   pw_auth_store[login_name] = info_store;
 }
 
-PlayerPasswordAuthInfo MemoryDB::fetch_pw_info(std::string login_name) {
+PlayerAuthInfo MemoryDB::fetch_pw_info(std::string login_name) {
   auto search = pw_auth_store.find(login_name);
   if(search == pw_auth_store.end()) {
     //not found, return nil
-    return PlayerPasswordAuthInfo();
+    return PlayerAuthInfo();
   }
   
-  return PlayerPasswordAuthInfo(*(search->second));
+  return PlayerAuthInfo(*(search->second));
 }
-void MemoryDB::update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo info) {
+void MemoryDB::update_pw_info(std::string old_login_name, PlayerAuthInfo info) {
   auto search = pw_auth_store.find(old_login_name);
   if(search == pw_auth_store.end()) {
     log(LogSource::MEMORYDB, LogLevel::ERR, "unable to update password info for '" + old_login_name + "': not found");
@@ -57,7 +57,7 @@ void MemoryDB::update_pw_info(std::string old_login_name, PlayerPasswordAuthInfo
   delete search->second;
   pw_auth_store.erase(search->first);
   
-  PlayerPasswordAuthInfo *info_store = new PlayerPasswordAuthInfo(info);
+  PlayerAuthInfo *info_store = new PlayerAuthInfo(info);
   pw_auth_store[info.login_name] = info_store;
 }
 void MemoryDB::delete_pw_info(std::string login_name) {
