@@ -178,10 +178,14 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"register_login_name_invalid\"}", websocketpp::frame::opcode::text);
           return false;
         }
+        if(db.player_data_name_used(login_name)) {
+          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"register_login_name_exists\"}", websocketpp::frame::opcode::text);
+          return false;
+        }
         //TODO what about names used by currently online players?
         
-        PlayerAuthInfo existing = db.fetch_pw_info(login_name);
-        if(!existing.is_nil) {
+        std::vector<PlayerAuthInfo> existing = db.fetch_pw_info(login_name, "password-plain");
+        if(existing.size() > 0) {
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"register_login_name_exists\"}", websocketpp::frame::opcode::text);
           return false;
         }
@@ -223,32 +227,34 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
         std::string login_name = pt.get<std::string>("login_name");
         std::string password = pt.get<std::string>("password");
         
-        PlayerAuthInfo search = db.fetch_pw_info(login_name);
-        if(search.is_nil) {
+        std::vector<PlayerAuthInfo> search = db.fetch_pw_info(login_name, "password-plain");
+        if(search.size() == 0) {
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"login_name_not_found\"}", websocketpp::frame::opcode::text);
           return false;
         }
         
-        std::string pw_json = search.data;
-        std::stringstream pw_ss;
-        pw_ss << pw_json;
-        boost::property_tree::ptree pw_pt;
-        boost::property_tree::read_json(pw_ss, pw_pt);
-        
-        std::string salt = pw_pt.get<std::string>("salt");
-        std::string password_hashed = pw_pt.get<std::string>("password_hashed");
-        
-        std::string input_pw_hashed = hash_password(password, salt);
-        if(input_pw_hashed == "") {
-          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"internal_error\"}", websocketpp::frame::opcode::text);
-          return false;
-        }
-        
-        if(input_pw_hashed == password_hashed) {
-          server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"auth_ok\"}", websocketpp::frame::opcode::text);
-          auth_info = search;
-          auth_success = true;
-          return true;
+        for(auto& it : search) {
+          std::string pw_json = it.data;
+          std::stringstream pw_ss;
+          pw_ss << pw_json;
+          boost::property_tree::ptree pw_pt;
+          boost::property_tree::read_json(pw_ss, pw_pt);
+          
+          std::string salt = pw_pt.get<std::string>("salt");
+          std::string password_hashed = pw_pt.get<std::string>("password_hashed");
+          
+          std::string input_pw_hashed = hash_password(password, salt);
+          if(input_pw_hashed == "") {
+            server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"internal_error\"}", websocketpp::frame::opcode::text);
+            return false;
+          }
+          
+          if(input_pw_hashed == password_hashed) {
+            server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"auth_ok\"}", websocketpp::frame::opcode::text);
+            auth_info = it;
+            auth_success = true;
+            return true;
+          }
         }
         
         server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"invalid_password\"}", websocketpp::frame::opcode::text);
@@ -269,16 +275,10 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"update_login_name_invalid\"}", websocketpp::frame::opcode::text);
           return false;
         }
-        //TODO what about names used by currently online players?
+        //no need to check db or online players, login name is not a default nickname
         
-        PlayerAuthInfo search = db.fetch_pw_info(auth_info.login_name);
-        if(search.is_nil) {
-          server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"login_name_not_found\"}", websocketpp::frame::opcode::text);
-          return true;
-        }
-        
-        PlayerAuthInfo existing = db.fetch_pw_info(login_name);
-        if(!existing.is_nil) {
+        std::vector<PlayerAuthInfo> existing = db.fetch_pw_info(login_name, "password-plain");
+        if(existing.size() > 0) {
           server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"update_login_name_exists\"}", websocketpp::frame::opcode::text);
           return true;
         }
@@ -291,12 +291,10 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
           return false;
         }
         
-        search.login_name = login_name;
-        search.data = "{\"password_hashed\":\"" + json_escape(password_hashed) + "\",\"salt\":\"" + json_escape(salt) + "\",\"client_salt\":\"" + json_escape(client_salt) + "\"}";
+        auth_info.login_name = login_name;
+        auth_info.data = "{\"password_hashed\":\"" + json_escape(password_hashed) + "\",\"salt\":\"" + json_escape(salt) + "\",\"client_salt\":\"" + json_escape(client_salt) + "\"}";
         
-        db.update_pw_info(auth_info.login_name, search);
-        
-        auth_info = search;
+        db.update_pw_info(auth_info);
         
         server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"update_ok\"}", websocketpp::frame::opcode::text);
         return true;

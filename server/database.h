@@ -40,14 +40,16 @@ class Database {
     virtual void clean_cache() = 0;
     
     virtual void store_pw_info(PlayerAuthInfo& info) = 0;
-    virtual PlayerAuthInfo fetch_pw_info(std::string login_name) = 0;
-    virtual void update_pw_info(std::string old_login_name, PlayerAuthInfo info) = 0; //might change login name
-    virtual void delete_pw_info(std::string login_name) = 0;
+    virtual std::vector<PlayerAuthInfo> fetch_pw_info(std::string login_name, std::string type) = 0;
+    virtual std::vector<PlayerAuthInfo> fetch_pw_info(std::string auth_id) = 0;
+    virtual void update_pw_info(PlayerAuthInfo info) = 0;
+    virtual void delete_pw_info(PlayerAuthInfo& info) = 0;
     
     virtual void store_player_data(PlayerData data) = 0;
     virtual PlayerData fetch_player_data(std::string auth_id) = 0;
     virtual void update_player_data(PlayerData data) = 0;
     virtual void delete_player_data(std::string auth_id) = 0;
+    virtual bool player_data_name_used(std::string name) = 0;
 };
 
 class MemoryDB : public Database {
@@ -59,18 +61,22 @@ class MemoryDB : public Database {
     virtual void clean_cache();
     
     virtual void store_pw_info(PlayerAuthInfo& info);
-    virtual PlayerAuthInfo fetch_pw_info(std::string login_name);
-    virtual void update_pw_info(std::string old_login_name, PlayerAuthInfo info);
-    virtual void delete_pw_info(std::string login_name);
+    virtual std::vector<PlayerAuthInfo> fetch_pw_info(std::string login_name, std::string type);
+    virtual std::vector<PlayerAuthInfo> fetch_pw_info(std::string auth_id);
+    virtual void update_pw_info(PlayerAuthInfo info);
+    virtual void delete_pw_info(PlayerAuthInfo& info);
     
     virtual void store_player_data(PlayerData data);
     virtual PlayerData fetch_player_data(std::string auth_id);
     virtual void update_player_data(PlayerData data);
     virtual void delete_player_data(std::string auth_id);
+    virtual bool player_data_name_used(std::string name);
   
   private:
+    unsigned int pw_auth_id_counter = 1;
+    
     std::map<MapPos<int>, Mapblock*> datastore;
-    std::map<std::string, PlayerAuthInfo*> pw_auth_store;
+    std::map<unsigned int, PlayerAuthInfo*> pw_auth_store;
     std::map<std::string, PlayerData*> player_data_store;
 };
 
@@ -85,14 +91,16 @@ class SQLiteDB: public Database {
     virtual void clean_cache();
     
     virtual void store_pw_info(PlayerAuthInfo& info);
-    virtual PlayerAuthInfo fetch_pw_info(std::string login_name);
-    virtual void update_pw_info(std::string old_login_name, PlayerAuthInfo info);
-    virtual void delete_pw_info(std::string login_name);
+    virtual std::vector<PlayerAuthInfo> fetch_pw_info(std::string login_name, std::string type);
+    virtual std::vector<PlayerAuthInfo> fetch_pw_info(std::string auth_id);
+    virtual void update_pw_info(PlayerAuthInfo info);
+    virtual void delete_pw_info(PlayerAuthInfo& info);
     
     virtual void store_player_data(PlayerData data);
     virtual PlayerData fetch_player_data(std::string auth_id);
     virtual void update_player_data(PlayerData data);
     virtual void delete_player_data(std::string auth_id);
+    virtual bool player_data_name_used(std::string name);
   
   private:
     sqlite3 *db;

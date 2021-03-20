@@ -19,6 +19,7 @@
 #include "server.h"
 
 #include "log.h"
+#include "player_util.h"
 
 Server::Server(Database& _db, std::map<int, World*> _worlds)
     : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds), mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0)
@@ -157,10 +158,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(type == "auth_guest") {
         PlayerData new_data;
         new_data.name = player->get_tag();
-        new_data.pos.set(0, 20, 0, 0, 0, 0);
-        new_data.vel.set(0, 0, 0, 0, 0, 0);
-        new_data.rot.set(0, 0, 0, 0);
         new_data.is_nil = false;
+        init_player_data(new_data);
         player->load_data(new_data);
         
         player->auth_guest = true;

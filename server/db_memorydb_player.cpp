@@ -20,55 +20,74 @@
 #include "log.h"
 
 void MemoryDB::store_pw_info(PlayerAuthInfo& info) {
-  std::string login_name = info.login_name;
-  
-  auto search = pw_auth_store.find(login_name);
-  if(search != pw_auth_store.end()) {
-    log(LogSource::MEMORYDB, LogLevel::ERR, "unable to store password info for '" + info.login_name + "': name already in use");
-    return;
-  }
-  
+  info.db_unique_id = pw_auth_id_counter;
+  info.has_db_unique_id = true;
   PlayerAuthInfo *info_store = new PlayerAuthInfo(info);
-  pw_auth_store[login_name] = info_store;
+  pw_auth_store[pw_auth_id_counter] = info_store;
+  pw_auth_id_counter++;
 }
 
-PlayerAuthInfo MemoryDB::fetch_pw_info(std::string login_name) {
-  auto search = pw_auth_store.find(login_name);
-  if(search == pw_auth_store.end()) {
-    //not found, return nil
-    return PlayerAuthInfo();
-  }
+std::vector<PlayerAuthInfo> MemoryDB::fetch_pw_info(std::string login_name, std::string type) {
+  std::vector<PlayerAuthInfo> res_list;
   
-  return PlayerAuthInfo(*(search->second));
+  for(auto it : pw_auth_store) {
+    if(it.second->login_name == login_name && it.second->type == type) {
+      res_list.push_back(*(it.second));
+    }
+  }
+  return res_list;
 }
-void MemoryDB::update_pw_info(std::string old_login_name, PlayerAuthInfo info) {
-  auto search = pw_auth_store.find(old_login_name);
-  if(search == pw_auth_store.end()) {
-    log(LogSource::MEMORYDB, LogLevel::ERR, "unable to update password info for '" + old_login_name + "': not found");
+std::vector<PlayerAuthInfo> MemoryDB::fetch_pw_info(std::string auth_id) {
+  std::vector<PlayerAuthInfo> res_list;
+  
+  for(auto it : pw_auth_store) {
+    if(it.second->auth_id == auth_id) {
+      res_list.push_back(*(it.second));
+    }
+  }
+  return res_list;
+}
+void MemoryDB::update_pw_info(PlayerAuthInfo info) {
+  if(!info.has_db_unique_id) {
+    log(LogSource::MEMORYDB, LogLevel::ERR, "unable to update auth info for '" + info.login_name + "': no db_unique_id");
     return;
   }
   
-  auto search_check = pw_auth_store.find(info.login_name);
-  if(search_check != pw_auth_store.end()) {
-    log(LogSource::MEMORYDB, LogLevel::ERR, "unable to update password info for '" + old_login_name + "': new name '" + info.login_name + "' is already in use");
+  auto search = pw_auth_store.find(info.db_unique_id);
+  if(search == pw_auth_store.end()) {
+    log(LogSource::MEMORYDB, LogLevel::ERR, "unable to update auth info for '" + info.login_name + "': not found");
     return;
+  }
+  
+  for(auto it : pw_auth_store) {
+    if(it.second->login_name == info.login_name) {
+      log(LogSource::MEMORYDB, LogLevel::ERR, "unable to update auth info for '" + info.login_name + "': new name is already in use");
+      return;
+    }
   }
   
   delete search->second;
   pw_auth_store.erase(search->first);
   
   PlayerAuthInfo *info_store = new PlayerAuthInfo(info);
-  pw_auth_store[info.login_name] = info_store;
+  pw_auth_store[info.db_unique_id] = info_store;
 }
-void MemoryDB::delete_pw_info(std::string login_name) {
-  auto search = pw_auth_store.find(login_name);
+void MemoryDB::delete_pw_info(PlayerAuthInfo& info) {
+  if(!info.has_db_unique_id) {
+    log(LogSource::MEMORYDB, LogLevel::ERR, "unable to delete auth info for '" + info.login_name + "': no db_unique_id");
+    return;
+  }
+  
+  auto search = pw_auth_store.find(info.db_unique_id);
   if(search == pw_auth_store.end()) {
-    log(LogSource::MEMORYDB, LogLevel::ERR, "unable to delete password info for '" + login_name + "': not found");
+    log(LogSource::MEMORYDB, LogLevel::ERR, "unable to delete auth info for '" + info.login_name + "': not found");
     return;
   }
   
   delete search->second;
   pw_auth_store.erase(search->first);
+  
+  info.has_db_unique_id = false;
 }
 
 
@@ -114,4 +133,12 @@ void MemoryDB::delete_player_data(std::string auth_id) {
   
   delete search->second;
   player_data_store.erase(search->first);
+}
+bool MemoryDB::player_data_name_used(std::string name) {
+  for(auto it : player_data_store) {
+    if(it.second->name == name) {
+      return true;
+    }
+  }
+  return false;
 }

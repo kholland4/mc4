@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS player_auth ( \
 );
 CREATE TABLE IF NOT EXISTS player_data ( \
   auth_id VARCHAR(80) PRIMARY KEY,\
+  name VARCHAR(255),\
   data MEDIUMTEXT\
 );
 */
@@ -213,6 +214,7 @@ SQLiteDB::SQLiteDB(const char* filename) {
 {"player_data",
 "CREATE TABLE IF NOT EXISTS player_data ( \
   auth_id VARCHAR(80) PRIMARY KEY,\
+  name VARCHAR(255),\
   data MEDIUMTEXT\
 );"}
     };
@@ -337,6 +339,7 @@ SQLiteDB::SQLiteDB(const char* filename) {
       );",
       "CREATE TABLE player_data ( \
         auth_id VARCHAR(80) PRIMARY KEY,\
+        name VARCHAR(255),\
         data MEDIUMTEXT\
       );",
       "PRAGMA user_version = 4;",

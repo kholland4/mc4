@@ -44,7 +44,12 @@ void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
       return;
     }
   }
-  //TODO check against login database?
+  if(player->data.name == new_nick) {
+    //all good, it's the player's own nickname
+  } else if(db.player_data_name_used(new_nick)) {
+    chat_send_player(player, "server", "that nickname is already in use, try another one?");
+    return;
+  }
   
   std::string old_nick = player->get_name();
   player->set_name(new_nick);
