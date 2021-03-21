@@ -22,12 +22,14 @@
 #include "vector.h"
 #include "mapblock.h"
 
+#include <map>
+
 #include "lib/PerlinNoise.hpp"
 
 class Mapgen {
   public:
     Mapgen(uint32_t _seed) : seed(_seed) {};
-    virtual void generate_at(MapPos<int> pos, Mapblock *mb) = 0;
+    virtual std::map<MapPos<int>, Mapblock*> generate_near(MapPos<int> pos) = 0;
   
   protected:
     uint32_t seed;
@@ -36,13 +38,13 @@ class Mapgen {
 class MapgenDefault : public Mapgen {
   public:
     MapgenDefault(uint32_t _seed) : Mapgen(_seed) {};
-    virtual void generate_at(MapPos<int> pos, Mapblock *mb);
+    virtual std::map<MapPos<int>, Mapblock*> generate_near(MapPos<int> pos);
 };
 
 class MapgenAlpha : public Mapgen {
   public:
     MapgenAlpha(uint32_t _seed) : Mapgen(_seed), perlin(_seed) {};
-    virtual void generate_at(MapPos<int> pos, Mapblock *mb);
+    virtual std::map<MapPos<int>, Mapblock*> generate_near(MapPos<int> pos);
   
   private:
     siv::PerlinNoise perlin;
@@ -51,7 +53,7 @@ class MapgenAlpha : public Mapgen {
 class MapgenHeck : public Mapgen {
   public:
     MapgenHeck(uint32_t _seed) : Mapgen(_seed), perlin(_seed) {};
-    virtual void generate_at(MapPos<int> pos, Mapblock *mb);
+    virtual std::map<MapPos<int>, Mapblock*> generate_near(MapPos<int> pos);
   
   private:
     siv::PerlinNoise perlin;

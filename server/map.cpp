@@ -113,9 +113,22 @@ Mapblock* Map::get_mapblock(MapPos<int> mb_pos) {
     return mb;
   }
   
-  search->second->mapgen.generate_at(mb_pos, mb);
-  db.set_mapblock(mb_pos, mb);
-  return mb;
+  delete mb;
+  
+  std::map<MapPos<int>, Mapblock*> generated = search->second->mapgen.generate_near(mb_pos);
+  for(auto it : generated) {
+    if(it.first == mb_pos) {
+      db.set_mapblock(it.first, it.second);
+    } else {
+      Mapblock *check = db.get_mapblock(it.first);
+      if(check->is_nil) {
+        db.set_mapblock(it.first, it.second);
+      }
+      delete check;
+      delete it.second;
+    }
+  }
+  return generated[mb_pos];
 }
 
 void Map::set_mapblock(MapPos<int> mb_pos, Mapblock *mb) {

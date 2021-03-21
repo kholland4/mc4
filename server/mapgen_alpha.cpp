@@ -30,52 +30,6 @@
 #define MAPGENALPHA_WATER_DEPTH -16
 #define MAPGENALPHA_SAND_DEPTH -15
 
-//Mapgens can safely ignore the 'world' and 'universe' dimensions.
-//The map itself is responsible for picking the correct mapgen for a given world,
-//and all universes should have identical mapgen.
-
-//TODO: use the 'w' dimension as part of the mapgen
-
-void MapgenDefault::generate_at(MapPos<int> pos, Mapblock *mb) {
-  if(pos.y > 0) {
-    //do nothing, leave it full of air per default
-  } else if(pos.y == 0) {
-    unsigned int grass_id = mb->itemstring_to_id("default:grass");
-    unsigned int dirt_id = mb->itemstring_to_id("default:dirt");
-    unsigned int stone_id = mb->itemstring_to_id("default:stone");
-    
-    for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
-      for(int x = 0; x < MAPBLOCK_SIZE_X; x++) {
-        for(int z = 0; z < MAPBLOCK_SIZE_Z; z++) {
-          if(y == 15) {
-            mb->data[x][y][z] = grass_id;
-          } else if(y >= 13) {
-            mb->data[x][y][z] = dirt_id;
-          } else {
-            mb->data[x][y][z] = stone_id;
-          }
-        }
-      }
-    }
-    
-    mb->sunlit = false;
-  } else {
-    unsigned int stone_id = mb->itemstring_to_id("default:stone");
-    
-    for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
-      for(int x = 0; x < MAPBLOCK_SIZE_X; x++) {
-        for(int z = 0; z < MAPBLOCK_SIZE_Z; z++) {
-          mb->data[x][y][z] = stone_id;
-        }
-      }
-    }
-    
-    mb->sunlit = false;
-  }
-  
-  mb->is_nil = false;
-}
-
 //L-system trees [https://en.wikipedia.org/wiki/L-system] [https://dev.minetest.net/Introduction_to_L-system_trees]
 //Defined characters are as follows, same as Minetest:
 //  G  move forward 1 unit
@@ -166,10 +120,8 @@ class TreeGenerator {
       actions = def.expand(TREE_ITERATION_DEPTH, seed);
     }
     
-    void write_to_mapblock(MapPos<int> mb_pos, Mapblock *mb) {
-      TreeGenState s(root_pos.x - mb_pos.x * MAPBLOCK_SIZE_X,
-                     root_pos.y - mb_pos.y * MAPBLOCK_SIZE_Y,
-                     root_pos.z - mb_pos.z * MAPBLOCK_SIZE_Z);
+    void write_to_mapblocks(std::map<MapPos<int>, Mapblock*>& mapblocks) {
+      TreeGenState s(root_pos.x, root_pos.y, root_pos.z);
       
       std::mt19937 rng(seed);
       std::uniform_real_distribution<double> rng_dist;
@@ -249,15 +201,15 @@ class TreeGenerator {
         if(to_place.trunk != "") {
           //place the requested node
           
-          unsigned int air_id = mb->itemstring_to_id("air");
+          std::string air_is = "air";
           
-          unsigned int trunk_id = mb->itemstring_to_id(to_place.trunk);
-          unsigned int leaf_id = air_id;
+          std::string trunk_is = to_place.trunk;
+          std::string leaf_is = air_is;
           Vector3<double> leaf_amount(0, 0, 0);
           Vector3<double> leaf_fuzz(0, 0, 0);
           bool has_leaves = false;
           if(to_place.leaves != "") {
-            leaf_id = mb->itemstring_to_id(to_place.leaves);
+            leaf_is = to_place.leaves;
             leaf_amount = to_place.leaf_amount;
             leaf_fuzz = to_place.leaf_fuzz;
             has_leaves = true;
@@ -273,13 +225,22 @@ class TreeGenerator {
             int place_z = round(old_z + move_z * prop);
             if(place_x == new_x && place_y == new_y && place_z == new_z) { continue; }
             
-            if(place_x >= 0 && place_x < MAPBLOCK_SIZE_X &&
-               place_y >= 0 && place_y < MAPBLOCK_SIZE_Y &&
-               place_z >= 0 && place_z < MAPBLOCK_SIZE_Z) {
-              unsigned int old_id = mb->data[place_x][place_y][place_z];
-              std::string old_is = mb->id_to_itemstring(old_id);
-              if(old_id == air_id || old_id == leaf_id || old_is.rfind("flowers:", 0) == 0) {
-                mb->data[place_x][place_y][place_z] = trunk_id;
+            for(auto it : mapblocks) {
+              Mapblock *mb = it.second;
+              MapPos<int> lower(it.first.x * MAPBLOCK_SIZE_X, it.first.y * MAPBLOCK_SIZE_Y, it.first.z * MAPBLOCK_SIZE_Z, it.first.w, it.first.world, it.first.universe);
+              MapPos<int> upper(lower.x + MAPBLOCK_SIZE_X, lower.y + MAPBLOCK_SIZE_Y, lower.z + MAPBLOCK_SIZE_Z, lower.w, lower.world, lower.universe);
+              if(place_x >= lower.x && place_x < upper.x &&
+                 place_y >= lower.y && place_y < upper.y &&
+                 place_z >= lower.z && place_z < upper.z) {
+                unsigned int air_id = mb->itemstring_to_id(air_is);
+                unsigned int trunk_id = mb->itemstring_to_id(trunk_is);
+                unsigned int leaf_id = mb->itemstring_to_id(leaf_is);
+                unsigned int old_id = mb->data[place_x - lower.x][place_y - lower.y][place_z - lower.z];
+                std::string old_is = mb->id_to_itemstring(old_id);
+                if(old_id == air_id || old_id == leaf_id || old_is.rfind("flowers:", 0) == 0) {
+                  mb->data[place_x - lower.x][place_y - lower.y][place_z - lower.z] = trunk_id;
+                }
+                break;
               }
             }
             
@@ -311,12 +272,20 @@ class TreeGenerator {
                     int y = round(place_y + x_vec.y*x_delta*x_fuzz + y_vec.y*y_delta*y_fuzz + z_vec.y*z_delta*z_fuzz);
                     int z = round(place_z + x_vec.z*x_delta*x_fuzz + y_vec.z*y_delta*y_fuzz + z_vec.z*z_delta*z_fuzz);
                     
-                    if(x < 0 || x >= MAPBLOCK_SIZE_X) { continue; }
-                    if(y < 0 || y >= MAPBLOCK_SIZE_Y) { continue; }
-                    if(z < 0 || z >= MAPBLOCK_SIZE_Z) { continue; }
-                    
-                    if(mb->data[x][y][z] == air_id) {
-                      mb->data[x][y][z] = leaf_id;
+                    for(auto it : mapblocks) {
+                      Mapblock *mb = it.second;
+                      MapPos<int> lower(it.first.x * MAPBLOCK_SIZE_X, it.first.y * MAPBLOCK_SIZE_Y, it.first.z * MAPBLOCK_SIZE_Z, it.first.w, it.first.world, it.first.universe);
+                      MapPos<int> upper(lower.x + MAPBLOCK_SIZE_X, lower.y + MAPBLOCK_SIZE_Y, lower.z + MAPBLOCK_SIZE_Z, lower.w, lower.world, lower.universe);
+                      if(x >= lower.x && x < upper.x &&
+                         y >= lower.y && y < upper.y &&
+                         z >= lower.z && z < upper.z) {
+                        unsigned int air_id = mb->itemstring_to_id(air_is);
+                        unsigned int leaf_id = mb->itemstring_to_id(leaf_is);
+                        if(mb->data[x - lower.x][y - lower.y][z - lower.z] == air_id) {
+                          mb->data[x - lower.x][y - lower.y][z - lower.z] = leaf_id;
+                        }
+                        break;
+                      }
                     }
                   }
                 }
@@ -360,39 +329,40 @@ TreeDef tree_pine("TTTTLTTMTTN",
         {'N', TreePlaceRule("default:pine_tree", "default:pine_needles", Vector3<double>(1, 1, 1), Vector3<double>(0.5, 0, 0.5))}
       }, 20);
 
-void MapgenAlpha::generate_at(MapPos<int> pos, Mapblock *mb) {
-  MapPos<int> global_offset = MapPos<int>(pos.x * MAPBLOCK_SIZE_X, pos.y * MAPBLOCK_SIZE_Y, pos.z * MAPBLOCK_SIZE_Z, pos.w, pos.world, pos.universe);
+std::map<MapPos<int>, Mapblock*> MapgenAlpha::generate_near(MapPos<int> pos) {
+  std::map<MapPos<int>, Mapblock*> to_generate;
+  int start_y = pos.y - (((pos.y % 5) + 5) % 5);
+  int end_y = start_y + 5;
+  for(int y = start_y; y < end_y; y++) {
+    MapPos<int> where(pos.x, y, pos.z, pos.w, pos.world, pos.universe);
+    to_generate[where] = new Mapblock(where);
+  }
+  MapPos<int> global_offset = MapPos<int>(pos.x * MAPBLOCK_SIZE_X, start_y * MAPBLOCK_SIZE_Y, pos.z * MAPBLOCK_SIZE_Z, pos.w, pos.world, pos.universe);
   
-  uint32_t seed = pos.x * 1234 + pos.y * 7 + pos.z * 420 + pos.w * 24;
+  uint32_t seed = pos.x * 1234 + start_y * 7 + pos.z * 420 + pos.w * 24;
   std::mt19937 rng(seed);
   std::uniform_real_distribution<double> rng_dist;
   
-  unsigned int grass_id = mb->itemstring_to_id("default:grass");
-  unsigned int dirt_id = mb->itemstring_to_id("default:dirt");
-  unsigned int stone_id = mb->itemstring_to_id("default:stone");
-  unsigned int sand_id = mb->itemstring_to_id("default:sand");
-  unsigned int water_id = mb->itemstring_to_id("default:water_source");
-  
-  std::pair<unsigned int, double> flower_ids[] = {
-    {mb->itemstring_to_id("flowers:grass_1"), 0.10},
-    {mb->itemstring_to_id("flowers:grass_2"), 0.10},
-    {mb->itemstring_to_id("flowers:grass_3"), 0.15},
-    {mb->itemstring_to_id("flowers:grass_4"), 0.08},
-    {mb->itemstring_to_id("flowers:grass_5"), 0.05},
-    {mb->itemstring_to_id("flowers:chrysanthemum_green"), 0.01},
-    {mb->itemstring_to_id("flowers:dandelion_white"), 0.02},
-    {mb->itemstring_to_id("flowers:dandelion_yellow"), 0.03},
-    {mb->itemstring_to_id("flowers:geranium"), 0.03},
-    {mb->itemstring_to_id("flowers:mushroom_brown"), 0.02},
-    {mb->itemstring_to_id("flowers:mushroom_red"), 0.015},
-    {mb->itemstring_to_id("flowers:rose"), 0.06},
-    {mb->itemstring_to_id("flowers:tulip"), 0.04},
-    {mb->itemstring_to_id("flowers:tulip_black"), 0.01},
-    {mb->itemstring_to_id("flowers:viola"), 0.03}
+  std::pair<std::string, double> flower_is_list[] = {
+    {"flowers:grass_1", 0.10},
+    {"flowers:grass_2", 0.10},
+    {"flowers:grass_3", 0.15},
+    {"flowers:grass_4", 0.08},
+    {"flowers:grass_5", 0.05},
+    {"flowers:chrysanthemum_green", 0.01},
+    {"flowers:dandelion_white", 0.02},
+    {"flowers:dandelion_yellow", 0.03},
+    {"flowers:geranium", 0.03},
+    {"flowers:mushroom_brown", 0.02},
+    {"flowers:mushroom_red", 0.015},
+    {"flowers:rose", 0.06},
+    {"flowers:tulip", 0.04},
+    {"flowers:tulip_black", 0.01},
+    {"flowers:viola", 0.03}
   };
   
   double flower_total = 0;
-  for(auto it : flower_ids) {
+  for(auto it : flower_is_list) {
     flower_total += it.second;
   }
   
@@ -407,60 +377,71 @@ void MapgenAlpha::generate_at(MapPos<int> pos, Mapblock *mb) {
   
   for(int x = 0; x < MAPBLOCK_SIZE_X; x++) {
     for(int z = 0; z < MAPBLOCK_SIZE_Z; z++) {
-      int height = height_map[x][z] - global_offset.y;
-      if(height >= 0 || global_offset.y < MAPGENALPHA_WATER_DEPTH) {
-        mb->sunlit = false;
-        
-        for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
-          if(y > height) {
-            if(y + global_offset.y < MAPGENALPHA_WATER_DEPTH) {
-              //water
-              mb->data[x][y][z] = water_id;
-            } else if(y == height + 1 && y + global_offset.y > MAPGENALPHA_SAND_DEPTH) {
-              //possibly flowers/grass, otherwise air
-              double flowerNoise = perlin.noise3D((x + global_offset.x) / 2.0, (z + global_offset.z) / 2.0, global_offset.w / 2.0);
-              if(flowerNoise > 0.4) {
-                double n = rng_dist(rng);
-                n *= flower_total;
-                
-                unsigned int flower_id = flower_ids[0].first;
-                double acc = 0;
-                for(auto it : flower_ids) {
-                  acc += it.second;
-                  if(acc >= n) {
-                    flower_id = it.first;
-                    break;
+      int height = height_map[x][z];
+      for(int mb_y = start_y; mb_y < end_y; mb_y++) {
+        MapPos<int> where(pos.x, mb_y, pos.z, pos.w, pos.world, pos.universe);
+        if(height >= where.y * MAPBLOCK_SIZE_Y || where.y * MAPBLOCK_SIZE_Y < MAPGENALPHA_WATER_DEPTH) {
+          Mapblock *mb = to_generate[where];
+          mb->sunlit = false;
+          
+          unsigned int grass_id = mb->itemstring_to_id("default:grass");
+          unsigned int dirt_id = mb->itemstring_to_id("default:dirt");
+          unsigned int stone_id = mb->itemstring_to_id("default:stone");
+          unsigned int sand_id = mb->itemstring_to_id("default:sand");
+          unsigned int water_id = mb->itemstring_to_id("default:water_source");
+          
+          for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
+            int global_y = y + mb_y * MAPBLOCK_SIZE_Y;
+            if(global_y > height) {
+              if(global_y < MAPGENALPHA_WATER_DEPTH) {
+                //water
+                mb->data[x][y][z] = water_id;
+              } else if(global_y == height + 1 && global_y > MAPGENALPHA_SAND_DEPTH) {
+                //possibly flowers/grass, otherwise air
+                double flowerNoise = perlin.noise3D((x + global_offset.x) / 2.0, (z + global_offset.z) / 2.0, global_offset.w / 2.0);
+                if(flowerNoise > 0.4) {
+                  double n = rng_dist(rng);
+                  n *= flower_total;
+                  
+                  std::string flower_is = flower_is_list[0].first;
+                  double acc = 0;
+                  for(auto it : flower_is_list) {
+                    acc += it.second;
+                    if(acc >= n) {
+                      flower_is = it.first;
+                      break;
+                    }
                   }
+                  
+                  mb->data[x][y][z] = mb->itemstring_to_id(flower_is);
+                } else {
+                  //air
                 }
-                
-                mb->data[x][y][z] = flower_id;
               } else {
-                //air
+                //air, which is already there
+              }
+            } else if(global_y == height) {
+              if(global_y < MAPGENALPHA_SAND_DEPTH) {
+                mb->data[x][y][z] = sand_id;
+              } else {
+                mb->data[x][y][z] = grass_id;
+              }
+            } else if(global_y >= height - 2) {
+              if(global_y < MAPGENALPHA_SAND_DEPTH) {
+                mb->data[x][y][z] = sand_id;
+              } else {
+                mb->data[x][y][z] = dirt_id;
               }
             } else {
-              //air, which is already there
+              mb->data[x][y][z] = stone_id;
             }
-          } else if(y == height) {
-            if(y + global_offset.y < MAPGENALPHA_SAND_DEPTH) {
-              mb->data[x][y][z] = sand_id;
-            } else {
-              mb->data[x][y][z] = grass_id;
-            }
-          } else if(y >= height - 2) {
-            if(y + global_offset.y < MAPGENALPHA_SAND_DEPTH) {
-              mb->data[x][y][z] = sand_id;
-            } else {
-              mb->data[x][y][z] = dirt_id;
-            }
-          } else {
-            mb->data[x][y][z] = stone_id;
           }
         }
       }
     }
   }
   
-  if(global_offset.y > -100 && global_offset.y < 100) {
+  if(end_y * MAPBLOCK_SIZE_Y > -100 && global_offset.y < 100) {
     //trees
     
     std::vector<MapPos<int>> tree_list;
@@ -480,7 +461,7 @@ void MapgenAlpha::generate_at(MapPos<int> pos, Mapblock *mb) {
           //no trees below shoreline
           if(height <= MAPGENALPHA_SAND_DEPTH) { continue; }
           
-          if(height < global_offset.y - max_tree_spread_up.y || height > global_offset.y + MAPBLOCK_SIZE_Y + max_tree_spread_down.y) { continue; }
+          if(height < global_offset.y - max_tree_spread_up.y || height > end_y * MAPBLOCK_SIZE_Y + MAPBLOCK_SIZE_Y + max_tree_spread_down.y) { continue; }
           
           double treeNoise = perlin.noise3D(x / 1.5, z / 1.5, w / 1.5);
           if(treeNoise > 0.7) {
@@ -502,50 +483,20 @@ void MapgenAlpha::generate_at(MapPos<int> pos, Mapblock *mb) {
       
       if(n < 0.3) {
         TreeGenerator gen(t, t.x * 3897 + t.z + t.w * 42, tree_aspen);
-        gen.write_to_mapblock(pos, mb);
+        gen.write_to_mapblocks(to_generate);
       } else if(n < 0.5) {
         TreeGenerator gen(t, t.x * 3897 + t.z + t.w * 42, tree_pine);
-        gen.write_to_mapblock(pos, mb);
+        gen.write_to_mapblocks(to_generate);
       } else {
         TreeGenerator gen(t, t.x * 3897 + t.z + t.w * 42, tree_regular);
-        gen.write_to_mapblock(pos, mb);
+        gen.write_to_mapblocks(to_generate);
       }
     }
   }
   
-  mb->is_nil = false;
-}
-
-void MapgenHeck::generate_at(MapPos<int> pos, Mapblock *mb) {
-  MapPos<int> global_offset = MapPos<int>(pos.x * MAPBLOCK_SIZE_X, pos.y * MAPBLOCK_SIZE_Y, pos.z * MAPBLOCK_SIZE_Z, pos.w, pos.world, pos.universe);
-  
-  unsigned int brick_id = mb->itemstring_to_id("default:brick");
-  unsigned int iron_block_id = mb->itemstring_to_id("default:iron_block");
-  
-  for(int x = 0; x < MAPBLOCK_SIZE_X; x++) {
-    for(int z = 0; z < MAPBLOCK_SIZE_Z; z++) {
-      double val = perlin.accumulatedOctaveNoise3D((x + global_offset.x) / 50.0, (z + global_offset.z) / 50.0, global_offset.w / 30.0, 3);
-      
-      int height = std::floor(val * 50);
-      height -= global_offset.y;
-      
-      if(height >= 0) {
-        mb->sunlit = false;
-        
-        for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
-          if(y > height) {
-            //air, which is already there
-          } else if(y == height) {
-            mb->data[x][y][z] = brick_id;
-          } else if(y >= height - 2) {
-            mb->data[x][y][z] = iron_block_id;
-          } else {
-            mb->data[x][y][z] = brick_id;
-          }
-        }
-      }
-    }
+  for(auto it : to_generate) {
+    it.second->is_nil = false;
   }
   
-  mb->is_nil = false;
+  return to_generate;
 }

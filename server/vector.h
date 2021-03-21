@@ -120,6 +120,9 @@ template <class T> class MapPos {
     bool operator==(const MapPos<T>& other) const {
       return (x == other.x) && (y == other.y) && (z == other.z) && (w == other.w) && (world == other.world) && (universe == other.universe);
     };
+    bool operator!=(const MapPos<T>& other) const {
+      return !operator==(other);
+    };
     MapPos<T> operator+(const MapPos<T>& other) {
       return MapPos<T>(x + other.x, y + other.y, z + other.z, w + other.w, world + other.world, universe + other.universe);
     };
