@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.2.4-dev7";
+var VERSION = "0.2.4-dev8";
 
 var scene;
 var camera;
@@ -35,6 +35,8 @@ var digTimer = null;
 var digTimerStart = null;
 var digSel = null;
 var isDigging = false;
+var isPlacing = false;
+var placeTimer = null;
 var digOverlay;
 var destroySelNullCount = 0;
 
@@ -54,6 +56,7 @@ var RAYCAST_DISTANCE = 10;
 
 var DIG_PREEMPT_TIME = 0.04;
 var CREATIVE_DIG_TIME = 0.15;
+var PLACE_REPEAT_INTERVAL = 0.25;
 
 var menuConfig = {
   gameType: "local", // local, remote
@@ -226,36 +229,8 @@ function init() {
     if(e.which == 1) {
       isDigging = true;
     } else if(e.which == 3) {
-      if(placeSel != null) {
-        var nodeData = server.nodeToPlace(player);
-        if(nodeData != null) {
-          var def = getNodeDef(nodeData.itemstring);
-          var ok = true;
-          if(def.walkable) {
-            
-          } else if(def.boundingBox == null) {
-            if(player.collide(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(placeSel.x, placeSel.y, placeSel.z), new THREE.Vector3(1, 1, 1)))) {
-              ok = false;
-            }
-          } else {
-            for(var i = 0; i < def.boundingBox.length; i++) {
-              if(player.collide(def.boundingBox[i].clone().translate(new THREE.Vector3(placeSel.x, placeSel.y, placeSel.z)))) {
-                ok = false;
-                break;
-              }
-            }
-          }
-          if(ok) {
-            var existingNode = server.getNode(placeSel);
-            if(existingNode != null) {
-              if(existingNode.getDef().canPlaceInside) {
-                server.placeNode(player, placeSel);
-                needsRaycast = true;
-              }
-            }
-          }
-        }
-      }
+      isPlacing = true;
+      placeTimer = 0;
     }
   });
   window.addEventListener("mouseup", function(e) {
@@ -264,6 +239,8 @@ function init() {
       isDigging = false;
       digTimer = null;
       digSel = null;
+    } else if(e.which == 3) {
+      isPlacing = false;
     }
   });
   
@@ -501,6 +478,44 @@ function animate() {
     digOverlay.visible = true;
   } else {
     digOverlay.visible = false;
+  }
+  
+  if(isPlacing) {
+    placeTimer -= frameTime;
+    if(placeTimer <= 0) {
+      if(placeSel != null) {
+        var nodeData = server.nodeToPlace(player);
+        if(nodeData != null) {
+          var def = getNodeDef(nodeData.itemstring);
+          var ok = true;
+          if(def.walkable) {
+            
+          } else if(def.boundingBox == null) {
+            if(player.collide(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(placeSel.x, placeSel.y, placeSel.z), new THREE.Vector3(1, 1, 1)))) {
+              ok = false;
+            }
+          } else {
+            for(var i = 0; i < def.boundingBox.length; i++) {
+              if(player.collide(def.boundingBox[i].clone().translate(new THREE.Vector3(placeSel.x, placeSel.y, placeSel.z)))) {
+                ok = false;
+                break;
+              }
+            }
+          }
+          if(ok) {
+            var existingNode = server.getNode(placeSel);
+            if(existingNode != null) {
+              if(existingNode.getDef().canPlaceInside) {
+                server.placeNode(player, placeSel);
+                needsRaycast = true;
+              }
+            }
+          }
+        }
+      }
+      
+      placeTimer = PLACE_REPEAT_INTERVAL;
+    }
   }
   
   player.tick(frameTime);
