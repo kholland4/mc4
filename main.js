@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.2.5-dev1";
+var VERSION = "0.2.5-dev2";
 
 var scene;
 var camera;
@@ -306,28 +306,6 @@ function loadLoop2() {
 
 function afterLoad() {
   debug("main", "status", "ready");
-  
-  //---
-  player.inventory.give("main", new ItemStack("default:pick_diamond"));
-  player.inventory.give("main", new ItemStack("default:axe_diamond"));
-  player.inventory.give("main", new ItemStack("default:dirt", 3));
-  player.inventory.give("main", new ItemStack("default:shovel_diamond"));
-  //player.inventory.give("main", new ItemStack("default:tree", 64));
-  player.inventory.give("main", new ItemStack("default:wood", 64));
-  //player.inventory.give("main", new ItemStack("default:leaves", 64));
-  player.inventory.give("main", new ItemStack("default:cobble", 64));
-  player.inventory.give("main", new ItemStack("stairs:slab_stone", 64));
-  player.inventory.give("main", new ItemStack("default:torch", 64));
-  //---
-  
-  //FIXME: bodge
-  //var oldRenderDist = renderDist;
-  //renderDist = new THREE.Vector3(1, 2, 1);
-  //renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
-  //renderDist = new THREE.Vector3(2, 2, 2);
-  //renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
-  //renderDist = oldRenderDist;
-  //renderUpdateMap(new THREE.Vector3(Math.round(player.pos.x / MAPBLOCK_SIZE.x), Math.round(player.pos.y / MAPBLOCK_SIZE.y), Math.round(player.pos.z / MAPBLOCK_SIZE.z)));
   
   animateLastTime = performance.now();
   animate();

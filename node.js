@@ -68,6 +68,10 @@ class NodeBase {
     this.texTop = null;
     this.texBottom = null;
     this.texSides = null;
+    this.texFront = null;
+    this.texBack = null;
+    this.texLeft = null;
+    this.texRight = null;
     this.fluidTexLoc = null;
     
     this.drops = null;
@@ -184,6 +188,34 @@ class NodeBase {
         }
       }
     }
+  }
+  
+  rotateBoundingBox(euler) {
+    if(this.boundingBox == null) {
+      return null;
+    }
+    var mat4 = new THREE.Matrix4().makeRotationFromEuler(euler);
+    var out = [];
+    for(var i = 0; i < this.boundingBox.length; i++) {
+      var box = this.boundingBox[i].clone();
+      box.applyMatrix4(mat4);
+      out.push(box);
+    }
+    return out;
+  }
+  
+  rotateMeshBox(euler) {
+    if(this.meshBox == null) {
+      return null;
+    }
+    var mat4 = new THREE.Matrix4().makeRotationFromEuler(euler);
+    var out = [];
+    for(var i = 0; i < this.meshBox.length; i++) {
+      var box = this.meshBox[i].clone();
+      box.applyMatrix4(mat4);
+      out.push(box);
+    }
+    return out;
   }
 }
 

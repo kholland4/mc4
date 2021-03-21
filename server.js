@@ -21,9 +21,6 @@
 var SERVER_REMOTE_UPDATE_INTERVAL = 0.25; //how often to send updates about, i. e., the player position to the remote server
 var serverUncacheDist = new MapPos(7, 4, 7, 2, 0, 0);
 
-var testRotAxis = null;
-var testRotFace = null;
-
 class ServerBase {
   constructor() {
     this.entities = {};
@@ -172,11 +169,11 @@ class ServerBase {
             if(yaw >= (-3/4)*Math.PI && yaw <= (-1/4)*Math.PI) {
               rotFace = 0;
             } else if(yaw < (-3/4)*Math.PI || yaw > (3/4)*Math.PI) {
-              rotFace = rotAxis == 0 ? 1 : 3;
+              rotFace = 1;
             } else if(yaw >= (1/4)*Math.PI && yaw <= (3/4)*Math.PI) {
               rotFace = 2;
             } else { //yaw > (-1/4)*Math.PI && yaw < (1/4)*Math.PI
-              rotFace = rotAxis == 0 ? 3 : 1;
+              rotFace = 3;
             }
           }
         } else if(pos_on.add(new MapPos(-1, 0, 0, 0, 0, 0)).equals(pos)) {
@@ -197,14 +194,9 @@ class ServerBase {
           rotFace = 1;
         }
         
-        if(testRotAxis != null) { rotAxis = testRotAxis; }
-        if(testRotFace != null) { rotFace = testRotFace; }
-        
         assert(rotAxis >= 0 && rotAxis < 6, "0 <= rotAxis < 6");
         assert(rotFace >= 0 && rotFace < 4, "0 <= rotFace < 4");
         nodeData.rot = (rotAxis << 2) | rotFace;
-        
-        console.log(nodeData.rot);
       }
       this.setNode(pos, nodeData);
       

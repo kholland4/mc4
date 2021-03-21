@@ -349,8 +349,14 @@ class Player {
     
     if(def.meshBox == null) { return false; }
     
-    for(var i = 0; i < def.meshBox.length; i++) {
-      var newBox = def.meshBox[i].clone().translate(new THREE.Vector3(Math.round(this.pos.x), Math.round(this.pos.y), Math.round(this.pos.z)));
+    var bb = def.meshBox;
+    if(containingNode.rot != 0) {
+      var map = boudingBoxRotMap[containingNode.rot];
+      bb = def.rotateMeshBox(new THREE.Euler(map.x * (Math.PI/180), map.y * (Math.PI/180), map.z * (Math.PI/180), map.order));
+    }
+    
+    for(var i = 0; i < bb.length; i++) {
+      var newBox = bb[i].clone().translate(new THREE.Vector3(Math.round(this.pos.x), Math.round(this.pos.y), Math.round(this.pos.z)));
       if(this.collide(newBox)) {
         return false;
       }

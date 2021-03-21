@@ -19,29 +19,358 @@
 (function() {
   var modpath = api.getModMeta("stairs").path;
   
-  api.onModLoaded("default", function() {
-    
-    /*function registerNodeHelper(itemstring, args) {
-      args = Object.assign({desc: "", tex: null, icon: null, item: {}, node: {}}, args);
+  mods.stairs = {};
+  
+  var slabVerts = [
+    [
+      -0.5, 0, -0.5,
+      -0.5, -0.5, -0.5,
+      -0.5, 0, 0.5,
       
-      var texOverlay = {};
-      for(var key in args.tex) {
-        var file = modpath + "/textures/" + args.tex[key];
-        var n = api.textureExists(file);
-        if(n == false) {
-          api.loadTexture(itemstring + ":" + key, file);
-          texOverlay[key] = itemstring + ":" + key;
-        } else {
-          texOverlay[key] = n;
-        }
-      }
-      if(args.icon != null) {
-        args.item.iconFile = modpath + "/icons/" + args.icon;
-      }
-      api.registerItem(new api.Item(itemstring, Object.assign({isNode: true, desc: args.desc}, args.item)));
-      api.registerNode(new api.Node(itemstring, Object.assign(texOverlay, args.node)));
-    }*/
+      -0.5, -0.5, -0.5,
+      -0.5, -0.5, 0.5,
+      -0.5, 0, 0.5
+    ],
+    [
+      0.5, 0, 0.5,
+      0.5, -0.5, 0.5,
+      0.5, 0, -0.5,
+      
+      0.5, -0.5, 0.5,
+      0.5, -0.5, -0.5,
+      0.5, 0, -0.5
+    ],
+    [
+      0.5, -0.5, 0.5,
+      -0.5, -0.5, 0.5,
+      0.5, -0.5, -0.5,
+      
+      -0.5, -0.5, 0.5,
+      -0.5, -0.5, -0.5,
+      0.5, -0.5, -0.5
+    ],
+    [
+      0.5, 0, -0.5,
+      -0.5, 0, -0.5,
+      0.5, 0, 0.5,
+      
+      -0.5, 0, -0.5,
+      -0.5, 0, 0.5,
+      0.5, 0, 0.5
+    ],
+    [
+      0.5, 0, -0.5,
+      0.5, -0.5, -0.5,
+      -0.5, 0, -0.5,
+      
+      0.5, -0.5, -0.5,
+      -0.5, -0.5, -0.5,
+      -0.5, 0, -0.5
+    ],
+    [
+      -0.5, 0, 0.5,
+      -0.5, -0.5, 0.5,
+      0.5, 0, 0.5,
+      
+      -0.5, -0.5, 0.5,
+      0.5, -0.5, 0.5,
+      0.5, 0, 0.5
+    ]
+  ];
+  var slabUVs = [
+    [
+      0.0, 0.5,
+      0.0, 0.0,
+      1.0, 0.5,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 0.5
+    ],
+    [
+      0.0, 0.5,
+      0.0, 0.0,
+      1.0, 0.5,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 0.5
+    ],
+    [
+      0.0, 1.0,
+      0.0, 0.0,
+      1.0, 1.0,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 1.0
+    ],
+    [
+      0.0, 1.0,
+      0.0, 0.0,
+      1.0, 1.0,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 1.0
+    ],
+    [
+      0.0, 0.5,
+      0.0, 0.0,
+      1.0, 0.5,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 0.5
+    ],
+    [
+      0.0, 0.5,
+      0.0, 0.0,
+      1.0, 0.5,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 0.5
+    ]
+  ];
+  
+  var stairVerts = [
+    [
+      0, 0.5, -0.5,
+      0, 0, -0.5,
+      0, 0.5, 0.5,
+      
+      0, 0, -0.5,
+      0, 0, 0.5,
+      0, 0.5, 0.5,
+      
+      -0.5, 0, -0.5,
+      -0.5, -0.5, -0.5,
+      -0.5, 0, 0.5,
+      
+      -0.5, -0.5, -0.5,
+      -0.5, -0.5, 0.5,
+      -0.5, 0, 0.5
+    ],
+    [
+      0.5, 0.5, 0.5,
+      0.5, -0.5, 0.5,
+      0.5, 0.5, -0.5,
+      
+      0.5, -0.5, 0.5,
+      0.5, -0.5, -0.5,
+      0.5, 0.5, -0.5
+    ],
+    [
+      0.5, -0.5, 0.5,
+      -0.5, -0.5, 0.5,
+      0.5, -0.5, -0.5,
+      
+      -0.5, -0.5, 0.5,
+      -0.5, -0.5, -0.5,
+      0.5, -0.5, -0.5
+    ],
+    [
+      0.5, 0.5, -0.5,
+      0, 0.5, -0.5,
+      0.5, 0.5, 0.5,
+      
+      0, 0.5, -0.5,
+      0, 0.5, 0.5,
+      0.5, 0.5, 0.5,
+      
+      0, 0, -0.5,
+      -0.5, 0, -0.5,
+      0, 0, 0.5,
+      
+      -0.5, 0, -0.5,
+      -0.5, 0, 0.5,
+      0, 0, 0.5
+    ],
+    [
+      0, 0.5, -0.5,
+      0.5, 0.5, -0.5,
+      0, 0, -0.5,
+      
+      -0.5, 0, -0.5,
+      0, 0, -0.5,
+      -0.5, -0.5, -0.5,
+      
+      0.5, 0.5, -0.5,
+      0.5, -0.5, -0.5,
+      -0.5, -0.5, -0.5
+    ],
+    [
+      -0.5, 0, 0.5,
+      -0.5, -0.5, 0.5,
+      0, 0, 0.5,
+      
+      0, 0.5, 0.5,
+      0, 0, 0.5,
+      0.5, 0.5, 0.5,
+      
+      -0.5, -0.5, 0.5,
+      0.5, -0.5, 0.5,
+      0.5, 0.5, 0.5
+    ]
+  ];
+  var stairUVs = [
+    [
+      0.0, 1.0,
+      0.0, 0.5,
+      1.0, 1.0,
+      
+      0.0, 0.5,
+      1.0, 0.5,
+      1.0, 1.0,
+      
+      0.0, 0.5,
+      0.0, 0.0,
+      1.0, 0.5,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 0.5
+    ],
+    [
+      0.0, 1.0,
+      0.0, 0.0,
+      1.0, 1.0,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 1.0
+    ],
+    [
+      0.0, 1.0,
+      0.0, 0.0,
+      1.0, 1.0,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 1.0
+    ],
+    [
+      0.0, 1.0,
+      0.0, 0.5,
+      1.0, 1.0,
+      
+      0.0, 0.5,
+      1.0, 0.5,
+      1.0, 1.0,
+      
+      0.0, 0.5,
+      0.0, 0.0,
+      1.0, 0.5,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 0.5
+    ],
+    [
+      0.5, 1.0,
+      0.0, 1.0,
+      0.5, 0.5,
+      
+      1.0, 0.5,
+      0.5, 0.5,
+      1.0, 0.0,
+      
+      0.0, 1.0,
+      0.0, 0.0,
+      1.0, 0.0
+    ],
+    [
+      0.0, 0.5,
+      0.0, 0.0,
+      0.5, 0.5,
+      
+      0.5, 1.0,
+      0.5, 0.5,
+      1.0, 1.0,
+      
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 1.0
+    ]
+  ];
+  
+  mods.stairs.registerSlab = function(itemstring) {
+    var itemstringFlat = itemstring.replace(":", "_");
     
+    var idef = api.getItemDef(itemstring);
+    var ndef = api.getNodeDef(itemstring);
+    
+    var tex = {};
+    var keys = ["texAll", "texTop", "texBottom", "texSides", "texFront", "texBack", "texLeft", "texRight"];
+    for(var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      tex[key] = ndef[key];
+    }
+    
+    //---slab---
+    api.registerItem(new api.Item(itemstring + "_slab", {
+      isNode: true, desc: idef.desc + " Slab",
+      iconFile: modpath + "/icons/" + itemstringFlat + "_slab.png",
+      inCreativeInventory: idef.inCreativeInventory
+    }));
+    api.registerNode(new api.Node(itemstring + "_slab", Object.assign({
+        groups: ndef.groups,
+        transparent: true,
+        passSunlight: ndef.passSunlight,
+        setRotOnPlace: true,
+        limitRotOnPlace: true,
+        customMesh: true,
+        customMeshVerts: slabVerts,
+        customMeshUVs: slabUVs,
+        boundingBox: [
+          new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0, 0.5))
+        ],
+        faceIsRecessed: [false, false, false, true, false, false]
+      }, tex)
+    )); //api.registerNode
+    
+    api.registerCraft(new api.CraftEntry(itemstring + "_slab" + " 6",
+      [
+        itemstring, itemstring, itemstring
+      ], {shape: {x: 3, y: 1}}));
+    
+    
+    //---stair---
+    api.registerItem(new api.Item(itemstring + "_stairs", {
+      isNode: true, desc: idef.desc + " Stairs",
+      iconFile: modpath + "/icons/" + itemstringFlat + "_stairs.png",
+      inCreativeInventory: idef.inCreativeInventory
+    }));
+    api.registerNode(new api.Node(itemstring + "_stairs", Object.assign({
+        groups: ndef.groups,
+        transparent: true,
+        passSunlight: ndef.passSunlight,
+        setRotOnPlace: true,
+        customMesh: true,
+        customMeshVerts: stairVerts,
+        customMeshUVs: stairUVs,
+        boundingBox: [
+          new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0, 0.5)),
+          new THREE.Box3(new THREE.Vector3(0, 0, -0.5), new THREE.Vector3(0.5, 0.5, 0.5))
+        ]
+        //faceIsRecessed: [false, false, false, false, false, false]
+      }, tex)
+    )); //api.registerNode
+    
+    api.registerCraft(new api.CraftEntry(itemstring + "_stairs 8",
+      [
+        itemstring, null, null,
+        itemstring, itemstring, null,
+        itemstring, itemstring, itemstring
+      ], {shape: {x: 3, y: 3}}));
+  };
+  
+  mods.stairs.registerNode = function(itemstring) {
+    mods.stairs.registerSlab(itemstring);
+  };
+  
+  api.onModLoaded("default", function() {
     var slabs_stairs_list = [
       "stone", "cobble", "stone_block", "stone_brick",
       "desert_stone", "desert_cobble", "desert_stone_block", "desert_stone_brick",
@@ -55,143 +384,10 @@
       "glass",
       "brick"
     ];
+    
     for(var i = 0; i < slabs_stairs_list.length; i++) {
-      var name = slabs_stairs_list[i];
-      
-      var tex = {texAll: "default:" + name + ":texAll"};
-      
-      api.registerItem(new api.Item("stairs:slab_" + name, {
-        isNode: true, desc: api.getItemDef("default:" + name).desc + " Slab",
-        iconFile: modpath + "/icons/stairs_slab_" + name + ".png"
-      }));
-      api.registerNode(new api.Node("stairs:slab_" + name, Object.assign({
-        groups: api.getNodeDef("default:" + name).groups,
-        transparent: true,
-        passSunlight: api.getNodeDef("default:" + name).passSunlight,
-        customMesh: true,
-          customMeshVerts: [
-            [
-              -0.5, 0, -0.5,
-              -0.5, -0.5, -0.5,
-              -0.5, 0, 0.5,
-              
-              -0.5, -0.5, -0.5,
-              -0.5, -0.5, 0.5,
-              -0.5, 0, 0.5
-            ],
-            [
-              0.5, 0, 0.5,
-              0.5, -0.5, 0.5,
-              0.5, 0, -0.5,
-              
-              0.5, -0.5, 0.5,
-              0.5, -0.5, -0.5,
-              0.5, 0, -0.5
-            ],
-            [
-              0.5, -0.5, 0.5,
-              -0.5, -0.5, 0.5,
-              0.5, -0.5, -0.5,
-              
-              -0.5, -0.5, 0.5,
-              -0.5, -0.5, -0.5,
-              0.5, -0.5, -0.5
-            ],
-            [
-              0.5, 0, -0.5,
-              -0.5, 0, -0.5,
-              0.5, 0, 0.5,
-              
-              -0.5, 0, -0.5,
-              -0.5, 0, 0.5,
-              0.5, 0, 0.5
-            ],
-            [
-              0.5, 0, -0.5,
-              0.5, -0.5, -0.5,
-              -0.5, 0, -0.5,
-              
-              0.5, -0.5, -0.5,
-              -0.5, -0.5, -0.5,
-              -0.5, 0, -0.5
-            ],
-            [
-              -0.5, 0, 0.5,
-              -0.5, -0.5, 0.5,
-              0.5, 0, 0.5,
-              
-              -0.5, -0.5, 0.5,
-              0.5, -0.5, 0.5,
-              0.5, 0, 0.5
-            ]
-          ],
-          customMeshUVs: [
-            [
-              0.0, 0.5,
-              0.0, 0.0,
-              1.0, 0.5,
-              
-              0.0, 0.0,
-              1.0, 0.0,
-              1.0, 0.5
-            ],
-            [
-              0.0, 0.5,
-              0.0, 0.0,
-              1.0, 0.5,
-              
-              0.0, 0.0,
-              1.0, 0.0,
-              1.0, 0.5
-            ],
-            [
-              0.0, 1.0,
-              0.0, 0.0,
-              1.0, 1.0,
-              
-              0.0, 0.0,
-              1.0, 0.0,
-              1.0, 1.0
-            ],
-            [
-              0.0, 1.0,
-              0.0, 0.0,
-              1.0, 1.0,
-              
-              0.0, 0.0,
-              1.0, 0.0,
-              1.0, 1.0
-            ],
-            [
-              0.0, 0.5,
-              0.0, 0.0,
-              1.0, 0.5,
-              
-              0.0, 0.0,
-              1.0, 0.0,
-              1.0, 0.5
-            ],
-            [
-              0.0, 0.5,
-              0.0, 0.0,
-              1.0, 0.5,
-              
-              0.0, 0.0,
-              1.0, 0.0,
-              1.0, 0.5
-            ]
-          ],
-          boundingBox: [
-            new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0, 0.5))
-          ],
-          faceIsRecessed: [false, false, false, true, false, false]
-        }, tex)
-      )); //api.registerNode
-      
-      api.registerCraft(new api.CraftEntry("stairs:slab_" + name + " 6",
-        [
-          "default:" + name, "default:" + name, "default:" + name
-        ], {shape: {x: 3, y: 1}}));
-    } //for loop
+      var itemstring = "default:" + slabs_stairs_list[i];
+      mods.stairs.registerNode(itemstring);
+    }
   }); //api.onModLoaded
 })();

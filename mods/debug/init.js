@@ -67,4 +67,8 @@
     node: {groups: {oddly_breakable_by_hand: 1}, setRotOnPlace: true},
     item: {inCreativeInventory: false}
   });
+  
+  api.onModLoaded("stairs", function() {
+    mods.stairs.registerNode("debug:rot_cube");
+  });
 })();

@@ -44,8 +44,13 @@ function collideMap(box, boxMapPos) {
         
         if(!def.walkable) {
           if(def.boundingBox != null) {
-            for(var i = 0; i < def.boundingBox.length; i++) {
-              var newBox = def.boundingBox[i].clone().translate(pos);
+            var bb = def.boundingBox;
+            if(nodeData.rot != 0) {
+              var map = boudingBoxRotMap[nodeData.rot];
+              bb = def.rotateBoundingBox(new THREE.Euler(map.x * (Math.PI/180), map.y * (Math.PI/180), map.z * (Math.PI/180), map.order));
+            }
+            for(var i = 0; i < bb.length; i++) {
+              var newBox = bb[i].clone().translate(pos);
               if(collide(newBox, box)) {
                 return true;
               }
