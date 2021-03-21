@@ -124,7 +124,7 @@ function updateTextureMap() {
   var w = textureCanvas.width;
   var h = textureCanvas.height;
   
-  textureCtx.fillStyle = "#ff00ff";
+  textureCtx.fillStyle = "#ff00fe";
   textureCtx.fillRect(0, 0, w, h);
   
   for(var i = 0; i < textures.length; i++) {
@@ -149,7 +149,7 @@ function updateTextureMap() {
       var g = pixelData[n + 1];
       var b = pixelData[n + 2];
       
-      if(r == 255 && g == 0 && b == 255) {
+      if(r == 255 && g == 0 && b == 254) {
         pixelData[n + 2] = 0;
         pixelData[n + 3] = 0;
       } else {

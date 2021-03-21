@@ -276,7 +276,16 @@ function generateMapblockMesh(dataIn) {
         }
         
         for(var faceIndex = 0; faceIndex < 6; faceIndex++) {
+          //physical face
           var face = stdFaces[faceIndex];
+          
+          if(def.rotDataType != "rot") { rot = 0; }
+          
+          //face to display
+          var rotFaceIndex = stdRotMapping[rot].shuffle[faceIndex];
+          var rotFace = stdFaces[rotFaceIndex];
+          var rotAxis = stdRotMapping[rot].rot[faceIndex];
+          
           var rx = x + face.x; var ry = y + face.y; var rz = z + face.z;
           if(rx < 0 || rx >= size.x + 2) { continue; }
           if(ry < 0 || ry >= size.y + 2) { continue; }
@@ -308,7 +317,7 @@ function generateMapblockMesh(dataIn) {
           //joined nodes (ie water)
           if(def.itemstring == relDef.itemstring && def.joined) { continue; }
           
-          var sunkLit = def.faceIsRecessed[faceIndex];
+          var sunkLit = def.faceIsRecessed[rotFaceIndex];
           if(sunkLit == null) { sunkLit = false; }
           var smoothLightIgnoreSolid = false;
           
@@ -317,7 +326,7 @@ function generateMapblockMesh(dataIn) {
           if(def.isFluid) {
             sunkLit = true;
             smoothLightIgnoreSolid = true;
-          } else if(def.transparent && light > relLight && def.faceIsRecessed[faceIndex] == null) {
+          } else if(def.transparent && light > relLight && def.faceIsRecessed[rotFaceIndex] == null) {
             //relLight = light; tLight = true;
             sunkLit = true;
             smoothLightIgnoreSolid = true;
@@ -343,10 +352,10 @@ function generateMapblockMesh(dataIn) {
           
           var arr;
           if(def.isFluid) {
-            arr = fluidVerts[faceIndex];
+            arr = fluidVerts[rotFaceIndex];
           } else {
             if(def.customMesh) {
-              arr = def.customMeshVerts[faceIndex];
+              arr = def.customMeshVerts[rotFaceIndex];
             } else {
               arr = stdVerts[faceIndex];
             }
@@ -356,8 +365,44 @@ function generateMapblockMesh(dataIn) {
             for(var n = 0; n < 6; n++) {
               if(connectDirs[n]) {
                 if(def.connectingVerts[n] != null) {
-                  arr.push.apply(arr, def.connectingVerts[n][faceIndex]);
+                  arr.push.apply(arr, def.connectingVerts[n][rotFaceIndex]);
                 }
+              }
+            }
+          }
+          
+          if(def.isFluid || def.customMesh) {
+            //shuffle faces as needed
+            if(faceIndex != rotFaceIndex) {
+              var map = faceShuffleMap[rotFaceIndex][faceIndex];
+              
+              //clone vert array
+              arr = [...arr];
+              
+              for(var i = 0; i < arr.length; i += 3) {
+                var orig = [arr[i], arr[i + 1], arr[i + 2]];
+                
+                arr[i] = orig[map[0]] * map[3];
+                arr[i + 1] = orig[map[1]] * map[4];
+                arr[i + 2] = orig[map[2]] * map[5];
+              }
+            }
+          }
+          //rotate verticies as needed
+          //see geometry.js for more info
+          if(rotAxis > 0) {
+            var map = vertexRotMap[faceIndex];
+            
+            //clone vert array
+            arr = [...arr];
+            
+            for(var count = 0; count < rotAxis; count++) {
+              for(var i = 0; i < arr.length; i += 3) {
+                var orig = [arr[i], arr[i + 1], arr[i + 2]];
+                
+                arr[i] = orig[map[0]] * map[3];
+                arr[i + 1] = orig[map[1]] * map[4];
+                arr[i + 2] = orig[map[2]] * map[5];
               }
             }
           }
@@ -474,14 +519,14 @@ function generateMapblockMesh(dataIn) {
             }
           }
           if(def.isFluid) {
-            uvs.push.apply(uvs, fluidUVs[faceIndex]);
+            uvs.push.apply(uvs, fluidUVs[rotFaceIndex]);
           } else {
-            uvs.push.apply(uvs, def.uvs[faceIndex]);
+            uvs.push.apply(uvs, def.uvs[rotFaceIndex]);
             if(def.connectingMesh) {
               for(var n = 0; n < 6; n++) {
                 if(connectDirs[n]) {
                   if(def.connectingUVs[n] != null) {
-                    uvs.push.apply(uvs, def.connectingUVs[n][faceIndex]);
+                    uvs.push.apply(uvs, def.connectingUVs[n][rotFaceIndex]);
                   }
                 }
               }

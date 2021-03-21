@@ -1,6 +1,6 @@
 /*
     mc4, a web voxel building game
-    Copyright (C) 2019 kholland4
+    Copyright (C) 2019-2021 kholland4
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 var SERVER_REMOTE_UPDATE_INTERVAL = 0.25; //how often to send updates about, i. e., the player position to the remote server
 var serverUncacheDist = new MapPos(7, 4, 7, 2, 0, 0);
+
+var testRotAxis = null;
+var testRotFace = null;
 
 class ServerBase {
   constructor() {
@@ -125,7 +128,7 @@ class ServerBase {
     
     return false;
   }
-  placeNode(player, pos) {
+  placeNode(player, pos, pos_on) {
     if(player.wield == null) { return false; }
     
     var stack = player.wield;
@@ -142,6 +145,67 @@ class ServerBase {
         player.inventory.takeIndex("main", player.wieldIndex, stack);
       }
       var nodeData = NodeData.fromItemStack(stack);
+      var nodeDef = nodeData.getDef();
+      if(nodeDef.setRotOnPlace && nodeDef.rotDataType == "rot") {
+        var rotAxis = 0; //the face that will be on top of the block; 0=+y, 1=-y, 2=+x, 3=+z, 4=-x, 5=-z
+        var rotFace = 0;
+        if(pos.equals(pos_on)) {
+          //pretend we're placing on the ground
+          pos_on = pos.add(new MapPos(0, -1, 0, 0, 0, 0));
+        }
+        
+        if(pos_on.add(new MapPos(0, 1, 0, 0, 0, 0)).equals(pos) ||
+           pos_on.add(new MapPos(0, -1, 0, 0, 0, 0)).equals(pos)) {
+          //on ground or ceiling
+          if(pos_on.add(new MapPos(0, 1, 0, 0, 0, 0)).equals(pos)) {
+            //on ground
+            rotAxis = 0;
+          } else {
+            //on ceiling
+            rotAxis = 1;
+          }
+          if(!nodeDef.limitRotOnPlace) {
+            //rotate based on player position
+            var euler = new THREE.Euler().setFromQuaternion(player.rot, "YXZ");
+            var yaw = euler.y;
+            
+            if(yaw >= (-3/4)*Math.PI && yaw <= (-1/4)*Math.PI) {
+              rotFace = 0;
+            } else if(yaw < (-3/4)*Math.PI || yaw > (3/4)*Math.PI) {
+              rotFace = rotAxis == 0 ? 1 : 3;
+            } else if(yaw >= (1/4)*Math.PI && yaw <= (3/4)*Math.PI) {
+              rotFace = 2;
+            } else { //yaw > (-1/4)*Math.PI && yaw < (1/4)*Math.PI
+              rotFace = rotAxis == 0 ? 3 : 1;
+            }
+          }
+        } else if(pos_on.add(new MapPos(-1, 0, 0, 0, 0, 0)).equals(pos)) {
+          //+y face is pointing in the -x direction
+          rotAxis = 2;
+          rotFace = 2;
+        } else if(pos_on.add(new MapPos(1, 0, 0, 0, 0, 0)).equals(pos)) {
+          //+y face is pointing in the +x direction
+          rotAxis = 2;
+          rotFace = 0;
+        } else if(pos_on.add(new MapPos(0, 0, -1, 0, 0, 0)).equals(pos)) {
+          //+y face is pointing in the -z direction
+          rotAxis = 2;
+          rotFace = 3;
+        } else if(pos_on.add(new MapPos(0, 0, 1, 0, 0, 0)).equals(pos)) {
+          //+y face is pointing in the +z direction
+          rotAxis = 2;
+          rotFace = 1;
+        }
+        
+        if(testRotAxis != null) { rotAxis = testRotAxis; }
+        if(testRotFace != null) { rotFace = testRotFace; }
+        
+        assert(rotAxis >= 0 && rotAxis < 6, "0 <= rotAxis < 6");
+        assert(rotFace >= 0 && rotFace < 4, "0 <= rotFace < 4");
+        nodeData.rot = (rotAxis << 2) | rotFace;
+        
+        console.log(nodeData.rot);
+      }
       this.setNode(pos, nodeData);
       
       debug("server", "log", "place " + stack.itemstring + " at " + pos.toString());

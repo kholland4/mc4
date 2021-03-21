@@ -1,6 +1,6 @@
 /*
     mc4, a web voxel building game
-    Copyright (C) 2019 kholland4
+    Copyright (C) 2019-2021 kholland4
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -58,7 +58,8 @@ class NodeBase {
     //The 'rot' property of a node could be used to store non-rotation data (i. e. fluid information, color, etc.)
     //'rotDataType' will be set automatically based on other properties
     this.rotDataType = "rot";
-    //this.setRotOnPlace = false; TODO
+    this.setRotOnPlace = false;
+    this.limitRotOnPlace = false;
     this.isFluid = false;
     this.fluidOverlayColor = false;
     
@@ -114,6 +115,18 @@ class NodeBase {
       this.tex[1] = this.texSides;
       this.tex[4] = this.texSides;
       this.tex[5] = this.texSides;
+    }
+    if(this.texFront != null) {
+      this.tex[0] = this.texFront;
+    }
+    if(this.texBack != null) {
+      this.tex[1] = this.texBack;
+    }
+    if(this.texLeft != null) {
+      this.tex[4] = this.texLeft;
+    }
+    if(this.texRight != null) {
+      this.tex[5] = this.texRight;
     }
     
     var texLoc = [];

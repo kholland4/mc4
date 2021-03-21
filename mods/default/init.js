@@ -1,6 +1,6 @@
 /*
     mc4, a web voxel building game
-    Copyright (C) 2019 kholland4
+    Copyright (C) 2019-2021 kholland4
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -129,7 +129,7 @@
       desc: itemstringGuessName(names[1]),
       tex: {texTop: "default_" + names[1] + "_top.png", texBottom: "default_" + names[1] + "_top.png", texSides: "default_" + names[1] + ".png"},
       icon: "default_" + names[1] + ".png",
-      node: {groups: {choppy: 2}},
+      node: {groups: {choppy: 2}, setRotOnPlace: true, limitRotOnPlace: true},
       item: {groups: {tree: null}}
     });
     api.registerCraft(new api.CraftEntry("default:" + names[0] + " 4", ["default:" + names[1]], {shape: null}));
@@ -739,28 +739,30 @@
     desc: "Wooden Ladder",
     tex: {texAll: "default_ladder_wood.png"},
     icon: "default_ladder_wood.png",
-    node: {groups: {choppy: 1}, transparent: true, passSunlight: true, walkable: true, ladderlike: true, customMesh: true,
+    node: {groups: {choppy: 1}, transparent: true, passSunlight: true, walkable: true, ladderlike: true, setRotOnPlace: true, customMesh: true,
       customMeshVerts: [
+        [], [],
         [
-          0.375, 0.5, -0.5,
-          0.375, -0.5, -0.5,
-          0.375, 0.5, 0.5,
+          0.5, -0.376, 0.5,
+          -0.5, -0.376, 0.5,
+          0.5, -0.376, -0.5,
           
-          0.375, -0.5, -0.5,
-          0.375, -0.5, 0.5,
-          0.375, 0.5, 0.5
+          -0.5, -0.376, 0.5,
+          -0.5, -0.376, -0.5,
+          0.5, -0.376, -0.5
         ],
         [
-          0.376, 0.5, 0.5,
-          0.376, -0.5, 0.5,
-          0.376, 0.5, -0.5,
+          0.5, -0.375, -0.5,
+          -0.5, -0.375, -0.5,
+          0.5, -0.375, 0.5,
           
-          0.376, -0.5, 0.5,
-          0.376, -0.5, -0.5,
-          0.376, 0.5, -0.5
-        ], [], [], [], []
+          -0.5,- 0.375, -0.5,
+          -0.5, -0.375, 0.5,
+          0.5, -0.375, 0.5
+        ], [], []
       ],
       customMeshUVs: [
+        [], [],
         [
           0.0, 1.0,
           0.0, 0.0,
@@ -778,7 +780,7 @@
           0.0, 0.0,
           1.0, 0.0,
           1.0, 1.0
-        ], [], [], [], []
+        ], [], []
       ],
       faceIsRecessed: [true, null, null, null, null, null]}
   });

@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.2.4-dev8";
+var VERSION = "0.2.5-dev1";
 
 var scene;
 var camera;
@@ -263,6 +263,7 @@ function init() {
   loadMod(new ModMeta("dye", "mods/dye"));
   loadMod(new ModMeta("fences", "mods/fences"));
   loadMod(new ModMeta("minerals", "mods/minerals"));
+  loadMod(new ModMeta("debug", "mods/debug"));
   loadMod(new ModMeta("hud", "mods/hud"));
   loadMod(new ModMeta("inventory", "mods/inventory"));
   loadMod(new ModMeta("chat", "mods/chat"));
@@ -506,7 +507,7 @@ function animate() {
             var existingNode = server.getNode(placeSel);
             if(existingNode != null) {
               if(existingNode.getDef().canPlaceInside) {
-                server.placeNode(player, placeSel);
+                server.placeNode(player, placeSel, destroySel);
                 needsRaycast = true;
               }
             }
