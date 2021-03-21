@@ -598,7 +598,7 @@ function renderUpdateLighting(pos) {
           var adjD = -1;
           if(fx < 0) { if(blocks["-1,0,0"] != null) { adjD = blocks["-1,0,0"].data[mapBlock.size.x - 1][fy][fz]; } } else
           if(fy < 0) { if(blocks["0,-1,0"] != null) { adjD = blocks["0,-1,0"].data[fx][mapBlock.size.y - 1][fz]; } } else
-          if(fz < 0) { if(blocks["0,0-1"] != null) { adjD = blocks["0,0,-1"].data[fx][fy][mapBlock.size.z - 1]; } } else
+          if(fz < 0) { if(blocks["0,0,-1"] != null) { adjD = blocks["0,0,-1"].data[fx][fy][mapBlock.size.z - 1]; } } else
           if(fx >= mapBlock.size.x) { if(blocks["1,0,0"] != null) { adjD = blocks["1,0,0"].data[0][fy][fz]; } } else
           if(fy >= mapBlock.size.y) { if(blocks["0,1,0"] != null) { adjD = blocks["0,1,0"].data[fx][0][fz]; } } else
           if(fz >= mapBlock.size.z) { if(blocks["0,0,1"] != null) { adjD = blocks["0,0,1"].data[fx][fy][0]; } } else
