@@ -28,7 +28,8 @@ enum class LogSource {
   LOADER,
   MAP,
   MAPGEN,
-  AUTH
+  AUTH,
+  PLAYER
 };
 
 //Based on https://en.wikipedia.org/wiki/Syslog#Severity_level

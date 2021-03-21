@@ -24,6 +24,7 @@
 
 #include <map>
 #include <chrono>
+#include <vector>
 
 #include <sqlite3.h>
 

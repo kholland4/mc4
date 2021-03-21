@@ -19,6 +19,7 @@
 #include "player_data.h"
 
 #include "json.h"
+#include "log.h"
 
 #include <sstream>
 #include <iostream>
@@ -62,8 +63,7 @@ PlayerData::PlayerData(std::string json, std::string _auth_id) : is_nil(true), a
     
     is_nil = false;
   } catch(std::exception const& e) {
-    std::cerr << json << std::endl;
-    std::cerr << e.what() << std::endl;
+    log(LogSource::PLAYER, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " json=" + json);
     
     is_nil = true;
   }

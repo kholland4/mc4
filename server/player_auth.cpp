@@ -141,9 +141,7 @@ bool PlayerAuthenticator::step(std::string message, WsServer& server, connection
       return false;
     }
   } catch(std::exception const& e) {
-    std::cerr << message << std::endl;
-    std::cerr << e.what() << std::endl;
-    
+    log(LogSource::AUTH, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " message=" + message);
     return false;
   }
 }
@@ -218,6 +216,8 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
         server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"register_ok\"}", websocketpp::frame::opcode::text);
         server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"auth_ok\"}", websocketpp::frame::opcode::text);
         
+        log(LogSource::AUTH, LogLevel::INFO, "registered new account for " + new_info.login_name + " (backend=password-plain)");
+        
         auth_info = new_info;
         auth_success = true;
         return true;
@@ -251,12 +251,14 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
           
           if(input_pw_hashed == password_hashed) {
             server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"auth_ok\"}", websocketpp::frame::opcode::text);
+            log(LogSource::AUTH, LogLevel::INFO, "login success for " + it.login_name + " (backend=password-plain)");
             auth_info = it;
             auth_success = true;
             return true;
           }
         }
         
+        log(LogSource::AUTH, LogLevel::INFO, "login fail for " + login_name + " (backend=password-plain)");
         server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"invalid_password\"}", websocketpp::frame::opcode::text);
         return false;
       }
@@ -291,6 +293,8 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
           return false;
         }
         
+        log(LogSource::AUTH, LogLevel::INFO, "credentials updated for " + auth_info.login_name + ", new name is " + login_name + " (backend=password-plain)");
+        
         auth_info.login_name = login_name;
         auth_info.data = "{\"password_hashed\":\"" + json_escape(password_hashed) + "\",\"salt\":\"" + json_escape(salt) + "\",\"client_salt\":\"" + json_escape(client_salt) + "\"}";
         
@@ -307,9 +311,7 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
       return false;
     }
   } catch(std::exception const& e) {
-    std::cerr << message << std::endl;
-    std::cerr << e.what() << std::endl;
-    
+    log(LogSource::AUTH, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " message=" + message);
     return false;
   }
 }

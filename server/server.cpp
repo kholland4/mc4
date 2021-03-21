@@ -138,7 +138,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
   
   auto search = m_players.find(hdl);
   if(search == m_players.end()) {
-    std::cerr << "Unable to find player state for connection!" << std::endl;
+    log(LogSource::SERVER, LogLevel::ERR, "Unable to find player state for connection!");
     return;
   }
   PlayerState *player = search->second;
@@ -343,8 +343,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       }
     }
   } catch(std::exception const& e) {
-    std::cerr << msg->get_payload() << std::endl;
-    std::cerr << e.what() << std::endl;
+    log(LogSource::SERVER, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " payload=" + msg->get_payload());
   }
 }
 
