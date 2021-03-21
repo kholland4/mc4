@@ -21,7 +21,6 @@
 #include "log.h"
 
 #include <algorithm>
-#include <iostream>
 
 #define SUNLIGHT_CHECK_DISTANCE 4
 

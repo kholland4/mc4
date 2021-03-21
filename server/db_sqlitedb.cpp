@@ -20,8 +20,6 @@
 #include "json.h"
 #include "log.h"
 
-#include <iostream>
-
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 

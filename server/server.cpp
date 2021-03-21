@@ -134,8 +134,6 @@ void Server::set_time(int hours, int minutes) {
 }
 
 void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_type::ptr msg) {
-  //std::cout << "on_message: " << msg->get_payload() << std::endl;
-  
   auto search = m_players.find(hdl);
   if(search == m_players.end()) {
     log(LogSource::SERVER, LogLevel::ERR, "Unable to find player state for connection!");
@@ -233,10 +231,12 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         map.update_mapblock_light(info);
       }
       Mapblock *mb = map.get_mapblock(mb_pos);
-      unsigned int len = player->send_mapblock(mb, m_server);
 #ifdef DEBUG_NET
+      unsigned int len = player->send_mapblock(mb, m_server);
       mb_out_len += len;
       mb_out_count++;
+#else
+      player->send_mapblock(mb, m_server);
 #endif
       delete mb;
     } else if(type == "set_player_pos") {
@@ -395,8 +395,6 @@ void Server::on_close(connection_hdl hdl) {
 }
 
 void Server::tick(const boost::system::error_code&) {
-  //std::cout << "TICK " << status() << std::endl;
-  
   mapblock_tick_counter++;
   fluid_tick_counter++;
   if(mapblock_tick_counter >= SERVER_MAPBLOCK_TICK_RATIO) {

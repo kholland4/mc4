@@ -19,7 +19,6 @@
 #include "mapgen.h"
 #include "log.h"
 
-#include <iostream>
 #include <cmath>
 #include <math.h>
 

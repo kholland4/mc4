@@ -19,8 +19,6 @@
 #include "database.h"
 #include "log.h"
 
-#include <iostream>
-
 void SQLiteDB::store_pw_info(PlayerAuthInfo& info) {
   const char *sql = "INSERT INTO player_auth (type, login_name, auth_id, data) VALUES (?, ?, ?, ?);";
   sqlite3_stmt *statement;
