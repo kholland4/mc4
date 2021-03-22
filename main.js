@@ -105,10 +105,6 @@ function initEntryMenu() {
   
   loginTab.appendChild(uiElement("text", "Name"));
   var authName = uiElement("input", menuConfig.authName);
-  authName.pattern = "[a-zA-Z0-9\\-_]{1,40}";
-  authName.title = "Use letters, numbers, -, and _ only.";
-  authName.minlength = 1;
-  authName.maxlength = 40;
   authName.onchange = function() { menuConfig.authName = this.value; };
   loginTab.appendChild(authName);
   
