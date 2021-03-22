@@ -459,7 +459,7 @@ class ServerRemote extends ServerBase {
       
       debug("client", "status", "connected to " + this.socket.url);
       
-      if(this._authCredentials.guest) {
+      if(this._authCredentials.guest || this._authCredentials.loginName == "") {
         this.sendMessage({
           type: "auth_guest"
         });
