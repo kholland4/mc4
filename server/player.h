@@ -27,6 +27,7 @@
 #include "json.h"
 #include "player_data.h"
 #include "player_auth.h"
+#include "log.h"
 
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -91,7 +92,11 @@ class PlayerState {
     void update_nearby_known_mapblocks(std::vector<MapPos<int>> mb_to_update, Map& map, WsServer& sender);
     
     void send(std::string msg, WsServer& sender) {
-      sender.send(m_connection_hdl, msg, websocketpp::frame::opcode::text);
+      try {
+        sender.send(m_connection_hdl, msg, websocketpp::frame::opcode::text);
+      } catch(std::exception const& e) {
+        log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
+      }
     }
     
     void load_data(PlayerData _data) {

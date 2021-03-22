@@ -63,10 +63,18 @@ std::string PlayerState::privs_as_json() {
 }
 
 void PlayerState::send_pos(WsServer& sender) {
-  sender.send(m_connection_hdl, pos_as_json(), websocketpp::frame::opcode::text);
+  try {
+    sender.send(m_connection_hdl, pos_as_json(), websocketpp::frame::opcode::text);
+  } catch(std::exception const& e) {
+    log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
+  }
 }
 void PlayerState::send_privs(WsServer& sender) {
-  sender.send(m_connection_hdl, privs_as_json(), websocketpp::frame::opcode::text);
+  try {
+    sender.send(m_connection_hdl, privs_as_json(), websocketpp::frame::opcode::text);
+  } catch(std::exception const& e) {
+    log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
+  }
 }
 
 bool PlayerState::needs_mapblock_update(MapblockUpdateInfo info) {
@@ -210,7 +218,11 @@ unsigned int PlayerState::send_mapblock(Mapblock *mb, WsServer& sender) {
   memcpy(out_buf_32 + arr_pos, IDtoIS_data, IDtoIS_len);
   arr_pos += (IDtoIS_len / sizeof(uint32_t)) + 1;
   
-  sender.send(m_connection_hdl, out_buf, arr_pos * sizeof(uint32_t), websocketpp::frame::opcode::binary);
+  try {
+    sender.send(m_connection_hdl, out_buf, arr_pos * sizeof(uint32_t), websocketpp::frame::opcode::binary);
+  } catch(std::exception const& e) {
+    log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
+  }
   
   return arr_pos * sizeof(uint32_t);
 }
