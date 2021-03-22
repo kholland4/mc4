@@ -327,7 +327,7 @@ function loadLoop() {
   if(ready) {
     debug("main", "status", "loaded textures, icons, and mods");
     //TODO use srp or something
-    if(menuConfig.authGuest) {
+    if(menuConfig.authGuest || (menuConfig.authName == "" && menuConfig.registerName == "")) {
       server.connect({guest: true});
     } else if(menuConfig.authName != "") {
       server.connect({guest: false, register: false, loginName: menuConfig.authName, verifier: menuConfig.authPassword});
