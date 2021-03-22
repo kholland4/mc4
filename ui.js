@@ -66,6 +66,10 @@ function uiHideWindow(doLock=true) {
 }
 
 function uiElement(name, opts) {
+  if(name == "container") {
+    var el = document.createElement("div");
+    return el;
+  }
   if(name == "spacer") {
     var el = document.createElement("div");
     el.className = "uiEl_spacer";
@@ -119,6 +123,53 @@ function uiElement(name, opts) {
         el.height = opts.height;
       }
     }
+    return el;
+  }
+  
+  if(name == "tab_container") {
+    var el = document.createElement("div");
+    el.className = "uiEl_tab_container";
+    
+    var tabBox = document.createElement("div");
+    tabBox.className = "uiEl_tab_box";
+    
+    var contentBox = document.createElement("div");
+    contentBox.className = "uiEl_tab_content_box";
+    
+    for(var i = 0; i < opts.length; i++) {
+      var tab = document.createElement("div");
+      tab.className = "uiEl_tab";
+      if(i == 0) { tab.className += " active"; }
+      tab.dataset.index = i;
+      tab.innerText = opts[i].name;
+      tab.onclick = function() {
+        var tabBox = this.parentElement;
+        for(var i = 0; i < tabBox.children.length; i++) {
+          tabBox.children[i].className = "uiEl_tab";
+        }
+        this.className = "uiEl_tab active";
+        
+        var contentBox = this.parentElement.parentElement.children[1];
+        for(var i = 0; i < contentBox.children.length; i++) {
+          contentBox.children[i].className = "uiEl_tab_content";
+          if(contentBox.children[i].dataset.index == this.dataset.index) {
+            contentBox.children[i].className += "active";
+          }
+        }
+      };
+      tabBox.appendChild(tab);
+      
+      var content = document.createElement("div");
+      content.className = "uiEl_tab_content";
+      if(i == 0) { content.className += " active"; }
+      content.dataset.index = i;
+      content.appendChild(opts[i].content);
+      contentBox.appendChild(content);
+    }
+    
+    el.appendChild(tabBox);
+    el.appendChild(contentBox);
+    
     return el;
   }
 }

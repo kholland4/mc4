@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.2.5-dev3";
+var VERSION = "0.2.6-dev1";
 
 var scene;
 var camera;
@@ -63,6 +63,9 @@ var menuConfig = {
   remoteServer: "ws://localhost:8080/",
   authName: "",
   authPassword: "",
+  registerName: "",
+  registerPassword: "",
+  registerPassword2: "",
   authGuest: false
 };
 
@@ -91,32 +94,75 @@ function initEntryMenu() {
   serverAddr.onchange = function() { menuConfig.remoteServer = this.value; };
   joinForm.appendChild(serverAddr);
   
-  joinForm.appendChild(uiElement("br"));
-  joinForm.appendChild(uiElement("text", "Name"));
+  var guestStartButton = uiElement("button");
+  guestStartButton.innerText = "Connect as guest";
+  guestStartButton.type = "button";
+  guestStartButton.onclick = function() { menuConfig.gameType = "remote"; menuConfig.authGuest = true; uiHideWindow(); init(); };
+  joinForm.appendChild(guestStartButton);
+  
+  //---login---
+  var loginTab = uiElement("container");
+  
+  loginTab.appendChild(uiElement("text", "Name"));
   var authName = uiElement("input", menuConfig.authName);
   authName.pattern = "[a-zA-Z0-9\\-_]{1,40}";
   authName.title = "Use letters, numbers, -, and _ only.";
   authName.minlength = 1;
   authName.maxlength = 40;
   authName.onchange = function() { menuConfig.authName = this.value; };
-  joinForm.appendChild(authName);
+  loginTab.appendChild(authName);
   
-  joinForm.appendChild(uiElement("br"));
-  joinForm.appendChild(uiElement("text", "Password"));
+  loginTab.appendChild(uiElement("br"));
+  loginTab.appendChild(uiElement("text", "Password"));
   var authPassword = uiElement("input", menuConfig.authPassword);
   authPassword.onchange = function() { menuConfig.authPassword = this.value; };
   authPassword.type = "password";
-  joinForm.appendChild(authPassword);
+  loginTab.appendChild(authPassword);
   
+  loginTab.appendChild(uiElement("br"));
   var startButton = uiElement("button");
   startButton.innerText = "Login";
-  joinForm.appendChild(startButton);
+  loginTab.appendChild(startButton);
+  //---
   
-  var guestStartButton = uiElement("button");
-  guestStartButton.innerText = "Connect as guest";
-  guestStartButton.type = "button";
-  guestStartButton.onclick = function() { menuConfig.gameType = "remote"; menuConfig.authGuest = true; uiHideWindow(); init(); };
-  joinForm.appendChild(guestStartButton);
+  //---register---
+  var registerTab = uiElement("container");
+  
+  registerTab.appendChild(uiElement("text", "Name"));
+  var registerName = uiElement("input", menuConfig.registerName);
+  registerName.pattern = "[a-zA-Z0-9\\-_]{1,40}";
+  registerName.title = "Use letters, numbers, -, and _ only.";
+  registerName.minlength = 1;
+  registerName.maxlength = 40;
+  registerName.onchange = function() { menuConfig.registerName = this.value; };
+  registerTab.appendChild(registerName);
+  
+  registerTab.appendChild(uiElement("br"));
+  registerTab.appendChild(uiElement("text", "Password"));
+  var registerPassword = uiElement("input", menuConfig.registerPassword);
+  registerPassword.onchange = function() { menuConfig.registerPassword = this.value; };
+  registerPassword.type = "password";
+  registerTab.appendChild(registerPassword);
+  
+  registerTab.appendChild(uiElement("br"));
+  registerTab.appendChild(uiElement("text", "Confirm Password"));
+  var registerPassword2 = uiElement("input", menuConfig.registerPassword2);
+  registerPassword2.onchange = function() { menuConfig.registerPassword2 = this.value; };
+  registerPassword2.type = "password";
+  registerTab.appendChild(registerPassword2);
+  
+  registerTab.appendChild(uiElement("br"));
+  var registerButton = uiElement("button");
+  registerButton.innerText = "Register";
+  registerTab.appendChild(registerButton);
+  //---
+  
+  joinForm.appendChild(uiElement("spacer"));
+  var tabContainer = uiElement("tab_container", [
+    {name: "Login", content: loginTab},
+    {name: "Register", content: registerTab}
+  ]);
+  joinForm.appendChild(tabContainer)
   
   win.add(joinForm);
   
@@ -285,8 +331,22 @@ function loadLoop() {
   if(ready) {
     debug("main", "status", "loaded textures, icons, and mods");
     //TODO use srp or something
-    server.connect({guest: menuConfig.authGuest, loginName: menuConfig.authName, verifier: menuConfig.authPassword});
+    if(menuConfig.authGuest) {
+      server.connect({guest: true});
+    } else if(menuConfig.authName != "") {
+      server.connect({guest: false, register: false, loginName: menuConfig.authName, verifier: menuConfig.authPassword});
+    } else if(menuConfig.registerName != "") {
+      if(menuConfig.registerPassword != menuConfig.registerPassword2) {
+        debug("main", "error", "passwords do not match");
+      } else {
+        server.connect({guest: false, register: true, loginName: menuConfig.registerName, verifier: menuConfig.registerPassword});
+      }
+    } else {
+      debug("main", "error", "please enter a name");
+    }
     menuConfig.authPassword = null;
+    menuConfig.registerPassword = null;
+    menuConfig.registerPassword2 = null;
     loadLoop2();
   } else {
     requestAnimationFrame(loadLoop);

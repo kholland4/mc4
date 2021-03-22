@@ -150,3 +150,35 @@
 .uiEl_scrollbox {
   overflow-y: scroll;
 }
+
+.uiEl_tab_container {
+  
+}
+.uiEl_tab_box {
+  
+}
+.uiEl_tab {
+  display: inline-block;
+  
+  background-color: inherit;
+  color: black;
+  border: 1px solid #777;
+  padding: 5px;
+  
+  font-family: sans-serif;
+  font-size: 18px;
+}
+.uiEl_tab.active {
+  background-color: #eee;
+  border: 1px solid #555;
+}
+.uiEl_tab_content_box {
+  border: 2px solid #333;
+  padding: 5px;
+}
+.uiEl_tab_content {
+  display: none;
+}
+.uiEl_tab_content.active {
+  display: block;
+}

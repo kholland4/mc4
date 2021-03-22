@@ -725,14 +725,24 @@ class ServerRemote extends ServerBase {
         this.player.privs = data.privs;
       } else if(data.type == "auth_step") {
         if(data.message == "auth_mode_ok") {
-          this.sendMessage({
-            type: "auth_step",
-            step: "login",
-            login_name: this._authCredentials.loginName,
-            password: this._authCredentials.verifier,
-            client_salt: ""
-          });
-          //this._authCredentials.verifier = null;
+          if(this._authCredentials.register) {
+            this.sendMessage({
+              type: "auth_step",
+              step: "register",
+              login_name: this._authCredentials.loginName,
+              password: this._authCredentials.verifier,
+              client_salt: ""
+            });
+          } else {
+            this.sendMessage({
+              type: "auth_step",
+              step: "login",
+              login_name: this._authCredentials.loginName,
+              password: this._authCredentials.verifier,
+              client_salt: ""
+            });
+          }
+          this._authCredentials.verifier = null;
         } else if(data.message == "auth_ok") {
           this._authReady = true;
           debug("client", "status", "authenticated as " + this._authCredentials.loginName);
@@ -746,19 +756,7 @@ class ServerRemote extends ServerBase {
           debug("client", "status", "connected as guest");
         }
       } else if(data.type == "auth_err") {
-        if(data.reason == "login_name_not_found") {
-          //register it
-          this.sendMessage({
-            type: "auth_step",
-            step: "register",
-            login_name: this._authCredentials.loginName,
-            password: this._authCredentials.verifier,
-            client_salt: ""
-          });
-          //this._authCredentials.verifier = null;
-        } else {
-          debug("client", "status", "authentication failed: " + data.reason);
-        }
+        debug("client", "status", "authentication failed: " + data.reason);
       }
       
       if(data.type in this.messageHooks) {
