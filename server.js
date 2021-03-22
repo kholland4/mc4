@@ -464,10 +464,26 @@ class ServerRemote extends ServerBase {
           type: "auth_guest"
         });
       } else {
-        this.sendMessage({
-          type: "auth_mode",
-          mode: "password-plain"
-        });
+        if(this._authCredentials.register) {
+          this.sendMessage({
+            type: "auth_step",
+            step: "register",
+            login_name: this._authCredentials.loginName,
+            password: this._authCredentials.verifier,
+            client_salt: "",
+            backend: "password-plain"
+          });
+        } else {
+          this.sendMessage({
+            type: "auth_step",
+            step: "login",
+            login_name: this._authCredentials.loginName,
+            password: this._authCredentials.verifier,
+            client_salt: "",
+            backend: "password-plain"
+          });
+        }
+        this._authCredentials.verifier = null;
       }
     }.bind(this);
     this.socket.onclose = function() {
@@ -724,26 +740,7 @@ class ServerRemote extends ServerBase {
       } else if(data.type == "set_player_privs") {
         this.player.privs = data.privs;
       } else if(data.type == "auth_step") {
-        if(data.message == "auth_mode_ok") {
-          if(this._authCredentials.register) {
-            this.sendMessage({
-              type: "auth_step",
-              step: "register",
-              login_name: this._authCredentials.loginName,
-              password: this._authCredentials.verifier,
-              client_salt: ""
-            });
-          } else {
-            this.sendMessage({
-              type: "auth_step",
-              step: "login",
-              login_name: this._authCredentials.loginName,
-              password: this._authCredentials.verifier,
-              client_salt: ""
-            });
-          }
-          this._authCredentials.verifier = null;
-        } else if(data.message == "auth_ok") {
+        if(data.message == "auth_ok") {
           this._authReady = true;
           debug("client", "status", "authenticated as " + this._authCredentials.loginName);
         } else if(data.message == "register_ok") {

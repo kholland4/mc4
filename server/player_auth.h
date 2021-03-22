@@ -56,6 +56,7 @@ class PlayerAuthenticator {
   
   private:
     bool has_backend;
+    std::string auth_backend_name;
     PlayerGenericAuthenticator *auth_backend;
 };
 

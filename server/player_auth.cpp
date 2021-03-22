@@ -110,10 +110,6 @@ std::string hash_password(std::string password, std::string salt) {
 
 
 bool PlayerAuthenticator::step(std::string message, WsServer& server, connection_hdl& hdl, Database& db) {
-  if(has_backend) {
-    return auth_backend->step(message, server, hdl, db);
-  }
-  
   try {
     std::stringstream ss;
     ss << message;
@@ -123,21 +119,31 @@ bool PlayerAuthenticator::step(std::string message, WsServer& server, connection
     
     std::string type = pt.get<std::string>("type");
     
-    if(type == "auth_mode") {
-      std::string mode = pt.get<std::string>("mode");
-      if(mode == "password-plain") {
-        //delete auth_backend;
-        auth_backend = new PlayerPasswordAuthenticator();
-        has_backend = true;
+    if(type == "auth_list") {
+      //TODO
+      
+      return false;
+    } else {
+      std::string backend = pt.get<std::string>("backend");
+      if(!has_backend || backend != auth_backend_name) {
+        if(has_backend) {
+          has_backend = false;
+          auth_backend_name = "";
+          delete auth_backend;
+        }
         
-        server.send(hdl, "{\"type\":\"auth_step\",\"message\":\"auth_mode_ok\"}", websocketpp::frame::opcode::text);
-        return false;
+        if(backend == "password-plain") {
+          auth_backend = new PlayerPasswordAuthenticator();
+          auth_backend_name = "password-plain";
+          has_backend = true;
+        }
+      }
+      
+      if(has_backend) {
+        return auth_backend->step(message, server, hdl, db);
       }
       
       server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"bad_auth_mode\"}", websocketpp::frame::opcode::text);
-      return false;
-    } else {
-      server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"no_auth_mode\"}", websocketpp::frame::opcode::text);
       return false;
     }
   } catch(std::exception const& e) {
