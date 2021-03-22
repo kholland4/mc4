@@ -317,10 +317,10 @@ var boudingBoxRotMap = [
   {x: 180, y: 90, z: 0, order: "YZX"}, //axis 1 face 3
   
   //axis 2, facing +x
-  {x: 0, y: 0, z: 270, order: "YZX"}, //axis 2 face 0
-  {x: 0, y: 270, z: 270, order: "YZX"}, //axis 2 face 1
-  {x: 0, y: 180, z: 270, order: "YZX"}, //axis 2 face 2
-  {x: 0, y: 90, z: 270, order: "YZX"}, //axis 2 face 3
+  {x: 0, y: 180, z: 90, order: "YZX"}, //axis 2 face 0
+  {x: 0, y: 90, z: 90, order: "YZX"}, //axis 2 face 1
+  {x: 0, y: 0, z: 90, order: "YZX"}, //axis 2 face 2
+  {x: 0, y: 270, z: 90, order: "YZX"}, //axis 2 face 3
   
   //FIXME: axes 3, 4, and 5 are probably wrong.
   
