@@ -71,7 +71,7 @@ var menuConfig = {
 
 function initEntryMenu() {
   if(window.location.hostname != "") {
-    menuConfig.remoteServer = "ws://" + window.location.hostname + ":8080/";
+    menuConfig.remoteServer = "wss://" + window.location.hostname + ":8080/";
   }
   
   var win = new UIWindow();

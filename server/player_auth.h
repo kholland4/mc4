@@ -21,10 +21,18 @@
 
 #include "database.h"
 
+#ifdef TLS
+#include <websocketpp/config/asio.hpp>
+#else
 #include <websocketpp/config/asio_no_tls.hpp>
+#endif
 #include <websocketpp/server.hpp>
 
+#ifdef TLS
+using WsServer = websocketpp::server<websocketpp::config::asio_tls>;
+#else
 using WsServer = websocketpp::server<websocketpp::config::asio>;
+#endif
 using websocketpp::connection_hdl;
 
 class PlayerGenericAuthenticator {

@@ -39,6 +39,10 @@ Server::Server(Database& _db, std::map<int, World*> _worlds)
       websocketpp::lib::bind(&Server::on_open, this, ::_1));
   m_server.set_close_handler(
       websocketpp::lib::bind(&Server::on_close, this, ::_1));
+#ifdef TLS
+  m_server.set_tls_init_handler(
+      websocketpp::lib::bind(&Server::on_tls_init, this, ::_1));
+#endif
 }
 
 void Server::run(uint16_t port) {
@@ -51,6 +55,33 @@ void Server::run(uint16_t port) {
   
   m_io.run();
 }
+
+#ifdef TLS
+websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> Server::on_tls_init(connection_hdl hdl) {
+  websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> ctx
+      = websocketpp::lib::make_shared<websocketpp::lib::asio::ssl::context>(websocketpp::lib::asio::ssl::context::sslv23);
+  
+  ctx->set_options(websocketpp::lib::asio::ssl::context::default_workarounds |
+                   websocketpp::lib::asio::ssl::context::no_sslv2 |
+                   websocketpp::lib::asio::ssl::context::no_sslv3 |
+                   websocketpp::lib::asio::ssl::context::no_tlsv1 |
+                   websocketpp::lib::asio::ssl::context::single_dh_use);
+  
+  ctx->use_certificate_chain_file("chain.pem");
+  ctx->use_private_key_file("key.pem", websocketpp::lib::asio::ssl::context::pem);
+  
+  ctx->use_tmp_dh_file("dh.pem");
+  
+  std::string ciphers("ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK");
+  
+  if(SSL_CTX_set_cipher_list(ctx->native_handle(), ciphers.c_str()) != 1) {
+    log(LogSource::SERVER, LogLevel::EMERG, "Error setting SSL/TLS cipher list");
+    exit(1);
+  }
+  
+  return ctx;
+}
+#endif
 
 std::string Server::status() const {
   std::string s = "-- Server v" + std::string(VERSION) + "; " + std::to_string(m_players.size()) + " players {";

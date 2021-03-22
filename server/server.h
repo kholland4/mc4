@@ -39,7 +39,11 @@
 #include <chrono>
 #include <cmath>
 
+#ifdef TLS
+#include <websocketpp/config/asio.hpp>
+#else
 #include <websocketpp/config/asio_no_tls.hpp>
+#endif
 #include <websocketpp/server.hpp>
 
 #include <boost/asio.hpp>
@@ -61,7 +65,11 @@
 #include "player_data.h"
 #include "player_auth.h"
 
+#ifdef TLS
+using WsServer = websocketpp::server<websocketpp::config::asio_tls>;
+#else
 using WsServer = websocketpp::server<websocketpp::config::asio>;
+#endif
 using websocketpp::connection_hdl;
 using websocketpp::lib::placeholders::_1;
 using websocketpp::lib::placeholders::_2;
@@ -96,6 +104,10 @@ class Server {
     
     void on_open(connection_hdl hdl);
     void on_close(connection_hdl hdl);
+    
+#ifdef TLS
+    websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> on_tls_init(connection_hdl hdl);
+#endif
     
     void tick(const boost::system::error_code&);
     void slow_tick();
