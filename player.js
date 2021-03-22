@@ -19,7 +19,7 @@
 "use strict";
 
 var GRAVITY = 20; //m/s^2
-var PLAYER_W_MOVE_COOLDOWN = 4; //seconds -- TODO increase once portals are a thing
+var PLAYER_W_MOVE_COOLDOWN = 3; //seconds -- TODO increase once portals are a thing
 var PLAYER_W_MOVE_HEATUP = 0.7; //seconds
 
 class Player {

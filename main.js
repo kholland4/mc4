@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.2.5-dev2";
+var VERSION = "0.2.5-dev3";
 
 var scene;
 var camera;
@@ -174,6 +174,7 @@ function init() {
   api.registerNode(new Node("nothing", {transparent: false, passSunlight: false, visible: true, breakable: false}));
   api.loadTexture("unknown:texAll", "textures/unknown_node.png");
   api.registerNode(new Node("unknown", {breakable: false, texAll: "unknown:texAll"}));
+  api.registerItem(new Item("unknown", {desc: "Unknown Item", iconFile: "textures/unknown_item.png", inCreativeInventory: false}));
   
   initTextures();
   initRenderer();

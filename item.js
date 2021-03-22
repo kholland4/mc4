@@ -20,7 +20,15 @@ var allItems = {};
 
 function getItemDef(itemstring) {
   var res = allItems[itemstring];
-  if(res == undefined) { return null; }
+  if(res == undefined) {
+    if(itemstring == "unknown") {
+      return null;
+    } else {
+      var def = getItemDef("unknown").clone();
+      def.itemstring = itemstring;
+      return def;
+    }
+  }
   return res;
 }
 
@@ -63,6 +71,10 @@ class ItemBase {
         this.icon = loadIcon(this.itemstring, this.iconFile);
       }
     }
+  }
+  
+  clone() {
+    return new ItemBase(this.itemstring, this);
   }
 }
 
