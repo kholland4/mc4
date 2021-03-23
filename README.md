@@ -12,7 +12,7 @@ Library and asset license files are spread throughout the source tree, links are
 
 ## Server
 
-#### Compiling
+### Compiling
 
 Install build dependencies:
 
@@ -27,18 +27,18 @@ Compile without SSL/TLS enabled (recommended for testing or local use):
 
     $ make -j4
 
-Compile *with* SSL/TLS enabled (strongly recommended for production use):
+Compile with SSL/TLS enabled (strongly recommended for production use):
 
     $ CPPFLAGS=-DTLS make -j4
 
 Any time you recompile with different `CPPFLAGS`, be sure to `make clean` first.
 
-#### Running
+### Running
 
-Runtime dependencies are `libsqlite3` and `libssl1.1`, but these will have been installed when
-the program was compiled.
+The server's runtime dependencies are `libsqlite3` and `libssl1.1`,
+but these will have been installed when the server was compiled.
 
-The server can be configured using an ini file (see [server/config_example.ini]) or on the command line.
+The server can be configured using an ini file (see <server/config_example.ini>) or on the command line.
 For example:
 
     $ ./mc4-server --config-file config_example.ini
@@ -52,6 +52,9 @@ put your override *after* the config file.
 By default, the server will run on port `8080` and store data to a SQLite database in `test_map.sqlite`.
 
     $ ./mc4-server
+
+If you're using TLS, take a look at <server/config_example.ini> and
+set the appropriate options pointing to certificate files and such.
 
 ## Libraries/assets/etc.
 
