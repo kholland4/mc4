@@ -16,36 +16,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __LOG_H__
-#define __LOG_H__
+#ifndef __ARG_PARSE_H__
+#define __ARG_PARSE_H__
 
-#include <string>
-
-enum class LogSource {
-  SERVER,
-  SQLITEDB,
-  MEMORYDB,
-  LOADER,
-  MAP,
-  MAPGEN,
-  AUTH,
-  PLAYER,
-  CONFIG,
-  INIT
-};
-
-//Based on https://en.wikipedia.org/wiki/Syslog#Severity_level
-enum class LogLevel {
-  EMERG,
-  ALERT,
-  ERR,
-  WARNING,
-  NOTICE,
-  INFO,
-  EXTRA,
-  DEBUG
-};
-
-void log(LogSource src, LogLevel lvl, std::string message);
+void parse_args(int argc, char *argv[]);
 
 #endif

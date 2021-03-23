@@ -29,7 +29,9 @@ std::map<LogSource, std::string> log_source_messages = {
   {LogSource::MAP, "map"},
   {LogSource::MAPGEN, "mapgen"},
   {LogSource::AUTH, "auth"},
-  {LogSource::PLAYER, "player"}
+  {LogSource::PLAYER, "player"},
+  {LogSource::CONFIG, "config"},
+  {LogSource::INIT, "init"}
 };
 
 std::map<LogLevel, std::string> log_level_messages = {

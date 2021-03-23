@@ -19,12 +19,30 @@
 #include "database.h"
 #include "mapgen.h"
 #include "server.h"
+#include "config.h"
+#include "arg_parse.h"
 
-int main() {
+int main(int argc, char *argv[]) {
+  parse_args(argc, argv);
+  
   load_node_defs("defs.json");
   
-  SQLiteDB db("test_map.sqlite");
-  //MemoryDB db;
+  Database *db;
+  std::string db_backend = get_config<std::string>("database.backend");
+  if(db_backend == "sqlite3") {
+    std::string db_file = get_config<std::string>("database.sqlite3_file");
+    if(db_file == "") {
+      log(LogSource::INIT, LogLevel::EMERG, "database.sqlite3_file not specified");
+      exit(1);
+    }
+    db = new SQLiteDB(db_file.c_str());
+  } else if(db_backend == "memory") {
+    db = new MemoryDB();
+  } else {
+    log(LogSource::INIT, LogLevel::EMERG, "invalid database backend: '" + db_backend + "'");
+    exit(1);
+  }
+  
   MapgenAlpha mapgen0(82);
   World *world0 = new World("Earth", mapgen0);
   MapgenHeck mapgen1(82);
@@ -35,9 +53,14 @@ int main() {
     {1, world1}
   };
   
-  Server server(db, worlds);
+  Server server(*db, worlds);
   
-  server.set_motd("-- Highly Experimental Test Server (tm)\n-- Use '/gamemode creative' for creative, '/nick new_nickname_here' to change your name, '/status' to view this message, '/help' for other commands\n-- Press 'k' to toggle fly, 'j' to toggle fast");
+  server.set_motd(get_config<std::string>("server.motd"));
   
-  server.run(8080);
+  int port = get_config<int>("server.port");
+  if(port < 0 || port > 65535) {
+    log(LogSource::INIT, LogLevel::EMERG, "invalid server port: " + std::to_string(port));
+    exit(1);
+  }
+  server.run(port);
 }

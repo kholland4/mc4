@@ -19,6 +19,7 @@
 #include "server.h"
 
 #include "log.h"
+#include "config.h"
 #include "player_util.h"
 
 Server::Server(Database& _db, std::map<int, World*> _worlds)
@@ -51,7 +52,7 @@ void Server::run(uint16_t port) {
   m_server.listen(port);
   m_server.start_accept();
   
-  log(LogSource::SERVER, LogLevel::INFO, "Server v" + std::string(VERSION) + " starting");
+  log(LogSource::SERVER, LogLevel::INFO, "Server v" + std::string(VERSION) + " starting (port " + std::to_string(port) + ")");
   
   m_io.run();
 }
@@ -67,10 +68,27 @@ websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> Server::on_tl
                    websocketpp::lib::asio::ssl::context::no_tlsv1 |
                    websocketpp::lib::asio::ssl::context::single_dh_use);
   
-  ctx->use_certificate_chain_file("chain.pem");
-  ctx->use_private_key_file("key.pem", websocketpp::lib::asio::ssl::context::pem);
+  std::string chain_file = get_config<std::string>("ssl.cert_chain_file");
+  std::string private_key_file = get_config<std::string>("ssl.private_key_file");
+  std::string dh_file = get_config<std::string>("ssl.dhparam_file");
   
-  ctx->use_tmp_dh_file("dh.pem");
+  if(chain_file == "") {
+    log(LogSource::SERVER, LogLevel::EMERG, "ssl.cert_chain_file not specified");
+    exit(1);
+  }
+  if(private_key_file == "") {
+    log(LogSource::SERVER, LogLevel::EMERG, "ssl.private_key_file not specified");
+    exit(1);
+  }
+  if(dh_file == "") {
+    log(LogSource::SERVER, LogLevel::EMERG, "ssl.dhparam_file not specified -- perhaps generate with `openssl dhparam -out dhparam.pem 4096` ?");
+    exit(1);
+  }
+  
+  ctx->use_certificate_chain_file(chain_file);
+  ctx->use_private_key_file(private_key_file, websocketpp::lib::asio::ssl::context::pem);
+  
+  ctx->use_tmp_dh_file(dh_file);
   
   std::string ciphers("ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK");
   

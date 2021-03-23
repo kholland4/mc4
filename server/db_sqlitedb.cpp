@@ -131,6 +131,8 @@ CREATE TABLE IF NOT EXISTS player_data ( \
 */
 
 SQLiteDB::SQLiteDB(const char* filename) {
+  log(LogSource::SQLITEDB, LogLevel::INFO, "SQLite3 database file is '" + std::string(filename) + "'");
+  
   int rc = sqlite3_open(filename, &db);
   if(rc != SQLITE_OK) {
     log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Can't open database: ") + std::string(sqlite3_errmsg(db)));

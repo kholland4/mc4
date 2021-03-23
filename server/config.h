@@ -16,36 +16,15 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __LOG_H__
-#define __LOG_H__
+#ifndef __CONFIG_H__
+#define __CONFIG_H__
 
 #include <string>
 
-enum class LogSource {
-  SERVER,
-  SQLITEDB,
-  MEMORYDB,
-  LOADER,
-  MAP,
-  MAPGEN,
-  AUTH,
-  PLAYER,
-  CONFIG,
-  INIT
-};
+template<class T> T get_config(std::string key);
+template<class T> void set_config(std::string key, T val);
+bool set_config_auto(std::string key, std::string val); //automatically convert the value as needed, returning true if the key is found and false otherwise
 
-//Based on https://en.wikipedia.org/wiki/Syslog#Severity_level
-enum class LogLevel {
-  EMERG,
-  ALERT,
-  ERR,
-  WARNING,
-  NOTICE,
-  INFO,
-  EXTRA,
-  DEBUG
-};
-
-void log(LogSource src, LogLevel lvl, std::string message);
+void load_config_file(std::string filename);
 
 #endif
