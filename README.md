@@ -49,7 +49,7 @@ Note that command line options are processed in the order given,
 so if you want to override an option from the config file,
 put your override *after* the config file.
 
-By default, the server will run on port `8080` and store data to a SQLite database in `test_map.sqlite`.
+By default, the server will run on port `8080` and store data to an SQLite database in `test_map.sqlite`.
 
     $ ./mc4-server
 
