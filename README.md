@@ -109,5 +109,13 @@ set the appropriate options pointing to certificate files and such.
 
 ## NOTICE
 
-The way in which client-server multiplayer is implemented is insecure.
-This software is NOT suitable for production use.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See notices
+    at the top of each source code file for more information.
+
+The game will probably work.
+It might stop working.
+It might have serious security vulnerabilities.
+No guarantees.
+(But if you do notice anything, please file an issue and/or pull request.)
