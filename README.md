@@ -38,7 +38,7 @@ Any time you recompile with different `CPPFLAGS`, be sure to `make clean` first.
 The server's runtime dependencies are `libsqlite3` and `libssl1.1`,
 but these will have been installed when the server was compiled.
 
-The server can be configured using an ini file (see <server/config_example.ini>) or on the command line.
+The server can be configured using an ini file (see [config_example.ini](server/config_example.ini)) or on the command line.
 For example:
 
     $ ./mc4-server --config-file config_example.ini
@@ -53,7 +53,7 @@ By default, the server will run on port `8080` and store data to a SQLite databa
 
     $ ./mc4-server
 
-If you're using TLS, take a look at <server/config_example.ini> and
+If you're using TLS, take a look at [config_example.ini](server/config_example.ini) and
 set the appropriate options pointing to certificate files and such.
 
 ## Libraries/assets/etc.
