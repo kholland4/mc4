@@ -6,7 +6,47 @@ Voxel building game inspired by [Minetest](https://www.minetest.net/)
 
 ## License
 
+The web client is licensed under GPLv3+, and the server is AGPLv3+.
 See [LICENSE](LICENSE) and the top of each source code file for license information.
+Library and asset license files are spread throughout the source tree, links are listed below.
+
+## Server
+
+#### Compiling
+
+Install build dependencies:
+    # apt-get install make libwebsocketpp-dev libboost-dev libsqlite3-dev libssl-dev
+
+The server has optional TLS support, which is strongly recommended for production use
+(the client-server protocol is inherently very insecure).
+If you're running locally or just testing, this is not necessary.
+The decision as to whether or not to use TLS must be made at compile time.
+
+Compile without SSL/TLS enabled (recommended for testing or local use):
+    $ make -j4
+
+Compile *with* SSL/TLS enabled (strongly recommended for production use):
+    $ CPPFLAGS=-DTLS make -j4
+
+Any time you recompile with different `CPPFLAGS`, be sure to `make clean` first.
+
+#### Running
+
+Runtime dependencies are `libsqlite3` and `libssl1.1`, but these will have been installed when
+the program was compiled.
+
+The server can be configured using an ini file (see [server/config_example.ini]) or on the command line.
+For example:
+    $ ./mc4-server --config-file config_example.ini
+    $ ./mc4-server -o server.port=8081
+    $ ./mc4-server --config-file config_example.ini -o "server.motd=-- Welcome to the server.\n-- Have a nice day."
+
+Note that command line options are processed in the order given,
+so if you want to override an option from the config file,
+put your override *after* the config file.
+
+By default, the server will run on port `8080` and store data to a SQLite database in `test_map.sqlite`.
+    $ ./mc4-server
 
 ## Libraries/assets/etc.
 
