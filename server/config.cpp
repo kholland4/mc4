@@ -43,6 +43,11 @@ std::map<std::string, int> config_keys_int = {
 };
 std::map<std::string, int> config_int;
 
+std::map<std::string, bool> config_keys_bool = {
+  {"auth.allow_register", true}
+};
+std::map<std::string, bool> config_bool;
+
 //String escape sequence parser, used in set_config<std::string> to allow the user to input newlines
 std::string parse_escapes(std::string in_str) {
   std::stringstream in;
@@ -107,6 +112,24 @@ template<> int get_config<int>(std::string key) {
   return search->second;
 }
 
+template<> bool get_config<bool>(std::string key) {
+  //check if the config key is valid & get its default value
+  auto search = config_keys_bool.find(key);
+  if(search == config_keys_bool.end()) {
+    log(LogSource::CONFIG, LogLevel::WARNING, "invalid config key (bool): '" + key + "'");
+    return false;
+  }
+  
+  //lookup the user-set value, if any
+  auto search_val = config_bool.find(key);
+  if(search_val != config_bool.end()) {
+    return search_val->second;
+  }
+  
+  //if not found, return the default value
+  return search->second;
+}
+
 
 
 template<> void set_config<std::string>(std::string key, std::string val) {
@@ -133,6 +156,18 @@ template<> void set_config<int>(std::string key, int val) {
   config_int[key] = val;
 }
 
+template<> void set_config<bool>(std::string key, bool val) {
+  //check if the config key is valid
+  auto search = config_keys_bool.find(key);
+  if(search == config_keys_bool.end()) {
+    log(LogSource::CONFIG, LogLevel::WARNING, "invalid config key (bool): '" + key + "'");
+    return;
+  }
+  
+  //set the value
+  config_bool[key] = val;
+}
+
 bool set_config_auto(std::string key, std::string val) {
   //check for string option
   auto search_str = config_keys_str.find(key);
@@ -145,6 +180,25 @@ bool set_config_auto(std::string key, std::string val) {
   auto search_int = config_keys_int.find(key);
   if(search_int != config_keys_int.end()) {
     set_config<int>(key, std::stoi(val));
+    return true;
+  }
+  
+  //check for bool option
+  auto search_bool = config_keys_bool.find(key);
+  if(search_bool != config_keys_bool.end()) {
+    bool val_bool = false;
+    std::istringstream is(val);
+    is >> val_bool;
+    if(is.fail()) {
+      is.clear();
+      is >> std::boolalpha >> val_bool;
+    }
+    if(is.fail()) {
+      log(LogSource::CONFIG, LogLevel::WARNING, "config key '" + key + "' value '" + val + "' not convertible to bool");
+      return false;
+    }
+    
+    set_config<bool>(key, val_bool);
     return true;
   }
   
