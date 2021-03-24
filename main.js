@@ -18,6 +18,8 @@
 
 var VERSION = "0.2.6-dev2";
 
+var serverListURL = "https://tausq.s3.us-east-2.amazonaws.com/serverlist.json";
+
 var scene;
 var camera;
 var renderer;
@@ -58,6 +60,9 @@ var DIG_PREEMPT_TIME = 0.04;
 var CREATIVE_DIG_TIME = 0.15;
 var PLACE_REPEAT_INTERVAL = 0.25;
 
+var serverAddrBox;
+var serverListContainer;
+var serverDescBox;
 var menuConfig = {
   gameType: "local", // local, remote
   remoteServer: "ws://localhost:8080/",
@@ -75,41 +80,83 @@ function initEntryMenu() {
   }
   
   var win = new UIWindow();
+  win.dom.style.minWidth = "400px";
+  win.dom.style.minHeight = "200px";
   
-  win.add(uiElement("text", "Local"));
-  win.add(uiElement("br"));
+  //---singleplayer---
+  var singleplayerTab = uiElement("container");
+  
   var startButton = uiElement("button");
   startButton.innerText = "Start Game";
   startButton.onclick = function() { menuConfig.gameType = "local"; uiHideWindow(); init(); };
-  win.add(startButton);
+  singleplayerTab.appendChild(startButton);
   
-  win.add(uiElement("spacer"));
   
+  //---server---
+  var joinServerTab = uiElement("container");
+  joinServerTab.style.padding = "5px";
+  
+  var joinServerList = document.createElement("div");
+  joinServerList.className = "joinServerList";
+  joinServerTab.appendChild(joinServerList);
+  var joinServerLogin = document.createElement("div");
+  joinServerLogin.className = "joinServerLogin";
+  joinServerTab.appendChild(joinServerLogin);
+  
+  serverListContainer = uiElement("container");
+  serverListContainer.className = "serverListContainer";
+  joinServerList.appendChild(serverListContainer);
+  
+  
+  
+  joinServerLogin.appendChild(uiElement("text", "Address"));
+  joinServerLogin.appendChild(uiElement("br"));
+  serverAddrBox = uiElement("input", menuConfig.remoteServer);
+  serverAddrBox.onchange = function() { menuConfig.remoteServer = this.value; };
+  joinServerLogin.appendChild(serverAddrBox);
+  
+  joinServerLogin.appendChild(uiElement("spacer"));
+  
+  serverDescBox = document.createElement("div");
+  serverDescBox.className = "serverDescBox";
+  serverDescBox.innerText = "Select a server!";
+  joinServerLogin.appendChild(serverDescBox);
+  
+  var loadMessage = document.createElement("div");
+  loadMessage.className = "serverListEntry_header";
+  loadMessage.innerText = "loading server list...";
+  serverListContainer.appendChild(loadMessage);
+  
+  loadServerList();
+  
+  
+  
+  //login column
   var joinForm = document.createElement("form");
   joinForm.onsubmit = function(e) { event.preventDefault(); menuConfig.gameType = "remote"; uiHideWindow(); init(); return false; };
   
-  joinForm.appendChild(uiElement("text", "Join Server"));
-  joinForm.appendChild(uiElement("br"));
-  var serverAddr = uiElement("input", menuConfig.remoteServer);
-  serverAddr.onchange = function() { menuConfig.remoteServer = this.value; };
-  joinForm.appendChild(serverAddr);
+  //---guest---
+  var guestTab = uiElement("container");
   
   var guestStartButton = uiElement("button");
   guestStartButton.innerText = "Connect as guest";
   guestStartButton.type = "button";
   guestStartButton.onclick = function() { menuConfig.gameType = "remote"; menuConfig.authGuest = true; uiHideWindow(); init(); };
-  joinForm.appendChild(guestStartButton);
+  guestTab.appendChild(guestStartButton);
+  //---
   
   //---login---
   var loginTab = uiElement("container");
   
   loginTab.appendChild(uiElement("text", "Name"));
+  loginTab.appendChild(uiElement("br"));
   var authName = uiElement("input", menuConfig.authName);
   authName.onchange = function() { menuConfig.authName = this.value; };
   loginTab.appendChild(authName);
   
   loginTab.appendChild(uiElement("br"));
   loginTab.appendChild(uiElement("text", "Password"));
+  loginTab.appendChild(uiElement("br"));
   var authPassword = uiElement("input", menuConfig.authPassword);
   authPassword.onchange = function() { menuConfig.authPassword = this.value; };
   authPassword.type = "password";
@@ -125,6 +172,7 @@ function initEntryMenu() {
   var registerTab = uiElement("container");
   
   registerTab.appendChild(uiElement("text", "Name"));
+  registerTab.appendChild(uiElement("br"));
   var registerName = uiElement("input", menuConfig.registerName);
   registerName.pattern = "[a-zA-Z0-9\\-_]{1,40}";
   registerName.title = "Use letters, numbers, -, and _ only.";
@@ -135,6 +183,7 @@ function initEntryMenu() {
   
   registerTab.appendChild(uiElement("br"));
   registerTab.appendChild(uiElement("text", "Password"));
+  registerTab.appendChild(uiElement("br"));
   var registerPassword = uiElement("input", menuConfig.registerPassword);
   registerPassword.onchange = function() { menuConfig.registerPassword = this.value; };
   registerPassword.type = "password";
@@ -142,6 +191,7 @@ function initEntryMenu() {
   
   registerTab.appendChild(uiElement("br"));
   registerTab.appendChild(uiElement("text", "Confirm Password"));
+  registerTab.appendChild(uiElement("br"));
   var registerPassword2 = uiElement("input", menuConfig.registerPassword2);
   registerPassword2.onchange = function() { menuConfig.registerPassword2 = this.value; };
   registerPassword2.type = "password";
@@ -154,19 +204,78 @@ function initEntryMenu() {
   //---
   
   joinForm.appendChild(uiElement("spacer"));
-  var tabContainer = uiElement("tab_container", [
+  var loginTabContainer = uiElement("tab_container", [
+    {name: "Guest", content: guestTab},
     {name: "Login", content: loginTab},
     {name: "Register", content: registerTab}
   ]);
-  joinForm.appendChild(tabContainer)
+  joinForm.appendChild(loginTabContainer);
   
-  win.add(joinForm);
+  joinServerLogin.appendChild(joinForm);
   
+  
+  
+  //and tie it all together
+  var outerTabContainer = uiElement("tab_container", [
+    {name: "Join Server", content: joinServerTab},
+    {name: "Singleplayer", content: singleplayerTab}
+  ]);
+  win.add(outerTabContainer);
   uiShowWindow(win);
   
   document.getElementById("versionBlurb").innerText = "v" + VERSION;
 }
 document.addEventListener("DOMContentLoaded", initEntryMenu);
+
+function loadServerList() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", serverListURL);
+  xhr.onload = function() {
+    if(this.status != 200 && this.status != 0) {
+      var errMessage = document.createElement("div");
+      errMessage.className = "serverListEntry_header";
+      errMessage.innerText = "error loading server list: " + this.status;
+      serverListContainer.appendChild(errMessage);
+      return;
+    }
+    
+    var list = JSON.parse(this.responseText);
+    
+    while(serverListContainer.firstChild) {
+      serverListContainer.removeChild(serverListContainer.firstChild);
+    }
+    
+    var header = document.createElement("div");
+    header.className = "serverListEntry_header";
+    header.innerText = "Available Servers";
+    serverListContainer.appendChild(header);
+    
+    for(var i = 0; i < list.length; i++) {
+      var address = list[i].address;
+      var desc = list[i].desc;
+      
+      var item = document.createElement("div");
+      item.className = "serverListEntry";
+      item.innerText = address;
+      item.onclick = function() {
+        serverAddrBox.value = this.dataset.address;
+        serverAddrBox.onchange();
+        
+        serverDescBox.innerText = this.dataset.desc;
+      };
+      item.dataset.address = address;
+      item.dataset.desc = desc;
+      serverListContainer.appendChild(item);
+    }
+  };
+  xhr.error = function() {
+    var errMessage = document.createElement("div");
+    errMessage.className = "serverListEntry_header";
+    errMessage.innerText = "error loading server list";
+    serverListContainer.appendChild(errMessage);
+  };
+  xhr.send();
+}
 
 function init() {
   debug("main", "status", "starting...");
