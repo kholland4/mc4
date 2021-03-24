@@ -19,6 +19,29 @@
 #include "vector.h"
 
 
+MapPos<int> global_to_mapblock(MapPos<int> pos) {
+  //C++ integer division always rounds "towards zero", i. e. the fractional part is discarded.
+  //Unfortunately, we want to floor the result -- round it down.
+  //For positive numbers, C++ gives us the correct answer.
+  //For negative numbers, it may not. -9 / 4 gives -2, but we want -3.
+  //However, when a negative dividend is divided evenly by its divisor, we get the desired result (i. e. -8 / 2 = -4).
+  return MapPos<int>(
+      (pos.x < 0 && pos.x % MAPBLOCK_SIZE_X != 0) ? (pos.x / MAPBLOCK_SIZE_X - 1) : (pos.x / MAPBLOCK_SIZE_X),
+      (pos.y < 0 && pos.y % MAPBLOCK_SIZE_Y != 0) ? (pos.y / MAPBLOCK_SIZE_Y - 1) : (pos.y / MAPBLOCK_SIZE_Y),
+      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z),
+      pos.w, pos.world, pos.universe);
+}
+
+MapPos<int> global_to_relative(MapPos<int> pos) {
+  //Since the modulo operation gives remainders, doing something like -9 % 5 would give -4. We wrap this around into the positive interval [0, MAPBLOCK_SIZE_*).
+  return MapPos<int>(
+      ((pos.x % MAPBLOCK_SIZE_X) + MAPBLOCK_SIZE_X) % MAPBLOCK_SIZE_X,
+      ((pos.y % MAPBLOCK_SIZE_Y) + MAPBLOCK_SIZE_Y) % MAPBLOCK_SIZE_Y,
+      ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z,
+      0, 0, 0);
+}
+
+
 Quaternion::Quaternion()
     : x(0), y(0), z(0), w(0)
 {

@@ -22,6 +22,8 @@
 #include "config.h"
 #include "player_util.h"
 
+MapPos<int> PLAYER_LIMIT_VIEW_DISTANCE(3, 3, 3, 1, 0, 0);
+
 Server::Server(Database& _db, std::map<int, World*> _worlds)
     : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds), mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0)
 #ifdef DEBUG_NET
@@ -272,6 +274,13 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
     if(type == "req_mapblock") {
       MapPos<int> mb_pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), player->pos.world, player->pos.universe);
       
+      MapPos<int> player_mb = player->containing_mapblock();
+      MapBox<int> bounding(player_mb - PLAYER_LIMIT_VIEW_DISTANCE, player_mb + PLAYER_LIMIT_VIEW_DISTANCE);
+      if(!bounding.contains(mb_pos)) {
+        log(LogSource::SERVER, LogLevel::EXTRA, "player '" + player->get_name() + "' requests out of bounds mapblock at " + mb_pos.to_string());
+        return;
+      }
+      
       MapblockUpdateInfo info = map.get_mapblockupdateinfo(mb_pos);
       if(info.light_needs_update > 0) {
 #ifdef DEBUG_PERF
@@ -323,7 +332,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' places '" + node.itemstring + "' at " + pos.to_string());
       
-      MapPos<int> mb_pos = map.containing_mapblock(pos);
+      MapPos<int> mb_pos = global_to_mapblock(pos);
       MapPos<int> min_pos = mb_pos - MapPos<int>(1, 1, 1, 0, 0, 0);
       MapPos<int> max_pos = mb_pos + MapPos<int>(1, 1, 1, 0, 0, 0);
       std::vector<MapPos<int>> mapblock_list;

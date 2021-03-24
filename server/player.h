@@ -116,6 +116,8 @@ class PlayerState {
       return data;
     }
     
+    MapPos<int> containing_mapblock();
+    
     bool auth;
     bool auth_guest;
     

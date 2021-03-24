@@ -25,10 +25,6 @@
 #include "vector.h"
 #include "node.h"
 
-#define MAPBLOCK_SIZE_X 16
-#define MAPBLOCK_SIZE_Y 16
-#define MAPBLOCK_SIZE_Z 16
-
 class Mapblock {
   public:
     Mapblock(MapPos<int> _pos);

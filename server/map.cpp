@@ -31,23 +31,8 @@ Map::Map(Database& _db, std::map<int, World*> _worlds)
 }
 
 Node Map::get_node(MapPos<int> pos) {
-  //C++ integer division always rounds "towards zero", i. e. the fractional part is discarded.
-  //Unfortunately, we want to floor the result -- round it down.
-  //For positive numbers, C++ gives us the correct answer.
-  //For negative numbers, it may not. -9 / 4 gives -2, but we want -3.
-  //However, when a negative dividend is divided evenly by its divisor, we get the desired result (i. e. -8 / 2 = -4).
-  MapPos<int> mb_pos(
-      (pos.x < 0 && pos.x % MAPBLOCK_SIZE_X != 0) ? (pos.x / MAPBLOCK_SIZE_X - 1) : (pos.x / MAPBLOCK_SIZE_X),
-      (pos.y < 0 && pos.y % MAPBLOCK_SIZE_Y != 0) ? (pos.y / MAPBLOCK_SIZE_Y - 1) : (pos.y / MAPBLOCK_SIZE_Y),
-      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z),
-      pos.w, pos.world, pos.universe);
-  
-  //Since the modulo operation gives remainders, doing something like -9 % 5 would give -4. We wrap this around into the positive interval [0, MAPBLOCK_SIZE_*).
-  MapPos<int> rel_pos(
-      ((pos.x % MAPBLOCK_SIZE_X) + MAPBLOCK_SIZE_X) % MAPBLOCK_SIZE_X,
-      ((pos.y % MAPBLOCK_SIZE_Y) + MAPBLOCK_SIZE_Y) % MAPBLOCK_SIZE_Y,
-      ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z,
-      0, 0, 0);
+  MapPos<int> mb_pos = global_to_mapblock(pos);
+  MapPos<int> rel_pos = global_to_relative(pos);
   
   Mapblock *mb = get_mapblock(mb_pos);
   Node node = mb->get_node_rel(rel_pos);
@@ -58,16 +43,8 @@ Node Map::get_node(MapPos<int> pos) {
 //High-level setting of a node.
 //Everything is handled automatically, including lighting.
 void Map::set_node(MapPos<int> pos, Node node) {
-  MapPos<int> mb_pos(
-      (pos.x < 0 && pos.x % MAPBLOCK_SIZE_X != 0) ? (pos.x / MAPBLOCK_SIZE_X - 1) : (pos.x / MAPBLOCK_SIZE_X),
-      (pos.y < 0 && pos.y % MAPBLOCK_SIZE_Y != 0) ? (pos.y / MAPBLOCK_SIZE_Y - 1) : (pos.y / MAPBLOCK_SIZE_Y),
-      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z),
-      pos.w, pos.world, pos.universe);
-  MapPos<int> rel_pos(
-      ((pos.x % MAPBLOCK_SIZE_X) + MAPBLOCK_SIZE_X) % MAPBLOCK_SIZE_X,
-      ((pos.y % MAPBLOCK_SIZE_Y) + MAPBLOCK_SIZE_Y) % MAPBLOCK_SIZE_Y,
-      ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z,
-      0, 0, 0);
+  MapPos<int> mb_pos = global_to_mapblock(pos);
+  MapPos<int> rel_pos = global_to_relative(pos);
   
   Mapblock *mb = get_mapblock(mb_pos);
   
@@ -272,11 +249,7 @@ void light_cascade_fast(std::map<MapPos<int>, Mapblock*>& mapblocks, std::set<Ma
 void light_cascade(std::map<MapPos<int>, Mapblock*>& mapblocks, std::set<MapPos<int>>& mapblocks_to_update, MapPos<int> pos, unsigned int light_level, LightCascadeType type, int bleed_mode = 0) {
   if(light_level == 0 && bleed_mode == 0) { return; }
   
-  MapPos<int> mb_pos(
-      (pos.x < 0 && pos.x % MAPBLOCK_SIZE_X != 0) ? (pos.x / MAPBLOCK_SIZE_X - 1) : (pos.x / MAPBLOCK_SIZE_X),
-      (pos.y < 0 && pos.y % MAPBLOCK_SIZE_Y != 0) ? (pos.y / MAPBLOCK_SIZE_Y - 1) : (pos.y / MAPBLOCK_SIZE_Y),
-      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z),
-      pos.w, pos.world, pos.universe);
+  MapPos<int> mb_pos = global_to_mapblock(pos);
   
   bool in_update = false;
   if(bleed_mode == 0) {
@@ -288,11 +261,7 @@ void light_cascade(std::map<MapPos<int>, Mapblock*>& mapblocks, std::set<MapPos<
   if(search == mapblocks.end()) { return; }
   Mapblock *mb = search->second;
   
-  MapPos<int> rel_pos(
-      ((pos.x % MAPBLOCK_SIZE_X) + MAPBLOCK_SIZE_X) % MAPBLOCK_SIZE_X,
-      ((pos.y % MAPBLOCK_SIZE_Y) + MAPBLOCK_SIZE_Y) % MAPBLOCK_SIZE_Y,
-      ((pos.z % MAPBLOCK_SIZE_Z) + MAPBLOCK_SIZE_Z) % MAPBLOCK_SIZE_Z,
-      0, 0, 0);
+  MapPos<int> rel_pos = global_to_relative(pos);
   
   uint32_t val = mb->data[rel_pos.x][rel_pos.y][rel_pos.z];
   unsigned int light = (val >> 23) & 255;
@@ -716,14 +685,6 @@ void Map::update_mapblock_light_optimized_singlenode_transparent(MapPos<int> mb_
   for(auto p : mapblocks) {
     delete p.second;
   }
-}
-
-MapPos<int> Map::containing_mapblock(MapPos<int> pos) {
-  return MapPos<int>(
-      (pos.x < 0 && pos.x % MAPBLOCK_SIZE_X != 0) ? (pos.x / MAPBLOCK_SIZE_X - 1) : (pos.x / MAPBLOCK_SIZE_X),
-      (pos.y < 0 && pos.y % MAPBLOCK_SIZE_Y != 0) ? (pos.y / MAPBLOCK_SIZE_Y - 1) : (pos.y / MAPBLOCK_SIZE_Y),
-      (pos.z < 0 && pos.z % MAPBLOCK_SIZE_Z != 0) ? (pos.z / MAPBLOCK_SIZE_Z - 1) : (pos.z / MAPBLOCK_SIZE_Z),
-      pos.w, pos.world, pos.universe);
 }
 
 MapblockUpdateInfo Map::get_mapblockupdateinfo(MapPos<int> mb_pos) {

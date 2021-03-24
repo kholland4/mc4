@@ -22,6 +22,10 @@
 #include <ostream>
 #include <cmath>
 
+#define MAPBLOCK_SIZE_X 16
+#define MAPBLOCK_SIZE_Y 16
+#define MAPBLOCK_SIZE_Z 16
+
 template <class T> class Vector3 {
   public:
     //Vector3();
@@ -127,7 +131,7 @@ template <class T> class MapPos {
       return MapPos<T>(x + other.x, y + other.y, z + other.z, w + other.w, world + other.world, universe + other.universe);
     };
     MapPos<T> operator-(const MapPos<T>& other) {
-      return MapPos<T>(x - other.x, y - other.y, z - other.z, w + other.w, world + other.world, universe + other.universe);
+      return MapPos<T>(x - other.x, y - other.y, z - other.z, w - other.w, world - other.world, universe - other.universe);
     };
     
     //FIXME
@@ -145,6 +149,26 @@ template <class T> class MapPos {
     int world;
     int universe;
 };
+
+template <class T> class MapBox {
+  public:
+    //TODO: auto-sort lower and upper?
+    MapBox(MapPos<T> lower, MapPos<T> upper) : min(lower), max(upper) {}
+    bool contains(MapPos<T> point) {
+      return point.x >= min.x && point.x <= max.x &&
+             point.y >= min.y && point.y <= max.y &&
+             point.z >= min.z && point.z <= max.z &&
+             point.w >= min.w && point.w <= max.w &&
+             point.world >= min.world && point.world <= max.world &&
+             point.universe >= min.universe && point.universe <= max.universe;
+    };
+    
+    MapPos<T> min;
+    MapPos<T> max;
+};
+
+MapPos<int> global_to_mapblock(MapPos<int> pos);
+MapPos<int> global_to_relative(MapPos<int> pos);
 
 class Quaternion {
   public:
