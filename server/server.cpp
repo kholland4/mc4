@@ -303,7 +303,11 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
 #endif
       delete mb;
     } else if(type == "set_player_pos") {
-      player->pos.set(pt.get<double>("pos.x"), pt.get<double>("pos.y"), pt.get<double>("pos.z"), pt.get<int>("pos.w"), player->pos.world, player->pos.universe);
+      MapPos<double> pos(pt.get<double>("pos.x"), pt.get<double>("pos.y"), pt.get<double>("pos.z"), pt.get<int>("pos.w"), player->pos.world, player->pos.universe);
+      
+      //TODO: validate that the player hasn't moved too far since their last position update
+      
+      player->pos.set(pos);
       player->vel.set(pt.get<double>("vel.x"), pt.get<double>("vel.y"), pt.get<double>("vel.z"), player->vel.w, player->vel.world, player->vel.universe);
       player->rot.set(pt.get<double>("rot.x"), pt.get<double>("rot.y"), pt.get<double>("rot.z"), pt.get<double>("rot.w"));
       
