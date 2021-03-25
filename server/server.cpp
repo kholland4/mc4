@@ -405,6 +405,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         cmd_time(player, tokens);
       } else if(tokens[0] == "/whereami") {
         cmd_whereami(player, tokens);
+      } else if(tokens[0] == "/tp") {
+        cmd_tp(player, tokens);
       } else if(tokens[0] == "/world") {
         cmd_tp_world(player, tokens);
       } else if(tokens[0] == "/universe") {

@@ -204,17 +204,19 @@
     }
   }, "/giveme <itemstring> [<count>] : add an item stack to player's inventory"));
   
-  mods.chat.registerCommand(new mods.chat.ChatCommand("/tp", function(args) {
-    if(args.length >= 2) {
-      var whereRaw = args.slice(1).join(" ");
-      var where = api.util.parseXYZ(whereRaw);
-      if(where == null) { return "invalid coordinates '" + whereRaw + "'"; }
-      
-      api.player.pos.copy(where);
-      
-      return "teleported to " + api.util.fmtXYZ(api.player.pos);
-    }
-  }, "/tp <x>,<y>,<z> : teleport to a given position"));
+  if(!api.server.isRemote()) {
+    mods.chat.registerCommand(new mods.chat.ChatCommand("/tp", function(args) {
+      if(args.length >= 2) {
+        var whereRaw = args.slice(1).join(" ");
+        var where = api.util.parseXYZ(whereRaw);
+        if(where == null) { return "invalid coordinates '" + whereRaw + "'"; }
+        
+        api.player.pos.copy(where);
+        
+        return "teleported to " + api.util.fmtXYZ(api.player.pos);
+      }
+    }, "/tp <x>,<y>,<z> : teleport to a given position"));
+  }
   
   mods.chat.registerCommand(new mods.chat.ChatCommand("/clearinv", function(args) {
     for(var i = 0; i < api.player.inventory.getListLength("main"); i++) {

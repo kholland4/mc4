@@ -100,6 +100,44 @@ void Server::cmd_whereami(PlayerState *player, std::vector<std::string> args) {
              std::to_string(player->pos.w) + " world=" + world_name + " universe=" + std::to_string(player->pos.universe));
 }
 
+void Server::cmd_tp(PlayerState *player, std::vector<std::string> args) {
+  if(player->data.privs.find("teleport") == player->data.privs.end()) {
+    chat_send_player(player, "server", "missing priv: teleport");
+    return;
+  }
+  
+  if(args.size() < 4 || args.size() > 5) {
+    chat_send_player(player, "server", "usage '/tp <x> <y> <z> [<w>]'");
+    return;
+  }
+  
+  try {
+    int x = stoi(args[1]);
+    int y = stoi(args[2]);
+    int z = stoi(args[3]);
+    int w = 0;
+    if(args.size() >= 5) {
+      w = stoi(args[4]);
+    }
+    
+    player->pos.x = x;
+    player->pos.y = y;
+    player->pos.z = z;
+    if(args.size() >= 5) {
+      player->pos.w = w;
+    }
+    //print ints, not doubles
+    chat_send_player(player, "server", "Teleported to " + MapPos<int>(x, y, z, player->pos.w, player->pos.world, player->pos.universe).to_string() + "!");
+    player->send_pos(m_server);
+    if(player->auth) {
+      db.update_player_data(player->get_data());
+    }
+    return;
+  } catch(std::exception const& e) {
+    chat_send_player(player, "server", "invalid command: invalid input, expected '/tp <int x> <int y> <int z> [<int w>]'");
+  }
+}
+
 void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
   if(player->data.privs.find("teleport") == player->data.privs.end()) {
     chat_send_player(player, "server", "missing priv: teleport");
