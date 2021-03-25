@@ -39,7 +39,9 @@ std::map<std::string, std::string> config_keys_str = {
 std::map<std::string, std::string> config_str;
 
 std::map<std::string, int> config_keys_int = {
-  {"server.port", 8080}
+  {"server.port", 8080},
+  {"database.L1_cache_target", 10000},
+  {"database.L2_cache_target", 100000}
 };
 std::map<std::string, int> config_int;
 

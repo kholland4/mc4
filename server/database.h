@@ -19,12 +19,10 @@
 #ifndef __DATABASE_H__
 #define __DATABASE_H__
 
-//Target maximum number of mapblocks to cache in memory at a time.
-#define TARGET_CACHE_COUNT 9000
-
 #include <map>
 #include <chrono>
 #include <vector>
+#include <list>
 
 #include <sqlite3.h>
 
@@ -108,6 +106,8 @@ class SQLiteDB: public Database {
     int db_version;
     std::map<MapPos<int>, Mapblock*> read_cache;
     std::map<MapPos<int>, std::chrono::time_point<std::chrono::steady_clock>> read_cache_hits;
+    std::map<MapPos<int>, std::pair<MapblockCompressed, typename std::list<MapPos<int>>::iterator>> L2_cache;
+    std::list<MapPos<int>> L2_cache_hits;
 };
 
 #endif

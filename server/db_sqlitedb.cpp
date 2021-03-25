@@ -19,6 +19,7 @@
 #include "database.h"
 #include "json.h"
 #include "log.h"
+#include "config.h"
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -436,8 +437,11 @@ MapblockUpdateInfo SQLiteDB::get_mapblockupdateinfo(MapPos<int> pos) {
     return MapblockUpdateInfo(search->second);
   }
   
-  //Try database.
-  //FIXME: only need to retrieve light_needs_update
+  //Try L2 cache.
+  auto search_L2 = L2_cache.find(pos);
+  if(search_L2 != L2_cache.end()) {
+    return MapblockUpdateInfo(search_L2->second.first);
+  }
   
   //Mapblock doesn't exist or isn't loaded; the default update info will be accurate.
   return MapblockUpdateInfo(pos);
@@ -446,12 +450,21 @@ MapblockUpdateInfo SQLiteDB::get_mapblockupdateinfo(MapPos<int> pos) {
 void SQLiteDB::set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) {
   //Update info (with the exception of light_needs_update) only needs to be stored in read cache because it's irrelevant after all the clients disconnect.
   auto search = read_cache.find(pos);
-  if(search == read_cache.end()) {
-    return; //not present
+  if(search != read_cache.end()) {
+    read_cache_hits[pos] = std::chrono::steady_clock::now();
+    info.write_to_mapblock(search->second);
+    return;
   }
   
-  read_cache_hits[pos] = std::chrono::steady_clock::now();
-  info.write_to_mapblock(search->second);
+  //If not in read cache, check L2 cache
+  auto search_L2 = L2_cache.find(pos);
+  if(search_L2 != L2_cache.end()) {
+    info.write_to_mapblock(search_L2->second.first);
+    return;
+  }
+  
+  //not found
+  return;
 }
 
 Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
@@ -460,6 +473,24 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
   if(search != read_cache.end()) {
     read_cache_hits[pos] = std::chrono::steady_clock::now();
     return new Mapblock(*(search->second));
+  }
+  
+  //Try L2 cache
+  auto search_L2 = L2_cache.find(pos);
+  if(search_L2 != L2_cache.end()) {
+    //Decompress & promote
+    Mapblock *mb = search_L2->second.first.decompress();
+    
+    //Remove from L2 cache
+    L2_cache_hits.erase(search_L2->second.second);
+    L2_cache.erase(search_L2);
+    
+    //Add to read cache
+    Mapblock *mb_store = new Mapblock(*mb);
+    read_cache[pos] = mb_store;
+    read_cache_hits[pos] = std::chrono::steady_clock::now();
+    
+    return mb;
   }
   
   Mapblock *mb = new Mapblock(pos);
@@ -630,6 +661,13 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
 void SQLiteDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
   int row_version = 2;
   
+  //If in L2 cache, remove.
+  auto search_L2 = L2_cache.find(pos);
+  if(search_L2 != L2_cache.end()) {
+    L2_cache_hits.erase(search_L2->second.second);
+    L2_cache.erase(search_L2);
+  }
+  
   //Update read cache.
   unsigned int old_update_num = 0;
   bool found_in_cache = false;
@@ -777,8 +815,13 @@ void SQLiteDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
 
 
 void SQLiteDB::clean_cache() {
-  size_t target_cache_count = TARGET_CACHE_COUNT;
+  size_t target_cache_count = get_config<int>("database.L1_cache_target");
+  size_t L2_target_cache_count = get_config<int>("database.L2_cache_target");
+  if(target_cache_count < 1000) {
+    log(LogSource::SQLITEDB, LogLevel::WARNING, "Low L1 cache target value! Please increase database.L1_cache_target.");
+  }
   size_t evicted_count = 0;
+  size_t L2_evicted_count = 0;
   if(read_cache_hits.size() <= target_cache_count) {
     log(LogSource::SQLITEDB, LogLevel::DEBUG, std::to_string(read_cache_hits.size()) + std::string(" mapblocks in cache."));
     return;
@@ -790,8 +833,21 @@ void SQLiteDB::clean_cache() {
   while(read_cache_hits.size() > target_cache_count && cutoff <= start) {
     for(auto it = read_cache_hits.cbegin(); it != read_cache_hits.cend();) {
       if(it->second < cutoff) {
-        Mapblock *mb_to_erase = read_cache[it->first];
-        delete mb_to_erase;
+        Mapblock *mb_to_demote = read_cache[it->first];
+        
+        if(L2_cache.size() >= L2_target_cache_count) {
+          const auto it = L2_cache.find(L2_cache_hits.front());
+          L2_cache.erase(it);
+          L2_cache_hits.pop_front();
+          
+          L2_evicted_count++;
+        }
+        
+        typename std::list<MapPos<int>>::iterator k = L2_cache_hits.insert(L2_cache_hits.end(), mb_to_demote->pos);
+        MapblockCompressed c(mb_to_demote);
+        L2_cache.insert(std::make_pair(mb_to_demote->pos, std::make_pair(c, k)));
+        
+        delete mb_to_demote;
         read_cache.erase(it->first);
         it = read_cache_hits.erase(it);
         evicted_count++;
@@ -812,5 +868,7 @@ void SQLiteDB::clean_cache() {
   
   
   
-  log(LogSource::SQLITEDB, LogLevel::EXTRA, std::to_string(read_cache_hits.size()) + std::string(" mapblocks in cache (") + std::to_string(evicted_count) + std::string(" evicted)."));
+  log(LogSource::SQLITEDB, LogLevel::EXTRA, std::to_string(read_cache_hits.size()) + std::string(" mapblocks in cache (") + std::to_string(evicted_count) + std::string(" demoted)."));
+  
+  log(LogSource::SQLITEDB, LogLevel::EXTRA, std::to_string(L2_cache.size()) + " mapblocks in L2 cache (" + std::to_string(L2_evicted_count) + " evicted).");
 }

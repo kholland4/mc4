@@ -58,11 +58,39 @@ class Mapblock {
     uint32_t data[MAPBLOCK_SIZE_X][MAPBLOCK_SIZE_Y][MAPBLOCK_SIZE_Z];
 };
 
+class MapblockCompressed {
+  public:
+    MapblockCompressed(Mapblock *from);
+    
+    Mapblock *decompress();
+    
+    MapPos<int> pos;
+    
+    unsigned int update_num;
+    unsigned int light_update_num;
+    int light_needs_update;
+    
+    std::vector<std::string> IDtoIS;
+    
+    bool sunlit;
+    
+    bool is_nil;
+    bool dirty;
+    bool dont_write_to_db;
+    
+    std::vector<uint32_t> data_c;
+    std::vector<uint16_t> light_data_c;
+    
+    size_t data_c_len;
+    size_t light_data_c_len;
+};
+
 class MapblockUpdateInfo {
   public:
     MapblockUpdateInfo() : pos(MapPos<int>(0, 0, 0, 0, 0, 0)), update_num(0), light_update_num(0), light_needs_update(1) {}; //FIXME this constructor shouldn't be needed
     MapblockUpdateInfo(MapPos<int> _pos) : pos(_pos), update_num(0), light_update_num(0), light_needs_update(1) {};
     MapblockUpdateInfo(Mapblock *mb) : pos(mb->pos), update_num(mb->update_num), light_update_num(mb->light_update_num), light_needs_update(mb->light_needs_update) {};
+    MapblockUpdateInfo(MapblockCompressed& mb) : pos(mb.pos), update_num(mb.update_num), light_update_num(mb.light_update_num), light_needs_update(mb.light_needs_update) {};
     /*bool operator!=(Mapblock *mb) const {
       return update_num != mb->update_num || light_update_num != mb->light_update_num || light_needs_update != mb->light_needs_update;
     };*/
@@ -73,6 +101,11 @@ class MapblockUpdateInfo {
       mb->update_num = update_num;
       mb->light_update_num = light_update_num;
       mb->light_needs_update = light_needs_update;
+    };
+    void write_to_mapblock(MapblockCompressed &mb) {
+      mb.update_num = update_num;
+      mb.light_update_num = light_update_num;
+      mb.light_needs_update = light_needs_update;
     };
     
     MapPos<int> pos;

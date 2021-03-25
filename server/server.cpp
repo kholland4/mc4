@@ -307,7 +307,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       //TODO: validate that the player hasn't moved too far since their last position update
       
-      player->pos.set(pos);
+      player->pos = pos;
       player->vel.set(pt.get<double>("vel.x"), pt.get<double>("vel.y"), pt.get<double>("vel.z"), player->vel.w, player->vel.world, player->vel.universe);
       player->rot.set(pt.get<double>("rot.x"), pt.get<double>("rot.y"), pt.get<double>("rot.z"), pt.get<double>("rot.w"));
       
