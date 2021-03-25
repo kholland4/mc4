@@ -24,6 +24,11 @@
 
 MapPos<int> PLAYER_LIMIT_VIEW_DISTANCE(3, 3, 3, 1, 0, 0);
 
+//Client-side reach distance is 10, max player speed is 16 m/s (fast + sprint), and the client sends position updates every 0.25 seconds.
+//Minimum server-side reach distance would then be 14, more added just in case.
+MapPos<int> PLAYER_LIMIT_REACH_DISTANCE(20, 20, 20, 1, 0, 0);
+
+
 Server::Server(Database& _db, std::map<int, World*> _worlds)
     : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds), mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0)
 #ifdef DEBUG_NET
@@ -277,7 +282,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       MapPos<int> player_mb = player->containing_mapblock();
       MapBox<int> bounding(player_mb - PLAYER_LIMIT_VIEW_DISTANCE, player_mb + PLAYER_LIMIT_VIEW_DISTANCE);
       if(!bounding.contains(mb_pos)) {
-        log(LogSource::SERVER, LogLevel::EXTRA, "player '" + player->get_name() + "' requests out of bounds mapblock at " + mb_pos.to_string());
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' requests out of bounds mapblock at " + mb_pos.to_string());
         return;
       }
       
@@ -311,6 +316,14 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
     } else if(type == "set_node") {
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       Node node(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
+      
+      MapPos<int> player_pos_int((int)std::round(player->pos.x), (int)std::round(player->pos.y), (int)std::round(player->pos.z), player->pos.w, player->pos.world, player->pos.universe);
+      MapBox<int> bounding(player_pos_int - PLAYER_LIMIT_REACH_DISTANCE, player_pos_int + PLAYER_LIMIT_REACH_DISTANCE);
+      if(!bounding.contains(pos)) {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' at " + player_pos_int.to_string()
+                                                 + " attempted to set node '" + node.itemstring + "' far away at " + pos.to_string());
+        return;
+      }
       
       if(get_node_def(node.itemstring).itemstring == "nothing") {
         log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to place nonexistent node '" + node.itemstring + "' at " + pos.to_string());
