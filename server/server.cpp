@@ -29,8 +29,9 @@ MapPos<int> PLAYER_LIMIT_VIEW_DISTANCE(3, 3, 3, 1, 0, 0);
 MapPos<int> PLAYER_LIMIT_REACH_DISTANCE(20, 20, 20, 1, 0, 0);
 
 //Measured in nodes per 10 seconds
-MapPos<int> PLAYER_LIMIT_VEL(120, 120, 120, 10, 0, 0);
-MapPos<int> PLAYER_LIMIT_VEL_FAST(200, 200, 200, 10, 0, 0);
+#define DISABLE_PLAYER_SPEED_LIMIT //too problematic, disable for now
+MapPos<int> PLAYER_LIMIT_VEL(120, 120, 120, 6, 0, 0);
+MapPos<int> PLAYER_LIMIT_VEL_FAST(200, 200, 200, 6, 0, 0);
 
 
 Server::Server(Database& _db, std::map<int, World*> _worlds)
@@ -318,27 +319,38 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
       
+#ifndef DISABLE_PLAYER_SPEED_LIMIT
       //Validate that the player hasn't moved too far since their last position update
       //FIXME: doesn't handle falling players
       bool violation = false;
       
       if(player->pos_history.size() > 0) {
         MapPos<double> total_distance(0, 0, 0, 0, 0, 0);
+        MapPos<double> total_distance_sign(0, 0, 0, 0, 0, 0);
         MapPos<double> previous = pos;
         for(auto it : player->pos_history) {
-          total_distance += (it.second - previous).abs();
+          total_distance += (previous - it.second).abs();
+          total_distance_sign += (previous - it.second);
           previous = it.second;
         }
         
         std::chrono::time_point<std::chrono::steady_clock> oldest = player->pos_history.back().first;
-        double diff = std::chrono::duration_cast<std::chrono::seconds>(now - oldest).count() / 10.0;
+        double diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - oldest).count() / 10000.0; //milliseconds -> tens of seconds
         if(diff > 0) {
           MapPos<double> vel(total_distance.x / diff, total_distance.y / diff, total_distance.z / diff,
                              total_distance.w / diff, total_distance.world / diff, total_distance.universe / diff);
+          MapPos<double> vel_sign(total_distance_sign.x / diff, total_distance_sign.y / diff, total_distance_sign.z / diff,
+                                  total_distance_sign.w / diff, total_distance_sign.world / diff, total_distance_sign.universe / diff);
           
           MapPos<int> limit = PLAYER_LIMIT_VEL;
           if(player->data.has_priv("fast")) {
             limit = PLAYER_LIMIT_VEL_FAST;
+          }
+          
+          if(vel_sign.y < -limit.y) {
+            //falling player, probably
+            //FIXME
+            limit.y *= 5;
           }
           
           if(vel.x > limit.x || vel.y > limit.y || vel.z > limit.z ||
@@ -353,6 +365,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         player->send_pos(m_server); //pull them back
         return; //don't accept the new position
       }
+#endif
       
       player->pos_history.push_front(std::make_pair(now, pos));
       if(player->pos_history.size() > 8) {
