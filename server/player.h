@@ -29,6 +29,8 @@
 #include "player_auth.h"
 #include "log.h"
 
+#include <chrono>
+
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -126,6 +128,9 @@ class PlayerState {
     MapPos<double> pos;
     MapPos<double> vel;
     Quaternion rot;
+    
+    std::list<std::pair<std::chrono::time_point<std::chrono::steady_clock>, MapPos<double>>> pos_history;
+    bool just_tp;
     
     std::map<MapPos<int>, MapblockUpdateInfo> known_mapblocks;
     std::set<std::string> known_player_tags;

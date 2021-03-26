@@ -133,6 +133,15 @@ template <class T> class MapPos {
     MapPos<T> operator-(const MapPos<T>& other) {
       return MapPos<T>(x - other.x, y - other.y, z - other.z, w - other.w, world - other.world, universe - other.universe);
     };
+    MapPos<T>& operator+=(const MapPos<T>& other) {
+      x += other.x;
+      y += other.y;
+      z += other.z;
+      w += other.w;
+      world += other.world;
+      universe += other.universe;
+      return *this;
+    };
     
     //FIXME
     T distance_to(const MapPos<T>& other) {
@@ -140,6 +149,10 @@ template <class T> class MapPos {
       if(world != other.world) { return 1000000; }
       if(w != other.w) { return 1000000; }
       return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y) + (z - other.z) * (z - other.z)); // + (w - other.w) * (w - other.w));
+    };
+    
+    MapPos<T> abs() {
+      return MapPos<T>(std::abs(x), std::abs(y), std::abs(z), std::abs(w), std::abs(world), std::abs(universe));
     };
     
     T x;

@@ -21,7 +21,7 @@
 #include <cstring>
 
 PlayerState::PlayerState(connection_hdl hdl)
-    : auth(false), auth_guest(false), m_connection_hdl(hdl), m_tag(boost::uuids::random_generator()()), m_name(get_tag())
+    : auth(false), auth_guest(false), just_tp(false), m_connection_hdl(hdl), m_tag(boost::uuids::random_generator()()), m_name(get_tag())
 {
   
 }

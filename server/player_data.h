@@ -28,6 +28,8 @@ class PlayerData {
     PlayerData() : is_nil(true) {}
     PlayerData(std::string json, std::string _auth_id);
     
+    bool has_priv(std::string priv);
+    
     std::string to_json();
     
     std::string name; //player's display name (by default it's their login username)

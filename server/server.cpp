@@ -28,6 +28,10 @@ MapPos<int> PLAYER_LIMIT_VIEW_DISTANCE(3, 3, 3, 1, 0, 0);
 //Minimum server-side reach distance would then be 14, more added just in case.
 MapPos<int> PLAYER_LIMIT_REACH_DISTANCE(20, 20, 20, 1, 0, 0);
 
+//Measured in nodes per 10 seconds
+MapPos<int> PLAYER_LIMIT_VEL(120, 120, 120, 10, 0, 0);
+MapPos<int> PLAYER_LIMIT_VEL_FAST(200, 200, 200, 10, 0, 0);
+
 
 Server::Server(Database& _db, std::map<int, World*> _worlds)
     : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds), mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0)
@@ -303,9 +307,57 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
 #endif
       delete mb;
     } else if(type == "set_player_pos") {
+      if(player->just_tp) {
+        //Clear position history and ignore this position update.
+        player->pos_history.clear();
+        player->just_tp = false;
+        return;
+      }
+      
       MapPos<double> pos(pt.get<double>("pos.x"), pt.get<double>("pos.y"), pt.get<double>("pos.z"), pt.get<int>("pos.w"), player->pos.world, player->pos.universe);
       
-      //TODO: validate that the player hasn't moved too far since their last position update
+      std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
+      
+      //Validate that the player hasn't moved too far since their last position update
+      //FIXME: doesn't handle falling players
+      bool violation = false;
+      
+      if(player->pos_history.size() > 0) {
+        MapPos<double> total_distance(0, 0, 0, 0, 0, 0);
+        MapPos<double> previous = pos;
+        for(auto it : player->pos_history) {
+          total_distance += (it.second - previous).abs();
+          previous = it.second;
+        }
+        
+        std::chrono::time_point<std::chrono::steady_clock> oldest = player->pos_history.back().first;
+        double diff = std::chrono::duration_cast<std::chrono::seconds>(now - oldest).count() / 10.0;
+        if(diff > 0) {
+          MapPos<double> vel(total_distance.x / diff, total_distance.y / diff, total_distance.z / diff,
+                             total_distance.w / diff, total_distance.world / diff, total_distance.universe / diff);
+          
+          MapPos<int> limit = PLAYER_LIMIT_VEL;
+          if(player->data.has_priv("fast")) {
+            limit = PLAYER_LIMIT_VEL_FAST;
+          }
+          
+          if(vel.x > limit.x || vel.y > limit.y || vel.z > limit.z ||
+             vel.w > limit.w || vel.world > limit.world || vel.universe > limit.universe) {
+            violation = true;
+          }
+        }
+      }
+      
+      if(violation) {
+        log(LogSource::SERVER, LogLevel::WARNING, "player '" + player->get_name() + "' tried to move too fast");
+        player->send_pos(m_server); //pull them back
+        return; //don't accept the new position
+      }
+      
+      player->pos_history.push_front(std::make_pair(now, pos));
+      if(player->pos_history.size() > 8) {
+        player->pos_history.pop_back();
+      }
       
       player->pos = pos;
       player->vel.set(pt.get<double>("vel.x"), pt.get<double>("vel.y"), pt.get<double>("vel.z"), player->vel.w, player->vel.world, player->vel.universe);

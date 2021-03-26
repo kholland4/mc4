@@ -88,3 +88,7 @@ std::string PlayerData::to_json() {
   
   return out.str();
 }
+
+bool PlayerData::has_priv(std::string priv) {
+  return privs.find(priv) != privs.end();
+}

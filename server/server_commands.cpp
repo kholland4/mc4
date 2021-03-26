@@ -126,6 +126,7 @@ void Server::cmd_tp(PlayerState *player, std::vector<std::string> args) {
     if(args.size() >= 5) {
       player->pos.w = w;
     }
+    player->just_tp = true;
     //print ints, not doubles
     chat_send_player(player, "server", "Teleported to " + MapPos<int>(x, y, z, player->pos.w, player->pos.world, player->pos.universe).to_string() + "!");
     player->send_pos(m_server);
@@ -156,6 +157,7 @@ void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
         return;
       }
       player->pos.world = it.first;
+      player->just_tp = true;
       chat_send_player(player, "server", "Welcome to " + it.second->name + "!");
       player->send_pos(m_server);
       if(player->auth) {
@@ -185,6 +187,7 @@ void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args)
       chat_send_player(player, "server", "You're already in universe " + std::to_string(universe) + ".");
     } else {
       player->pos.universe = universe;
+      player->just_tp = true;
       chat_send_player(player, "server", "Welcome to universe " + std::to_string(player->pos.universe) + "!");
       player->send_pos(m_server);
       if(player->auth) {
