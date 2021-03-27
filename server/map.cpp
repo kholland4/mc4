@@ -478,7 +478,30 @@ void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
     light_cascade_fast(mapblocks, mapblocks_to_compute, light_sources[i].first.first, light_sources[i].first.first->pos, light_sources[i].first.second, light_sources[i].second, LC_NORM, no_face);
   }
   for(size_t i = 0; i < sunlight_sources.size(); i++) {
-    light_cascade_fast(mapblocks, mapblocks_to_compute, sunlight_sources[i].first.first, sunlight_sources[i].first.first->pos, sunlight_sources[i].first.second, sunlight_sources[i].second, LC_SUN, no_face);
+    MapPos<int> rel_pos = sunlight_sources[i].first.second;
+    Mapblock *mb = sunlight_sources[i].first.first;
+    bool need_to_cascade = true;
+    if(rel_pos.x >= 1 && rel_pos.x < MAPBLOCK_SIZE_X - 1 &&
+       rel_pos.y >= 1 && rel_pos.y < MAPBLOCK_SIZE_Y - 1 &&
+       rel_pos.z >= 1 && rel_pos.z < MAPBLOCK_SIZE_Z - 1 &&
+       rel_pos.w == 0 &&
+       rel_pos.world == 0 &&
+       rel_pos.universe == 0 &&
+       sunlight_sources[i].second == 15) {
+      //if all adjacent nodes are either already fully sunlit or opaque, no need to cascade
+      if((((mb->data[rel_pos.x - 1][rel_pos.y][rel_pos.z] >> 23) & 240) >= 224 || ((mb->data[rel_pos.x - 1][rel_pos.y][rel_pos.z] >> 23) & 15) == 0) &&
+         (((mb->data[rel_pos.x][rel_pos.y - 1][rel_pos.z] >> 23) & 240) >= 224 || ((mb->data[rel_pos.x][rel_pos.y - 1][rel_pos.z] >> 23) & 15) == 0) &&
+         (((mb->data[rel_pos.x][rel_pos.y][rel_pos.z - 1] >> 23) & 240) >= 224 || ((mb->data[rel_pos.x][rel_pos.y][rel_pos.z - 1] >> 23) & 15) == 0) &&
+         (((mb->data[rel_pos.x + 1][rel_pos.y][rel_pos.z] >> 23) & 240) >= 224 || ((mb->data[rel_pos.x + 1][rel_pos.y][rel_pos.z] >> 23) & 15) == 0) &&
+         (((mb->data[rel_pos.x][rel_pos.y + 1][rel_pos.z] >> 23) & 240) >= 224 || ((mb->data[rel_pos.x][rel_pos.y + 1][rel_pos.z] >> 23) & 15) == 0) &&
+         (((mb->data[rel_pos.x][rel_pos.y][rel_pos.z + 1] >> 23) & 240) >= 224 || ((mb->data[rel_pos.x][rel_pos.y][rel_pos.z + 1] >> 23) & 15) == 0)) {
+        mb->data[rel_pos.x][rel_pos.y][rel_pos.z] |= 240 << 23;
+        need_to_cascade = false;
+      }
+    }
+    if(need_to_cascade) {
+      light_cascade_fast(mapblocks, mapblocks_to_compute, sunlight_sources[i].first.first, sunlight_sources[i].first.first->pos, sunlight_sources[i].first.second, sunlight_sources[i].second, LC_SUN, no_face);
+    }
   }
   
   //Bleed in light from the edges of adjacent mapblocks.
@@ -491,6 +514,7 @@ void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
   planes[5].first.set(0,                   0,                   MAPBLOCK_SIZE_Z - 1, 0, 0, 0); planes[5].second.set(MAPBLOCK_SIZE_X - 1, MAPBLOCK_SIZE_Y - 1, MAPBLOCK_SIZE_Z - 1, 0, 0, 0);
   for(auto i : mapblocks_to_compute) {
     MapPos<int> mb_pos = i;
+    Mapblock *target_mb = mapblocks[mb_pos];
     for(size_t n = 0; n < 6; n++) {
       MapPos<int> new_pos = mb_pos + faces[n];
       
@@ -506,8 +530,34 @@ void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
         for(int y = planes[n].first.y; y <= planes[n].second.y; y++) {
           for(int z = planes[n].first.z; z <= planes[n].second.z; z++) {
             MapPos<int> rel_pos(x, y, z, 0, 0, 0);
-            light_cascade_fast(mapblocks, mapblocks_to_update, search->second, new_pos, rel_pos, 0, LC_NORM, no_face, 1);
-            light_cascade_fast(mapblocks, mapblocks_to_update, search->second, new_pos, rel_pos, 0, LC_SUN, no_face, 1);
+            
+            bool do_need_light_cascade = true;
+            bool do_need_sunlight_cascade = true;
+            MapPos<int> target_mb_pos = new_pos;
+            MapPos<int> target_rel_pos = rel_pos - faces[n];
+            while(target_rel_pos.x < 0               ) { target_rel_pos.x += MAPBLOCK_SIZE_X; target_mb_pos.x--; }
+            while(target_rel_pos.x >= MAPBLOCK_SIZE_X) { target_rel_pos.x -= MAPBLOCK_SIZE_X; target_mb_pos.x++; }
+            while(target_rel_pos.y < 0               ) { target_rel_pos.y += MAPBLOCK_SIZE_Y; target_mb_pos.y--; }
+            while(target_rel_pos.y >= MAPBLOCK_SIZE_Y) { target_rel_pos.y -= MAPBLOCK_SIZE_Y; target_mb_pos.y++; }
+            while(target_rel_pos.z < 0               ) { target_rel_pos.z += MAPBLOCK_SIZE_Z; target_mb_pos.z--; }
+            while(target_rel_pos.z >= MAPBLOCK_SIZE_Z) { target_rel_pos.z -= MAPBLOCK_SIZE_Z; target_mb_pos.z++; }
+            if(target_mb_pos == mb_pos) {
+              uint8_t existing_light = (target_mb->data[target_rel_pos.x][target_rel_pos.y][target_rel_pos.z] >> 23) & 255;
+              uint8_t flooding_light = (search->second->data[rel_pos.x][rel_pos.y][rel_pos.z] >> 23) & 255;
+              if((existing_light & 15) >= (flooding_light & 15) - 1 || (flooding_light & 15) == 0) {
+                do_need_light_cascade = false;
+              }
+              if((existing_light & 240) >= (flooding_light & 240) - 16 || (flooding_light & 15) == 0) {
+                do_need_sunlight_cascade = false;
+              }
+            }
+            
+            if(do_need_light_cascade) {
+              light_cascade_fast(mapblocks, mapblocks_to_update, search->second, new_pos, rel_pos, 0, LC_NORM, no_face, 1);
+            }
+            if(do_need_sunlight_cascade) {
+              light_cascade_fast(mapblocks, mapblocks_to_update, search->second, new_pos, rel_pos, 0, LC_SUN, no_face, 1);
+            }
           }
         }
       }
