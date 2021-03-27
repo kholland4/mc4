@@ -209,6 +209,12 @@ MapblockCompressed::MapblockCompressed(Mapblock *from)
   std::copy(light_data_compressed, light_data_compressed + light_data_c_len, std::back_inserter(light_data_c));
 }
 
+MapblockCompressed::MapblockCompressed(MapPos<int> _pos)
+    : pos(_pos), update_num(0), light_update_num(0), light_needs_update(1), sunlit(true), is_nil(true), dirty(false), dont_write_to_db(false)
+{
+  IDtoIS.push_back("air");
+}
+
 Mapblock* MapblockCompressed::decompress() {
   Mapblock *mb = new Mapblock(pos);
   mb->update_num = update_num;
@@ -222,6 +228,10 @@ Mapblock* MapblockCompressed::decompress() {
   mb->is_nil = is_nil;
   mb->dirty = dirty;
   mb->dont_write_to_db = dont_write_to_db;
+  
+  if(is_nil) {
+    return mb;
+  }
   
   //data (nodes)
   int y = 0;

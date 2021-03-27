@@ -35,6 +35,7 @@ class Database {
     virtual MapblockUpdateInfo get_mapblockupdateinfo(MapPos<int> pos) = 0;
     virtual void set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) = 0;
     virtual Mapblock* get_mapblock(MapPos<int> pos) = 0;
+    virtual MapblockCompressed* get_mapblock_compressed(MapPos<int> pos) = 0;
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb) = 0;
     virtual void clean_cache() = 0;
     
@@ -56,6 +57,7 @@ class MemoryDB : public Database {
     virtual MapblockUpdateInfo get_mapblockupdateinfo(MapPos<int> pos);
     virtual void set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info);
     virtual Mapblock* get_mapblock(MapPos<int> pos);
+    virtual MapblockCompressed* get_mapblock_compressed(MapPos<int> pos);
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
     
@@ -86,6 +88,7 @@ class SQLiteDB: public Database {
     virtual MapblockUpdateInfo get_mapblockupdateinfo(MapPos<int> pos);
     virtual void set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info);
     virtual Mapblock* get_mapblock(MapPos<int> pos);
+    virtual MapblockCompressed* get_mapblock_compressed(MapPos<int> pos);
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
     

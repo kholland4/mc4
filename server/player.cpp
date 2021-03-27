@@ -86,74 +86,14 @@ bool PlayerState::needs_mapblock_update(MapblockUpdateInfo info) {
   return true;
 }
 
-unsigned int PlayerState::send_mapblock(Mapblock *mb, WsServer& sender) {
-  known_mapblocks[mb->pos] = MapblockUpdateInfo(mb);
-  
-  //sender.send(m_connection_hdl, mb->as_json(), websocketpp::frame::opcode::text);
-  
-  uint32_t data_compressed[MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z];
-  
-  uint32_t run_val = 0;
-  size_t run_length = 0;
-  size_t out_cursor = 0;
-  
-  uint16_t light_data_compressed[MAPBLOCK_SIZE_X * MAPBLOCK_SIZE_Y * MAPBLOCK_SIZE_Z];
-  
-  uint16_t light_run_val = 0;
-  size_t light_run_length = 0;
-  size_t light_cursor = 0;
-  
-  for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
-    for(int x = 0; x < MAPBLOCK_SIZE_X; x++) {
-      for(int z = 0; z < MAPBLOCK_SIZE_Z; z++) {
-        uint32_t val = mb->data[x][y][z] & 0b00000000011111111111111111111111; //exclude lighting information
-        if(run_length == 0) {
-          run_val = val;
-          run_length++;
-        } else if(val == run_val && run_length < 512) { //only 9 bits are used to store the run length, so 512 is the max possible.
-          run_length++;
-        } else {
-          data_compressed[out_cursor] = run_val | ((run_length - 1) << 23);
-          out_cursor++;
-          run_length = 0;
-          
-          run_val = val;
-          run_length++;
-        }
-        
-        uint16_t light_val = (mb->data[x][y][z] >> 23) & 255;
-        if(light_run_length == 0) {
-          light_run_val = light_val;
-          light_run_length++;
-        } else if(light_val == light_run_val && light_run_length < 256) { //only 8 bits are used to store the run length, so 256 is the max possible.
-          light_run_length++;
-        } else {
-          light_data_compressed[light_cursor] = light_run_val | ((light_run_length - 1) << 8);
-          light_cursor++;
-          light_run_length = 0;
-          
-          light_run_val = light_val;
-          light_run_length++;
-        }
-      }
-    }
-  }
-  if(run_length > 0) {
-    data_compressed[out_cursor] = run_val | ((run_length - 1) << 23);
-    out_cursor++;
-    run_length = 0;
-  }
-  if(light_run_length > 0) {
-    light_data_compressed[light_cursor] = light_run_val | ((light_run_length - 1) << 8);
-    light_cursor++;
-    light_run_length = 0;
-  }
+unsigned int PlayerState::send_mapblock_compressed(MapblockCompressed *mbc, WsServer& sender) {
+  known_mapblocks[mbc->pos] = MapblockUpdateInfo(*mbc);
   
   std::ostringstream IDtoIS_ss;
   IDtoIS_ss << "[";
-  for(size_t i = 0; i < mb->IDtoIS.size(); i++) {
+  for(size_t i = 0; i < mbc->IDtoIS.size(); i++) {
     if(i != 0) { IDtoIS_ss << ","; }
-    IDtoIS_ss << "\"" << mb->IDtoIS[i] << "\"";
+    IDtoIS_ss << "\"" << mbc->IDtoIS[i] << "\"";
   }
   IDtoIS_ss << "]";
   std::string IDtoIS_str = IDtoIS_ss.str();
@@ -193,26 +133,26 @@ unsigned int PlayerState::send_mapblock(Mapblock *mb, WsServer& sender) {
   int32_t *out_buf_i32 = (int32_t*) out_buf;
   
   out_buf_32[0] = 0xABCD5678;
-  out_buf_i32[1] = mb->pos.x;
-  out_buf_i32[2] = mb->pos.y;
-  out_buf_i32[3] = mb->pos.z;
-  out_buf_i32[4] = mb->pos.w;
-  out_buf_i32[5] = mb->pos.world;
-  out_buf_i32[6] = mb->pos.universe;
-  out_buf_32[7] = mb->update_num;
-  out_buf_32[8] = mb->light_update_num;
-  out_buf_32[9] = mb->light_needs_update;
-  out_buf_32[10] = mb->sunlit ? 1 : 0;
-  out_buf_32[11] = out_cursor;
+  out_buf_i32[1] = mbc->pos.x;
+  out_buf_i32[2] = mbc->pos.y;
+  out_buf_i32[3] = mbc->pos.z;
+  out_buf_i32[4] = mbc->pos.w;
+  out_buf_i32[5] = mbc->pos.world;
+  out_buf_i32[6] = mbc->pos.universe;
+  out_buf_32[7] = mbc->update_num;
+  out_buf_32[8] = mbc->light_update_num;
+  out_buf_32[9] = mbc->light_needs_update;
+  out_buf_32[10] = mbc->sunlit ? 1 : 0;
+  out_buf_32[11] = mbc->data_c_len;
   size_t arr_pos = 12;
-  memcpy(out_buf_32 + arr_pos, data_compressed, out_cursor * sizeof(uint32_t));
-  arr_pos += out_cursor;
-  out_buf_32[arr_pos] = (light_cursor * sizeof(uint16_t) / sizeof(uint32_t)) + 1;
+  memcpy(out_buf_32 + arr_pos, mbc->data_c.data(), mbc->data_c_len * sizeof(uint32_t));
+  arr_pos += mbc->data_c_len;
+  out_buf_32[arr_pos] = (mbc->light_data_c_len * sizeof(uint16_t) / sizeof(uint32_t)) + 1;
   arr_pos++;
-  out_buf_32[arr_pos] = light_cursor;
+  out_buf_32[arr_pos] = mbc->light_data_c_len;
   arr_pos++;
-  memcpy(out_buf_32 + arr_pos, light_data_compressed, light_cursor * sizeof(uint16_t));
-  arr_pos += (light_cursor * sizeof(uint16_t) / sizeof(uint32_t)) + 1;
+  memcpy(out_buf_32 + arr_pos, mbc->light_data_c.data(), mbc->light_data_c_len * sizeof(uint16_t));
+  arr_pos += (mbc->light_data_c_len * sizeof(uint16_t) / sizeof(uint32_t)) + 1;
   out_buf_32[arr_pos] = IDtoIS_len;
   arr_pos++;
   memcpy(out_buf_32 + arr_pos, IDtoIS_data, IDtoIS_len);
@@ -291,9 +231,9 @@ void PlayerState::update_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& 
     MapPos<int> mb_pos = mapblock_list[i];
     MapblockUpdateInfo info = map.get_mapblockupdateinfo(mb_pos);
     if(needs_mapblock_update(info)) {
-      Mapblock *mb = map.get_mapblock(mb_pos);
-      send_mapblock(mb, sender);
-      delete mb;
+      MapblockCompressed *mbc = map.get_mapblock_compressed(mb_pos);
+      send_mapblock_compressed(mbc, sender);
+      delete mbc;
     }
   }
 }

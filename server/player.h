@@ -82,7 +82,7 @@ class PlayerState {
     void send_privs(WsServer& sender);
     
     bool needs_mapblock_update(MapblockUpdateInfo info);
-    unsigned int send_mapblock(Mapblock *mb, WsServer& sender);
+    unsigned int send_mapblock_compressed(MapblockCompressed *mbc, WsServer& sender);
     
     void prepare_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map);
     void prepare_nearby_mapblocks(int mb_radius, int mb_radius_outer, int mb_radius_w, Map& map);

@@ -298,15 +298,15 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
 #endif
         map.update_mapblock_light(info);
       }
-      Mapblock *mb = map.get_mapblock(mb_pos);
+      MapblockCompressed *mbc = map.get_mapblock_compressed(mb_pos);
 #ifdef DEBUG_NET
-      unsigned int len = player->send_mapblock(mb, m_server);
+      unsigned int len = player->send_mapblock_compressed(mbc, m_server);
       mb_out_len += len;
       mb_out_count++;
 #else
-      player->send_mapblock(mb, m_server);
+      player->send_mapblock_compressed(mbc, m_server);
 #endif
-      delete mb;
+      delete mbc;
     } else if(type == "set_player_pos") {
       if(player->just_tp) {
         //Clear position history and ignore this position update.

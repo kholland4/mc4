@@ -467,6 +467,25 @@ void SQLiteDB::set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) 
   return;
 }
 
+MapblockCompressed* SQLiteDB::get_mapblock_compressed(MapPos<int> pos) {
+  //Try L2 cache
+  auto search_L2 = L2_cache.find(pos);
+  if(search_L2 != L2_cache.end()) {
+    //Move to front of cache
+    L2_cache_hits.erase(search_L2->second.second);
+    typename std::list<MapPos<int>>::iterator k = L2_cache_hits.insert(L2_cache_hits.end(), pos);
+    MapblockCompressed c = search_L2->second.first;
+    search_L2->second = std::make_pair(c, k);
+    
+    return new MapblockCompressed(c);
+  }
+  
+  Mapblock *mb = get_mapblock(pos);
+  MapblockCompressed *mbc = new MapblockCompressed(mb);
+  delete mb;
+  return mbc;
+}
+
 Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
   //Try read cache.
   auto search = read_cache.find(pos);

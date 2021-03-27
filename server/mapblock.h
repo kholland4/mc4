@@ -61,6 +61,7 @@ class Mapblock {
 class MapblockCompressed {
   public:
     MapblockCompressed(Mapblock *from);
+    MapblockCompressed(MapPos<int> _pos);
     
     Mapblock *decompress();
     

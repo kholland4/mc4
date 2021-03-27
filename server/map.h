@@ -32,6 +32,7 @@ class Map {
   public:
     Map(Database& _db, std::map<int, World*> worlds);
     Mapblock* get_mapblock(MapPos<int> mb_pos);
+    MapblockCompressed* get_mapblock_compressed(MapPos<int> mb_pos);
     void set_mapblock(MapPos<int> mb_pos, Mapblock *mb);
     Node get_node(MapPos<int> pos);
     void set_node(MapPos<int> pos, Node node);
@@ -45,6 +46,7 @@ class Map {
     
     std::map<int, World*> worlds;
   private:
+    Mapblock* get_mapblock_known_nil(MapPos<int> mb_pos);
     void update_mapblock_light_optimized_singlenode_transparent(MapPos<int> mb_pos, MapPos<int> rel_pos);
     void save_changed_lit_mapblocks(std::map<MapPos<int>, Mapblock*>& mapblocks, std::set<MapPos<int>>& mapblocks_to_update, bool do_clear_light_needs_update);
     

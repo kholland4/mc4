@@ -78,6 +78,22 @@ Mapblock* Map::get_mapblock(MapPos<int> mb_pos) {
   Mapblock *mb = db.get_mapblock(mb_pos);
   if(!mb->is_nil) { return mb; }
   
+  delete mb;
+  
+  return get_mapblock_known_nil(mb_pos);
+}
+MapblockCompressed* Map::get_mapblock_compressed(MapPos<int> mb_pos) {
+  MapblockCompressed *mbc = db.get_mapblock_compressed(mb_pos);
+  if(!mbc->is_nil) { return mbc; }
+  
+  delete mbc;
+  
+  Mapblock *mb = get_mapblock_known_nil(mb_pos);
+  MapblockCompressed *mbc_new = new MapblockCompressed(mb);
+  delete mb;
+  return mbc_new;
+}
+Mapblock* Map::get_mapblock_known_nil(MapPos<int> mb_pos) {
   //The mapblock is not held by the database, so we got an empty one.
   //We must generate some data to fill it.
   //The resultant mapblock will be sent to the database for caching,
@@ -87,10 +103,8 @@ Mapblock* Map::get_mapblock(MapPos<int> mb_pos) {
   if(search == worlds.end()) {
     //no world exists at this position
     //return a nil mapblock
-    return mb;
+    return new Mapblock(mb_pos);
   }
-  
-  delete mb;
   
   std::map<MapPos<int>, Mapblock*> generated = search->second->mapgen.generate_near(mb_pos);
   for(auto it : generated) {

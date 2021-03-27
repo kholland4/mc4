@@ -42,6 +42,16 @@ Mapblock* MemoryDB::get_mapblock(MapPos<int> pos) {
   return new Mapblock(pos);
 }
 
+MapblockCompressed* MemoryDB::get_mapblock_compressed(MapPos<int> pos) {
+  auto search = datastore.find(pos);
+  if(search != datastore.end()) {
+    return new MapblockCompressed(search->second);
+  }
+  
+  //not found; return a nil mapblock
+  return new MapblockCompressed(pos);
+}
+
 void MemoryDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
   auto search = datastore.find(pos);
   if(search != datastore.end()) {
