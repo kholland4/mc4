@@ -444,6 +444,7 @@ class ServerRemote extends ServerBase {
     this._socketReady = false;
     this._invReady = true;
     this._authReady = false;
+    this._posReady = false;
     this._authCredentials = null;
     
     this._url = url;
@@ -737,6 +738,8 @@ class ServerRemote extends ServerBase {
         this.player.pos.set(data.pos.x, data.pos.y, data.pos.z, data.pos.w, data.pos.world, data.pos.universe);
         this.player.rot.set(data.rot.x, data.rot.y, data.rot.z, data.rot.w);
         camera.quaternion.copy(this.player.rot);
+        
+        this._posReady = true;
       } else if(data.type == "set_player_privs") {
         this.player.privs = data.privs;
       } else if(data.type == "auth_step") {
@@ -909,7 +912,7 @@ class ServerRemote extends ServerBase {
   }
   
   get ready() {
-    return this._socketReady && this._invReady && this._authReady;
+    return this._socketReady && this._invReady && this._authReady && this._posReady;
   }
   
   onFrame(tscale) {
