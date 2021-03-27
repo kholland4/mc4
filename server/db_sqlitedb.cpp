@@ -433,8 +433,14 @@ MapblockUpdateInfo SQLiteDB::get_mapblockupdateinfo(MapPos<int> pos) {
   //Try read cache.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
-    read_cache_hits[pos] = std::chrono::steady_clock::now();
-    return MapblockUpdateInfo(search->second);
+    Mapblock *mb = search->second.first;
+    
+    //Move to front of read_cache
+    read_cache_hits.erase(search->second.second);
+    typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
+    search->second = std::make_pair(mb, k);
+    
+    return MapblockUpdateInfo(mb);
   }
   
   //Try L2 cache.
@@ -451,8 +457,14 @@ void SQLiteDB::set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) 
   //Update info (with the exception of light_needs_update) only needs to be stored in read cache because it's irrelevant after all the clients disconnect.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
-    read_cache_hits[pos] = std::chrono::steady_clock::now();
-    info.write_to_mapblock(search->second);
+    Mapblock *mb = search->second.first;
+    
+    //Move to front of read_cache
+    read_cache_hits.erase(search->second.second);
+    typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
+    search->second = std::make_pair(mb, k);
+    
+    info.write_to_mapblock(mb);
     return;
   }
   
@@ -490,8 +502,14 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
   //Try read cache.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
-    read_cache_hits[pos] = std::chrono::steady_clock::now();
-    return new Mapblock(*(search->second));
+    Mapblock *mb = search->second.first;
+    
+    //Move to front of read_cache
+    read_cache_hits.erase(search->second.second);
+    typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
+    search->second = std::make_pair(mb, k);
+    
+    return new Mapblock(*mb);
   }
   
   //Try L2 cache
@@ -505,9 +523,9 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
     L2_cache.erase(search_L2);
     
     //Add to read cache
+    typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
     Mapblock *mb_store = new Mapblock(*mb);
-    read_cache[pos] = mb_store;
-    read_cache_hits[pos] = std::chrono::steady_clock::now();
+    read_cache.insert(std::make_pair(pos, std::make_pair(mb_store, k)));
     
     return mb;
   }
@@ -662,9 +680,20 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
     mb->light_needs_update = 1;
     
     //Save to read cache.
-    Mapblock *mb_store = new Mapblock(*mb);
-    read_cache[pos] = mb_store;
-    read_cache_hits[pos] = std::chrono::steady_clock::now();
+    if(search != read_cache.end()) {
+      delete search->second.first;
+      
+      //Update read cache & move to front
+      read_cache_hits.erase(search->second.second);
+      typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
+      Mapblock *mb_store = new Mapblock(*mb);
+      search->second = std::make_pair(mb_store, k);
+    } else {
+      //Add to read cache
+      typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
+      Mapblock *mb_store = new Mapblock(*mb);
+      read_cache.insert(std::make_pair(pos, std::make_pair(mb_store, k)));
+    }
   } else if(step_result != SQLITE_DONE) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
     sqlite3_finalize(statement);
@@ -694,12 +723,20 @@ void SQLiteDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
     found_in_cache = true;
-    old_update_num = search->second->update_num;
-    delete search->second;
+    old_update_num = search->second.first->update_num;
+    delete search->second.first;
+    
+    //Update read cache & move to front
+    read_cache_hits.erase(search->second.second);
+    typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
+    Mapblock *mb_store = new Mapblock(*mb);
+    search->second = std::make_pair(mb_store, k);
+  } else {
+    //Add to read cache
+    typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
+    Mapblock *mb_store = new Mapblock(*mb);
+    read_cache.insert(std::make_pair(pos, std::make_pair(mb_store, k)));
   }
-  Mapblock *mb_store = new Mapblock(*mb);
-  read_cache[pos] = mb_store;
-  read_cache_hits[pos] = std::chrono::steady_clock::now();
   
   if(!mb->dirty) { return; }
   //To avoid hitting the disk for lighting updates.
@@ -846,43 +883,26 @@ void SQLiteDB::clean_cache() {
     return;
   }
   
-  std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
-  std::chrono::time_point<std::chrono::steady_clock> cutoff = start - std::chrono::hours(2);
-  
-  while(read_cache_hits.size() > target_cache_count && cutoff <= start) {
-    for(auto it = read_cache_hits.cbegin(); it != read_cache_hits.cend();) {
-      if(it->second < cutoff) {
-        Mapblock *mb_to_demote = read_cache[it->first];
-        
-        if(L2_cache.size() >= L2_target_cache_count) {
-          const auto it = L2_cache.find(L2_cache_hits.front());
-          L2_cache.erase(it);
-          L2_cache_hits.pop_front();
-          
-          L2_evicted_count++;
-        }
-        
-        typename std::list<MapPos<int>>::iterator k = L2_cache_hits.insert(L2_cache_hits.end(), mb_to_demote->pos);
-        MapblockCompressed c(mb_to_demote);
-        L2_cache.insert(std::make_pair(mb_to_demote->pos, std::make_pair(c, k)));
-        
-        delete mb_to_demote;
-        read_cache.erase(it->first);
-        it = read_cache_hits.erase(it);
-        evicted_count++;
-      } else {
-        it++;
-      }
+  while(read_cache_hits.size() > target_cache_count) {
+    const auto oldest = read_cache.find(read_cache_hits.front());
+    Mapblock *mb_to_demote = oldest->second.first;
+    read_cache.erase(oldest);
+    read_cache_hits.pop_front();
+    evicted_count++;
+    
+    if(L2_cache.size() >= L2_target_cache_count) {
+      const auto it = L2_cache.find(L2_cache_hits.front());
+      L2_cache.erase(it);
+      L2_cache_hits.pop_front();
+      
+      L2_evicted_count++;
     }
     
-    auto remaining = start - cutoff;
-    auto try_diff = remaining / 2;
+    typename std::list<MapPos<int>>::iterator k = L2_cache_hits.insert(L2_cache_hits.end(), mb_to_demote->pos);
+    MapblockCompressed c(mb_to_demote);
+    L2_cache.insert(std::make_pair(mb_to_demote->pos, std::make_pair(c, k)));
     
-    if(try_diff >= std::chrono::seconds(10)) {
-      cutoff += try_diff;
-    } else {
-      cutoff += std::chrono::seconds(10);
-    }
+    delete mb_to_demote;
   }
   
   

@@ -20,7 +20,6 @@
 #define __DATABASE_H__
 
 #include <map>
-#include <chrono>
 #include <vector>
 #include <list>
 
@@ -107,8 +106,8 @@ class SQLiteDB: public Database {
   private:
     sqlite3 *db;
     int db_version;
-    std::map<MapPos<int>, Mapblock*> read_cache;
-    std::map<MapPos<int>, std::chrono::time_point<std::chrono::steady_clock>> read_cache_hits;
+    std::map<MapPos<int>, std::pair<Mapblock*, typename std::list<MapPos<int>>::iterator>> read_cache;
+    std::list<MapPos<int>> read_cache_hits;
     std::map<MapPos<int>, std::pair<MapblockCompressed, typename std::list<MapPos<int>>::iterator>> L2_cache;
     std::list<MapPos<int>> L2_cache_hits;
 };
