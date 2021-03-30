@@ -95,6 +95,7 @@ function initEntryMenu() {
   //---server---
   var joinServerTab = uiElement("container");
   joinServerTab.style.padding = "5px";
+  joinServerTab.style.whiteSpace = "nowrap";
   
   var joinServerList = document.createElement("div");
   joinServerList.className = "joinServerList";

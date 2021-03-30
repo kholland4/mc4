@@ -130,11 +130,13 @@ body {
   vertical-align: top;
   width: 400px;
   padding-right: 20px;
+  white-space: initial;
 }
 .joinServerLogin {
   display: inline-block;
   vertical-align: top;
   width: 300px;
+  white-space: initial;
 }
 .serverListContainer {
   background-color: white;
