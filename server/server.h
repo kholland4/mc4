@@ -132,6 +132,7 @@ class Server {
     int mapblock_tick_counter;
     int fluid_tick_counter;
     int slow_tick_counter;
+    std::chrono::time_point<std::chrono::steady_clock> last_tick;
     std::shared_mutex tick_info_lock;
 #ifdef DEBUG_NET
     unsigned int mb_out_count;

@@ -38,9 +38,11 @@ MapPos<int> PLAYER_LIMIT_VEL_FAST(200, 200, 200, 6, 0, 0);
 
 
 Server::Server(Database& _db, std::map<int, World*> _worlds)
-    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds), mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0)
+    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds),
+      mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0),
+      last_tick(std::chrono::steady_clock::now())
 #ifdef DEBUG_NET
-, mb_out_count(0), mb_out_len(0)
+    , mb_out_count(0), mb_out_len(0)
 #endif
 {
   //disable logging
@@ -622,6 +624,14 @@ void Server::on_close(connection_hdl hdl) {
 void Server::tick(const boost::system::error_code&) {
   std::unique_lock<std::shared_mutex> tick_info_l(tick_info_lock);
   std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  
+  std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
+  int diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_tick).count(); //milliseconds
+  last_tick = now;
+  
+  if(diff > SERVER_TICK_INTERVAL * 2) {
+    log(LogSource::SERVER, LogLevel::WARNING, "Tick took " + std::to_string(diff) + " ms (expected " + std::to_string(SERVER_TICK_INTERVAL) + " ms)!");
+  }
   
   mapblock_tick_counter++;
   fluid_tick_counter++;
