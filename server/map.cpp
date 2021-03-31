@@ -46,6 +46,19 @@ void Map::set_node(MapPos<int> pos, Node node) {
   MapPos<int> mb_pos = global_to_mapblock(pos);
   MapPos<int> rel_pos = global_to_relative(pos);
   
+  std::set<MapPos<int>> locks;
+  for(int x = mb_pos.x - 1; x <= mb_pos.x + 1; x++) {
+    for(int y = mb_pos.y - 1; y <= mb_pos.y + 1; y++) {
+      for(int z = mb_pos.z - 1; z <= mb_pos.z + 1; z++) {
+        locks.insert(MapPos<int>(x, y, z, mb_pos.w, mb_pos.world, mb_pos.universe));
+      }
+    }
+  }
+  for(auto it_lock : locks) {
+    db.lock_mapblock_unique(it_lock);
+  }
+  
+  //db.lock_mapblock_unique(mb_pos);
   Mapblock *mb = get_mapblock(mb_pos);
   
   Node old_node = mb->get_node_rel(rel_pos);
@@ -67,10 +80,21 @@ void Map::set_node(MapPos<int> pos, Node node) {
     mb->dirty = true;
     db.set_mapblock(mb_pos, mb);
     
-    update_mapblock_light_optimized_singlenode_transparent(mb_pos, rel_pos);
+    update_mapblock_light_optimized_singlenode_transparent(locks, mb_pos, rel_pos);
   } else {
-    set_mapblock(mb_pos, mb);
+    //mb->light_needs_update = 2;
+    mb->update_num++;
+    mb->dirty = true;
+    db.set_mapblock(mb_pos, mb);
+    
+    //update_mapblock_light(MapblockUpdateInfo(mb));
+    update_mapblock_light(locks, mb_pos - MapPos<int>(1, 1, 1, 0, 0, 0), mb_pos + MapPos<int>(1, 1, 1, 0, 0, 0));
   }
+  
+  for(auto it_lock : locks) {
+    db.unlock_mapblock_unique(it_lock);
+  }
+  
   delete mb;
 }
 
@@ -123,19 +147,41 @@ Mapblock* Map::get_mapblock_known_nil(MapPos<int> mb_pos) {
 }
 
 void Map::set_mapblock(MapPos<int> mb_pos, Mapblock *mb) {
-  mb->light_needs_update = 2;
+  //db.lock_mapblock_unique(mb_pos);
+  
+  std::set<MapPos<int>> locks;
+  for(int x = mb_pos.x - 1; x <= mb_pos.x + 1; x++) {
+    for(int y = mb_pos.y - 1; y <= mb_pos.y + 1; y++) {
+      for(int z = mb_pos.z - 1; z <= mb_pos.z + 1; z++) {
+        locks.insert(MapPos<int>(x, y, z, mb_pos.w, mb_pos.world, mb_pos.universe));
+      }
+    }
+  }
+  for(auto it_lock : locks) {
+    db.lock_mapblock_unique(it_lock);
+  }
+  
+  //mb->light_needs_update = 2;
   mb->update_num++;
   mb->dirty = true;
   db.set_mapblock(mb_pos, mb);
   
-  update_mapblock_light(MapblockUpdateInfo(mb));
+  //update_mapblock_light(MapblockUpdateInfo(mb));
+  update_mapblock_light(locks, mb_pos - MapPos<int>(1, 1, 1, 0, 0, 0), mb_pos + MapPos<int>(1, 1, 1, 0, 0, 0));
+  
+  //db.unlock_mapblock_unique(mb_pos);
+  
+  for(auto it_lock : locks) {
+    db.unlock_mapblock_unique(it_lock);
+  }
 }
 
 void Map::update_mapblock_light(MapblockUpdateInfo info) {
+  //Assumes the mapblock in question is already lock_mapblock_unique'd and will be unlocked later
   if(info.light_needs_update == 1) {
-    update_mapblock_light(info.pos, info.pos);
+    update_mapblock_light(std::set<MapPos<int>>{info.pos}, info.pos, info.pos);
   } else if(info.light_needs_update == 2) {
-    update_mapblock_light(info.pos - MapPos<int>(1, 1, 1, 0, 0, 0), info.pos + MapPos<int>(1, 1, 1, 0, 0, 0));
+    update_mapblock_light(std::set<MapPos<int>>{info.pos}, info.pos - MapPos<int>(1, 1, 1, 0, 0, 0), info.pos + MapPos<int>(1, 1, 1, 0, 0, 0));
   } else {
     return; //should never happen
   }
@@ -145,7 +191,8 @@ void Map::update_mapblock_light(MapblockUpdateInfo info) {
   db.set_mapblockupdateinfo(info.pos, new_info);
 }
 
-void Map::update_mapblock_light(MapPos<int> min_pos, MapPos<int> max_pos) {
+void Map::update_mapblock_light(std::set<MapPos<int>> prelocked, MapPos<int> min_pos, MapPos<int> max_pos) {
+  //Does not handle locks. See update_mapblock_light(std::set<MapPos<int>> prelocked, std::set<MapPos<int>> mapblocks_to_update).
   if(min_pos.w != max_pos.w || min_pos.world != max_pos.world || min_pos.universe != max_pos.universe) {
     log(LogSource::MAP, LogLevel::WARNING, "cannot update mapblock light across higher spatial dimensions");
     return;
@@ -158,7 +205,7 @@ void Map::update_mapblock_light(MapPos<int> min_pos, MapPos<int> max_pos) {
       }
     }
   }
-  update_mapblock_light(mapblock_list);
+  update_mapblock_light(prelocked, mapblock_list);
 }
 
 enum LightCascadeType {LC_NORM, LC_SUN};
@@ -378,7 +425,17 @@ void Map::save_changed_lit_mapblocks(std::map<MapPos<int>, Mapblock*>& mapblocks
   }
 }
 
-void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
+void Map::update_mapblock_light(std::set<MapPos<int>> prelocked, std::set<MapPos<int>> mapblocks_to_update) {
+  //Get locks on all mapblocks that may be updated, excluding the 'prelocked' ones that are managed externally.
+  //Locks will be acquired in sequential order to avoid deadlocks.
+  
+  for(auto it_lock : mapblocks_to_update) {
+    if(prelocked.find(it_lock) != prelocked.end())
+      continue;
+    
+    db.lock_mapblock_unique(it_lock);
+  }
+  
   std::map<MapPos<int>, Mapblock*> mapblocks;
   std::map<MapPos<int>, std::map<unsigned int, NodeDef>> def_tables;
   
@@ -585,6 +642,14 @@ void Map::update_mapblock_light(std::set<MapPos<int>> mapblocks_to_update) {
   for(auto p : mapblocks) {
     delete p.second;
   }
+  
+  //Release locks.
+  for(auto it_lock : mapblocks_to_update) {
+    if(prelocked.find(it_lock) != prelocked.end())
+      continue;
+    
+    db.unlock_mapblock_unique(it_lock);
+  }
 }
 
 NodeDef get_node_def_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks, std::map<MapPos<int>, std::map<unsigned int, NodeDef>>& def_tables, MapPos<int> mb_pos, MapPos<int> rel_pos) {
@@ -660,31 +725,43 @@ inline void set_light_val_prefetch(std::map<MapPos<int>, Mapblock*>& mapblocks, 
   search->second->data[rel_pos.x][rel_pos.y][rel_pos.z] = (search->second->data[rel_pos.x][rel_pos.y][rel_pos.z] & 0b10000000011111111111111111111111UL) | (light << 23);
 }
 
-void Map::update_mapblock_light_optimized_singlenode_transparent(MapPos<int> mb_pos, MapPos<int> rel_pos) {
+void Map::update_mapblock_light_optimized_singlenode_transparent(std::set<MapPos<int>> prelocked, MapPos<int> mb_pos, MapPos<int> rel_pos) {
   std::set<MapPos<int>> mapblocks_to_update;
-  std::map<MapPos<int>, Mapblock*> mapblocks;
-  std::map<MapPos<int>, std::map<unsigned int, NodeDef>> def_tables;
   
-  //Load each requested mapblock plus any adjacent ones (adjacent meaning +/- 1 away on any axis).
+  //List each requested mapblock plus any adjacent ones (adjacent meaning +/- 1 away on any axis).
   for(int x = mb_pos.x - 1; x <= mb_pos.x + 1; x++) {
     for(int z = mb_pos.z - 1; z <= mb_pos.z + 1; z++) {
       for(int y = mb_pos.y - 1; y <= mb_pos.y + 1; y++) {
         MapPos<int> pos(x, y, z, mb_pos.w, mb_pos.world, mb_pos.universe);
-        if(mapblocks.find(pos) != mapblocks.end()) { continue; }
-        
-        mapblocks[pos] = get_mapblock(pos);
         mapblocks_to_update.insert(pos);
-        
-        std::map<unsigned int, NodeDef> def_table;
-        for(unsigned n = 0; n < mapblocks[pos]->IDtoIS.size(); n++) {
-          std::string itemstring = mapblocks[pos]->id_to_itemstring(n);
-          NodeDef def = get_node_def(itemstring);
-          def_table[n] = def;
-        }
-        
-        def_tables[pos] = def_table;
       }
     }
+  }
+  
+  //Get locks on all mapblocks that may be updated, excluding the 'prelocked' ones that are managed externally.
+  //Locks will be acquired in sequential order to avoid deadlocks.
+  for(auto it_lock : mapblocks_to_update) {
+    if(prelocked.find(it_lock) != prelocked.end())
+      continue;
+    
+    db.lock_mapblock_unique(it_lock);
+  }
+  
+  std::map<MapPos<int>, Mapblock*> mapblocks;
+  std::map<MapPos<int>, std::map<unsigned int, NodeDef>> def_tables;
+  
+  //Load each requested mapblock
+  for(auto pos : mapblocks_to_update) {
+    mapblocks[pos] = get_mapblock(pos);
+    
+    std::map<unsigned int, NodeDef> def_table;
+    for(unsigned n = 0; n < mapblocks[pos]->IDtoIS.size(); n++) {
+      std::string itemstring = mapblocks[pos]->id_to_itemstring(n);
+      NodeDef def = get_node_def(itemstring);
+      def_table[n] = def;
+    }
+    
+    def_tables[pos] = def_table;
   }
   
   //A light value of 1 or greater indicates the node is transparent.
@@ -748,6 +825,14 @@ void Map::update_mapblock_light_optimized_singlenode_transparent(MapPos<int> mb_
   //Cleanup
   for(auto p : mapblocks) {
     delete p.second;
+  }
+  
+  //Release locks.
+  for(auto it_lock : mapblocks_to_update) {
+    if(prelocked.find(it_lock) != prelocked.end())
+      continue;
+    
+    db.unlock_mapblock_unique(it_lock);
   }
 }
 

@@ -20,6 +20,8 @@
 #include "log.h"
 
 MapblockUpdateInfo MemoryDB::get_mapblockupdateinfo(MapPos<int> pos) {
+  std::shared_lock<std::shared_mutex> d_lock(datastore_lock);
+  
   auto search = datastore.find(pos);
   if(search != datastore.end()) {
     return MapblockUpdateInfo(search->second);
@@ -28,6 +30,8 @@ MapblockUpdateInfo MemoryDB::get_mapblockupdateinfo(MapPos<int> pos) {
 }
 
 void MemoryDB::set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) {
+  std::unique_lock<std::shared_mutex> d_lock(datastore_lock);
+  
   auto search = datastore.find(pos);
   if(search != datastore.end()) {
     info.write_to_mapblock(search->second);
@@ -35,6 +39,8 @@ void MemoryDB::set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) 
 }
 
 Mapblock* MemoryDB::get_mapblock(MapPos<int> pos) {
+  std::shared_lock<std::shared_mutex> d_lock(datastore_lock);
+  
   auto search = datastore.find(pos);
   if(search != datastore.end()) {
     return new Mapblock(*(search->second));
@@ -43,6 +49,8 @@ Mapblock* MemoryDB::get_mapblock(MapPos<int> pos) {
 }
 
 MapblockCompressed* MemoryDB::get_mapblock_compressed(MapPos<int> pos) {
+  std::shared_lock<std::shared_mutex> d_lock(datastore_lock);
+  
   auto search = datastore.find(pos);
   if(search != datastore.end()) {
     return new MapblockCompressed(search->second);
@@ -53,12 +61,17 @@ MapblockCompressed* MemoryDB::get_mapblock_compressed(MapPos<int> pos) {
 }
 
 void MemoryDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
+  std::unique_lock<std::shared_mutex> d_lock(datastore_lock);
+  lock_mapblock_unique(pos);
+  
   auto search = datastore.find(pos);
   if(search != datastore.end()) {
     delete search->second;
   }
   Mapblock *mb_store = new Mapblock(*mb);
   datastore[pos] = mb_store;
+  
+  unlock_mapblock_unique(pos);
 }
 
 void MemoryDB::clean_cache() {

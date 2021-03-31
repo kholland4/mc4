@@ -26,7 +26,10 @@ std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime"};
 
 
 void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
+  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
+  
   if(args.size() != 2) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "invalid command: wrong number of args, expected '/nick <new_nickname>'");
     return;
   }
@@ -34,12 +37,14 @@ void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
   std::string new_nick = args[1];
   
   if(!validate_player_name(new_nick)) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", BAD_PLAYER_NAME_MESSAGE);
     return;
   }
   for(auto p : m_players) {
     PlayerState *check = p.second;
     if(check->get_name() == new_nick) {
+      player_lock_unique.unlock();
       chat_send_player(player, "server", "that nickname is already in use, try another one?");
       return;
     }
@@ -47,12 +52,15 @@ void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
   if(player->data.name == new_nick) {
     //all good, it's the player's own nickname
   } else if(db.player_data_name_used(new_nick)) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "that nickname is already in use, try another one?");
     return;
   }
   
   std::string old_nick = player->get_name();
   player->set_name(new_nick);
+  
+  player_lock_unique.unlock();
   chat_send("server", "*** " + old_nick + " changed name to " + new_nick);
 }
 
@@ -91,6 +99,8 @@ void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_whereami(PlayerState *player, std::vector<std::string> args) {
+  std::shared_lock<std::shared_mutex> player_lock(player->lock);
+  
   std::string world_name = std::to_string(player->pos.world);
   auto search = map.worlds.find(player->pos.world);
   if(search != map.worlds.end()) {
@@ -101,12 +111,16 @@ void Server::cmd_whereami(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_tp(PlayerState *player, std::vector<std::string> args) {
+  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
+  
   if(player->data.privs.find("teleport") == player->data.privs.end()) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "missing priv: teleport");
     return;
   }
   
   if(args.size() < 4 || args.size() > 5) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "usage '/tp <x> <y> <z> [<w>]'");
     return;
   }
@@ -128,24 +142,31 @@ void Server::cmd_tp(PlayerState *player, std::vector<std::string> args) {
     }
     player->just_tp = true;
     //print ints, not doubles
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "Teleported to " + MapPos<int>(x, y, z, player->pos.w, player->pos.world, player->pos.universe).to_string() + "!");
+    player_lock_unique.lock();
     player->send_pos(m_server);
     if(player->auth) {
       db.update_player_data(player->get_data());
     }
     return;
-  } catch(std::exception const& e) {
+  } catch(boost::property_tree::ptree_error const& e) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "invalid command: invalid input, expected '/tp <int x> <int y> <int z> [<int w>]'");
   }
 }
 
 void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
+  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
+  
   if(player->data.privs.find("teleport") == player->data.privs.end()) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "missing priv: teleport");
     return;
   }
   
   if(args.size() != 2) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "invalid command: wrong number of args, expected '/world <name>'");
     return;
   }
@@ -153,12 +174,15 @@ void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
   for(auto it : map.worlds) {
     if(it.second->name == args[1]) {
       if(player->pos.world == it.first) {
+        player_lock_unique.unlock();
         chat_send_player(player, "server", "You're already here!");
         return;
       }
       player->pos.world = it.first;
       player->just_tp = true;
+      player_lock_unique.unlock();
       chat_send_player(player, "server", "Welcome to " + it.second->name + "!");
+      player_lock_unique.lock();
       player->send_pos(m_server);
       if(player->auth) {
         db.update_player_data(player->get_data());
@@ -166,16 +190,21 @@ void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
       return;
     }
   }
+  player_lock_unique.unlock();
   chat_send_player(player, "server", "unknown world");
 }
 
 void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args) {
+  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
+  
   if(player->data.privs.find("teleport") == player->data.privs.end()) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "missing priv: teleport");
     return;
   }
   
   if(args.size() != 2) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "invalid command: wrong number of args, expected '/universe <number>'");
     return;
   }
@@ -184,24 +213,31 @@ void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args)
     int universe = stoi(args[1]);
     
     if(player->pos.universe == universe) {
+      player_lock_unique.unlock();
       chat_send_player(player, "server", "You're already in universe " + std::to_string(universe) + ".");
     } else {
       player->pos.universe = universe;
       player->just_tp = true;
+      player_lock_unique.unlock();
       chat_send_player(player, "server", "Welcome to universe " + std::to_string(player->pos.universe) + "!");
+      player_lock_unique.lock();
       player->send_pos(m_server);
       if(player->auth) {
         db.update_player_data(player->get_data());
       }
       return;
     }
-  } catch(std::exception const& e) {
+  } catch(boost::property_tree::ptree_error const& e) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "invalid command: invalid input, expected '/universe <number>'");
   }
 }
 
 void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
+  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
+  
   if(args.size() != 2) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "invalid command: wrong number of args, expected '/grantme <priv>'");
     return;
   }
@@ -209,11 +245,13 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
   std::string new_priv = args[1];
   
   if(allowed_privs.find(new_priv) == allowed_privs.end()) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "invalid privilege");
     return;
   }
   
   if(player->data.privs.find(new_priv) != player->data.privs.end()) {
+    player_lock_unique.unlock();
     chat_send_player(player, "server", "you already have '" + new_priv + "'");
     return;
   }
@@ -225,11 +263,14 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
     db.update_player_data(player->get_data());
   }
   
+  player_lock_unique.unlock();
   chat_send_player(player, "server", "granted '" + new_priv + "'");
 }
 
 void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {
   //TODO: /privs <any player nick or login name>
+  
+  std::shared_lock<std::shared_mutex> player_lock(player->lock);
   
   std::ostringstream ss;
   ss << "privileges of " << player->get_name() << ":";

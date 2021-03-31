@@ -37,8 +37,8 @@ class Map {
     Node get_node(MapPos<int> pos);
     void set_node(MapPos<int> pos, Node node);
     void update_mapblock_light(MapblockUpdateInfo info);
-    void update_mapblock_light(MapPos<int> min_pos, MapPos<int> max_pos);
-    void update_mapblock_light(std::set<MapPos<int>>);
+    void update_mapblock_light(std::set<MapPos<int>> prelocked, MapPos<int> min_pos, MapPos<int> max_pos);
+    void update_mapblock_light(std::set<MapPos<int>> prelocked, std::set<MapPos<int>> mapblocks_to_update);
     MapPos<int> containing_mapblock(MapPos<int> pos);
     MapblockUpdateInfo get_mapblockupdateinfo(MapPos<int> mb_pos);
     
@@ -47,7 +47,7 @@ class Map {
     std::map<int, World*> worlds;
   private:
     Mapblock* get_mapblock_known_nil(MapPos<int> mb_pos);
-    void update_mapblock_light_optimized_singlenode_transparent(MapPos<int> mb_pos, MapPos<int> rel_pos);
+    void update_mapblock_light_optimized_singlenode_transparent(std::set<MapPos<int>> prelocked, MapPos<int> mb_pos, MapPos<int> rel_pos);
     void save_changed_lit_mapblocks(std::map<MapPos<int>, Mapblock*>& mapblocks, std::set<MapPos<int>>& mapblocks_to_update, bool do_clear_light_needs_update);
     
     Database& db;

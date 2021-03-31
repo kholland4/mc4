@@ -23,7 +23,7 @@
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
-#define SERVER_SLOW_TICK_RATIO 20 //number of ticks to each slow tick
+#define SERVER_SLOW_TICK_RATIO 1 //number of ticks to each slow tick
 #define PLAYER_ENTITY_VISIBILE_DISTANCE 200
 #define PLAYER_MAPBLOCK_INTEREST_DISTANCE 2
 #define PLAYER_MAPBLOCK_INTEREST_DISTANCE_W 0
@@ -38,6 +38,7 @@
 #include <set>
 #include <chrono>
 #include <cmath>
+#include <shared_mutex>
 
 #ifdef TLS
 #include <websocketpp/config/asio.hpp>
@@ -116,19 +117,26 @@ class Server {
     typedef std::map<connection_hdl, PlayerState*, std::owner_less<connection_hdl>> player_list;
     
     WsServer m_server;
-    player_list m_players;
     boost::asio::io_context m_io;
     boost::asio::steady_timer m_timer;
+    
+    player_list m_players;
+    mutable std::shared_mutex m_players_lock;
+    
     Database& db;
     Map map;
+    
     std::string motd;
+    mutable std::shared_mutex motd_lock;
     
     int mapblock_tick_counter;
     int fluid_tick_counter;
     int slow_tick_counter;
+    std::shared_mutex tick_info_lock;
 #ifdef DEBUG_NET
     unsigned int mb_out_count;
     unsigned long long mb_out_len;
+    std::shared_mutex net_debug_lock;
 #endif
 };
 

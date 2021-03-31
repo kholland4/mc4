@@ -20,6 +20,8 @@
 #include "log.h"
 
 void SQLiteDB::store_pw_info(PlayerAuthInfo& info) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   const char *sql = "INSERT INTO player_auth (type, login_name, auth_id, data) VALUES (?, ?, ?, ?);";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
@@ -61,6 +63,8 @@ void SQLiteDB::store_pw_info(PlayerAuthInfo& info) {
 }
 
 std::vector<PlayerAuthInfo> SQLiteDB::fetch_pw_info(std::string login_name, std::string type) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   const char *sql = "SELECT auth_id, data, rowid FROM player_auth WHERE login_name=? AND type=?;";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
@@ -113,6 +117,8 @@ std::vector<PlayerAuthInfo> SQLiteDB::fetch_pw_info(std::string login_name, std:
   return res_list;
 }
 std::vector<PlayerAuthInfo> SQLiteDB::fetch_pw_info(std::string auth_id) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   const char *sql = "SELECT login_name, type, data, rowid FROM player_auth WHERE auth_id=?;";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
@@ -161,6 +167,8 @@ std::vector<PlayerAuthInfo> SQLiteDB::fetch_pw_info(std::string auth_id) {
   return res_list;
 }
 void SQLiteDB::update_pw_info(PlayerAuthInfo info) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   if(!info.has_db_unique_id) {
     log(LogSource::SQLITEDB, LogLevel::ERR, "unable to update auth info for " + info.login_name + ": no db_unique_id");
     return;
@@ -207,6 +215,8 @@ void SQLiteDB::update_pw_info(PlayerAuthInfo info) {
   sqlite3_finalize(statement);
 }
 void SQLiteDB::delete_pw_info(PlayerAuthInfo& info) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   //TODO
   
   info.has_db_unique_id = false;
@@ -215,6 +225,8 @@ void SQLiteDB::delete_pw_info(PlayerAuthInfo& info) {
 
 
 void SQLiteDB::store_player_data(PlayerData data) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   const char *sql = "INSERT INTO player_data (auth_id, name, data) VALUES (?, ?, ?);";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
@@ -247,6 +259,8 @@ void SQLiteDB::store_player_data(PlayerData data) {
   sqlite3_finalize(statement);
 }
 PlayerData SQLiteDB::fetch_player_data(std::string auth_id) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   const char *sql = "SELECT data FROM player_data WHERE auth_id=? LIMIT 1;";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
@@ -281,6 +295,8 @@ PlayerData SQLiteDB::fetch_player_data(std::string auth_id) {
   }
 }
 void SQLiteDB::update_player_data(PlayerData data) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   const char *sql = "UPDATE player_data SET data=?, name=? WHERE auth_id=? LIMIT 1;";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
@@ -313,9 +329,13 @@ void SQLiteDB::update_player_data(PlayerData data) {
   sqlite3_finalize(statement);
 }
 void SQLiteDB::delete_player_data(std::string auth_id) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   //TODO
 }
 bool SQLiteDB::player_data_name_used(std::string name) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   const char *sql = "SELECT COUNT(*) FROM player_data WHERE name=?;";
   sqlite3_stmt *statement;
   if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {

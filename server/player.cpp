@@ -181,7 +181,7 @@ void PlayerState::prepare_mapblocks(std::vector<MapPos<int>> mapblock_list, Map&
 #ifdef DEBUG_PERF
     auto start = std::chrono::steady_clock::now();
 #endif
-    map.update_mapblock_light(mb_need_light);
+    map.update_mapblock_light(std::set<MapPos<int>>{}, mb_need_light);
 #ifdef DEBUG_PERF
     auto end = std::chrono::steady_clock::now();
     auto diff = end - start;

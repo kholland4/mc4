@@ -22,6 +22,7 @@
 #include <map>
 #include <vector>
 #include <list>
+#include <shared_mutex>
 
 #include <sqlite3.h>
 
@@ -49,6 +50,16 @@ class Database {
     virtual void update_player_data(PlayerData data) = 0;
     virtual void delete_player_data(std::string auth_id) = 0;
     virtual bool player_data_name_used(std::string name) = 0;
+    
+    void lock_mapblock_shared(MapPos<int> pos);
+    void unlock_mapblock_shared(MapPos<int> pos);
+    void lock_mapblock_unique(MapPos<int> pos);
+    void unlock_mapblock_unique(MapPos<int> pos);
+    
+  private:
+    //first mutex locks the map entry, second locks the mapblock
+    std::map<MapPos<int>, std::pair<std::shared_mutex*, std::shared_mutex*>> mapblock_locks;
+    std::shared_mutex mapblock_locks_lock;
 };
 
 class MemoryDB : public Database {
@@ -73,11 +84,15 @@ class MemoryDB : public Database {
     virtual bool player_data_name_used(std::string name);
   
   private:
-    unsigned int pw_auth_id_counter = 1;
-    
     std::map<MapPos<int>, Mapblock*> datastore;
+    std::shared_mutex datastore_lock;
+    
     std::map<unsigned int, PlayerAuthInfo*> pw_auth_store;
+    unsigned int pw_auth_id_counter = 1; //locked by pw_auth_store_lock
+    std::shared_mutex pw_auth_store_lock;
+    
     std::map<std::string, PlayerData*> player_data_store;
+    std::shared_mutex player_data_store_lock;
 };
 
 class SQLiteDB: public Database {
@@ -106,10 +121,13 @@ class SQLiteDB: public Database {
   private:
     sqlite3 *db;
     int db_version;
+    std::shared_mutex db_lock;
+    
     std::map<MapPos<int>, std::pair<Mapblock*, typename std::list<MapPos<int>>::iterator>> read_cache;
     std::list<MapPos<int>> read_cache_hits;
     std::map<MapPos<int>, std::pair<MapblockCompressed, typename std::list<MapPos<int>>::iterator>> L2_cache;
     std::list<MapPos<int>> L2_cache_hits;
+    std::shared_mutex cache_lock;
 };
 
 #endif

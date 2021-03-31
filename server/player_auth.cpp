@@ -120,7 +120,7 @@ bool PlayerAuthenticator::step(std::string message, WsServer& server, connection
       server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"bad_auth_mode\"}", websocketpp::frame::opcode::text);
       return false;
     }
-  } catch(std::exception const& e) {
+  } catch(boost::property_tree::ptree_error const& e) {
     log(LogSource::AUTH, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " message=" + message);
     return false;
   }
@@ -295,7 +295,7 @@ bool PlayerPasswordAuthenticator::step(std::string message, WsServer& server, co
       server.send(hdl, "{\"type\":\"auth_err\",\"reason\":\"unknown_command\"}", websocketpp::frame::opcode::text);
       return false;
     }
-  } catch(std::exception const& e) {
+  } catch(boost::property_tree::ptree_error const& e) {
     log(LogSource::AUTH, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " message=" + message);
     return false;
   }

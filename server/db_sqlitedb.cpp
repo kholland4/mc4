@@ -132,6 +132,8 @@ CREATE TABLE IF NOT EXISTS player_data ( \
 */
 
 SQLiteDB::SQLiteDB(const char* filename) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   log(LogSource::SQLITEDB, LogLevel::INFO, "SQLite3 database file is '" + std::string(filename) + "'");
   
   int rc = sqlite3_open(filename, &db);
@@ -426,10 +428,14 @@ SQLiteDB::SQLiteDB(const char* filename) {
 }
 
 SQLiteDB::~SQLiteDB() {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   sqlite3_close_v2(db);
 }
 
 MapblockUpdateInfo SQLiteDB::get_mapblockupdateinfo(MapPos<int> pos) {
+  std::unique_lock<std::shared_mutex> cache_l(cache_lock);
+  
   //Try read cache.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
@@ -457,6 +463,8 @@ MapblockUpdateInfo SQLiteDB::get_mapblockupdateinfo(MapPos<int> pos) {
 }
 
 void SQLiteDB::set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) {
+  std::unique_lock<std::shared_mutex> cache_l(cache_lock);
+  
   //Update info (with the exception of light_needs_update) only needs to be stored in read cache because it's irrelevant after all the clients disconnect.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
@@ -486,6 +494,8 @@ void SQLiteDB::set_mapblockupdateinfo(MapPos<int> pos, MapblockUpdateInfo info) 
 }
 
 MapblockCompressed* SQLiteDB::get_mapblock_compressed(MapPos<int> pos) {
+  std::unique_lock<std::shared_mutex> cache_l(cache_lock);
+  
   //Try L2 cache
   auto search_L2 = L2_cache.find(pos);
   if(search_L2 != L2_cache.end()) {
@@ -497,6 +507,8 @@ MapblockCompressed* SQLiteDB::get_mapblock_compressed(MapPos<int> pos) {
     return new MapblockCompressed(search_L2->second.first);
   }
   
+  cache_l.unlock();
+  
   Mapblock *mb = get_mapblock(pos);
   MapblockCompressed *mbc = new MapblockCompressed(mb);
   delete mb;
@@ -504,6 +516,9 @@ MapblockCompressed* SQLiteDB::get_mapblock_compressed(MapPos<int> pos) {
 }
 
 Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
+  std::unique_lock<std::shared_mutex> cache_l(cache_lock);
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   //Try read cache.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
@@ -710,6 +725,9 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
 }
 
 void SQLiteDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
+  std::unique_lock<std::shared_mutex> cache_l(cache_lock);
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
   int row_version = 2;
   
   //If in L2 cache, remove.
@@ -874,6 +892,8 @@ void SQLiteDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
 
 
 void SQLiteDB::clean_cache() {
+  std::unique_lock<std::shared_mutex> cache_l(cache_lock);
+  
   size_t target_cache_count = get_config<int>("database.L1_cache_target");
   size_t L2_target_cache_count = get_config<int>("database.L2_cache_target");
   //spam warnings bad; TODO -- warn more nicely, perhaps some sort of "server health info"

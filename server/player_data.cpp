@@ -61,7 +61,7 @@ PlayerData::PlayerData(std::string json, std::string _auth_id) : is_nil(true), a
     }
     
     is_nil = false;
-  } catch(std::exception const& e) {
+  } catch(boost::property_tree::ptree_error const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " json=" + json);
     
     is_nil = true;

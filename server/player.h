@@ -30,6 +30,7 @@
 #include "log.h"
 
 #include <chrono>
+#include <shared_mutex>
 
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -137,6 +138,8 @@ class PlayerState {
     
     PlayerAuthenticator auth_state;
     PlayerData data;
+    
+    std::shared_mutex lock;
   private:
     connection_hdl m_connection_hdl;
     boost::uuids::uuid m_tag;

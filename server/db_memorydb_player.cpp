@@ -20,6 +20,8 @@
 #include "log.h"
 
 void MemoryDB::store_pw_info(PlayerAuthInfo& info) {
+  std::unique_lock<std::shared_mutex> pw_auth_store_l(pw_auth_store_lock);
+  
   info.db_unique_id = pw_auth_id_counter;
   info.has_db_unique_id = true;
   PlayerAuthInfo *info_store = new PlayerAuthInfo(info);
@@ -28,6 +30,8 @@ void MemoryDB::store_pw_info(PlayerAuthInfo& info) {
 }
 
 std::vector<PlayerAuthInfo> MemoryDB::fetch_pw_info(std::string login_name, std::string type) {
+  std::shared_lock<std::shared_mutex> pw_auth_store_l(pw_auth_store_lock);
+  
   std::vector<PlayerAuthInfo> res_list;
   
   for(auto it : pw_auth_store) {
@@ -38,6 +42,8 @@ std::vector<PlayerAuthInfo> MemoryDB::fetch_pw_info(std::string login_name, std:
   return res_list;
 }
 std::vector<PlayerAuthInfo> MemoryDB::fetch_pw_info(std::string auth_id) {
+  std::shared_lock<std::shared_mutex> pw_auth_store_l(pw_auth_store_lock);
+  
   std::vector<PlayerAuthInfo> res_list;
   
   for(auto it : pw_auth_store) {
@@ -48,6 +54,8 @@ std::vector<PlayerAuthInfo> MemoryDB::fetch_pw_info(std::string auth_id) {
   return res_list;
 }
 void MemoryDB::update_pw_info(PlayerAuthInfo info) {
+  std::unique_lock<std::shared_mutex> pw_auth_store_l(pw_auth_store_lock);
+  
   if(!info.has_db_unique_id) {
     log(LogSource::MEMORYDB, LogLevel::ERR, "unable to update auth info for '" + info.login_name + "': no db_unique_id");
     return;
@@ -73,6 +81,8 @@ void MemoryDB::update_pw_info(PlayerAuthInfo info) {
   pw_auth_store[info.db_unique_id] = info_store;
 }
 void MemoryDB::delete_pw_info(PlayerAuthInfo& info) {
+  std::unique_lock<std::shared_mutex> pw_auth_store_l(pw_auth_store_lock);
+  
   if(!info.has_db_unique_id) {
     log(LogSource::MEMORYDB, LogLevel::ERR, "unable to delete auth info for '" + info.login_name + "': no db_unique_id");
     return;
@@ -93,6 +103,8 @@ void MemoryDB::delete_pw_info(PlayerAuthInfo& info) {
 
 
 void MemoryDB::store_player_data(PlayerData data) {
+  std::unique_lock<std::shared_mutex> player_data_store_l(player_data_store_lock);
+  
   auto search = player_data_store.find(data.auth_id);
   if(search != player_data_store.end()) {
     log(LogSource::MEMORYDB, LogLevel::ERR, "unable to store data for '" + data.auth_id + "': auth_id already in use");
@@ -103,6 +115,8 @@ void MemoryDB::store_player_data(PlayerData data) {
   player_data_store[data.auth_id] = data_store;
 }
 PlayerData MemoryDB::fetch_player_data(std::string auth_id) {
+  std::shared_lock<std::shared_mutex> player_data_store_l(player_data_store_lock);
+  
   auto search = player_data_store.find(auth_id);
   if(search == player_data_store.end()) {
     //not found, return nil
@@ -112,6 +126,8 @@ PlayerData MemoryDB::fetch_player_data(std::string auth_id) {
   return PlayerData(*(search->second));
 }
 void MemoryDB::update_player_data(PlayerData data) {
+  std::unique_lock<std::shared_mutex> player_data_store_l(player_data_store_lock);
+  
   auto search = player_data_store.find(data.auth_id);
   if(search == player_data_store.end()) {
     log(LogSource::MEMORYDB, LogLevel::ERR, "unable to update data for '" + data.auth_id + "': not found");
@@ -125,6 +141,8 @@ void MemoryDB::update_player_data(PlayerData data) {
   player_data_store[data.auth_id] = data_store;
 }
 void MemoryDB::delete_player_data(std::string auth_id) {
+  std::unique_lock<std::shared_mutex> player_data_store_l(player_data_store_lock);
+  
   auto search = player_data_store.find(auth_id);
   if(search == player_data_store.end()) {
     log(LogSource::MEMORYDB, LogLevel::ERR, "unable to delete data for '" + auth_id + "': not found");
@@ -135,6 +153,8 @@ void MemoryDB::delete_player_data(std::string auth_id) {
   player_data_store.erase(search->first);
 }
 bool MemoryDB::player_data_name_used(std::string name) {
+  std::shared_lock<std::shared_mutex> player_data_store_l(player_data_store_lock);
+  
   for(auto it : player_data_store) {
     if(it.second->name == name) {
       return true;

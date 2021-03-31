@@ -22,6 +22,9 @@
 #include "config.h"
 #include "player_util.h"
 
+#include <thread>
+
+
 MapPos<int> PLAYER_LIMIT_VIEW_DISTANCE(3, 3, 3, 1, 0, 0);
 
 //Client-side reach distance is 10, max player speed is 16 m/s (fast + sprint), and the client sends position updates every 0.25 seconds.
@@ -66,7 +69,33 @@ void Server::run(uint16_t port) {
   
   log(LogSource::SERVER, LogLevel::INFO, "Server v" + std::string(VERSION) + " starting (port " + std::to_string(port) + ")");
   
-  m_io.run();
+  int thread_count = get_config<int>("server.threads");
+  if(thread_count < 0) {
+    thread_count = std::thread::hardware_concurrency();
+  }
+  if(thread_count > 256) {
+    if(!get_config<bool>("server.many_threads")) {
+      log(LogSource::SERVER, LogLevel::EMERG, "You're using an awful lot of threads (" + std::to_string(thread_count) + "). Please set server.many_threads=true to confirm.");
+      exit(1);
+    }
+  }
+  
+  if(thread_count == 0) {
+    log(LogSource::SERVER, LogLevel::INFO, "Single-threaded mode.");
+    m_io.run();
+  } else {
+    log(LogSource::SERVER, LogLevel::INFO, "Using " + std::to_string(thread_count) + " threads.");
+    
+    std::vector<std::thread> threads;
+    for(int i = 0; i < thread_count; i++) {
+      boost::asio::io_context::count_type (boost::asio::io_context::*run) () = &boost::asio::io_context::run;
+      std::thread thread(websocketpp::lib::bind(run, &m_io));
+      threads.emplace_back(std::move(thread));
+    }
+    for(size_t i = 0; i < threads.size(); i++) {
+      threads[i].join();
+    }
+  }
 }
 
 #ifdef TLS
@@ -114,17 +143,22 @@ websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> Server::on_tl
 #endif
 
 std::string Server::status() const {
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  
   std::string s = "-- Server v" + std::string(VERSION) + "; " + std::to_string(m_players.size()) + " players {";
   
   bool first = true;
   for(auto const& x : m_players) {
     if(!first) { s += ", "; }
     first = false;
+    
+    std::shared_lock<std::shared_mutex> player_lock(x.second->lock);
     s += x.second->get_name();
   }
   
   s += "}";
   
+  std::shared_lock<std::shared_mutex> motd_l(motd_lock);
   if(motd != "") {
     s += "\n" + motd;
   }
@@ -142,8 +176,12 @@ void Server::chat_send(std::string channel, std::string from, std::string messag
             << "\"message\":\"" << json_escape(message) << "\"}";
   std::string broadcast_str = broadcast.str();
   
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  
   for(auto p : m_players) {
     PlayerState *receiver = p.second;
+    
+    std::shared_lock<std::shared_mutex> player_lock(receiver->lock);
     receiver->send(broadcast_str, m_server);
   }
 }
@@ -157,8 +195,12 @@ void Server::chat_send(std::string channel, std::string message) {
             << "\"message\":\"" << json_escape(message) << "\"}";
   std::string broadcast_str = broadcast.str();
   
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  
   for(auto p : m_players) {
     PlayerState *receiver = p.second;
+    
+    std::shared_lock<std::shared_mutex> player_lock(receiver->lock);
     receiver->send(broadcast_str, m_server);
   }
 }
@@ -173,10 +215,12 @@ void Server::chat_send_player(PlayerState *player, std::string channel, std::str
             << "\"private\":true}";
   std::string broadcast_str = broadcast.str();
   
+  std::shared_lock<std::shared_mutex> player_lock(player->lock);
   player->send(broadcast_str, m_server);
 }
 
 void Server::set_motd(std::string new_motd) {
+  std::unique_lock<std::shared_mutex> motd_l(motd_lock);
   motd = new_motd;
 }
 
@@ -186,8 +230,12 @@ void Server::set_time(int hours, int minutes) {
   std::ostringstream out;
   out << "{\"type\":\"set_time\",\"hours\":" << hours << ",\"minutes\":" << minutes << "}";
   std::string out_str = out.str();
+  
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
   for(auto p : m_players) {
     PlayerState *receiver = p.second;
+    
+    std::shared_lock<std::shared_mutex> player_lock(receiver->lock);
     receiver->send(out_str, m_server);
   }
   
@@ -195,12 +243,15 @@ void Server::set_time(int hours, int minutes) {
 }
 
 void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_type::ptr msg) {
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
   auto search = m_players.find(hdl);
   if(search == m_players.end()) {
     log(LogSource::SERVER, LogLevel::ERR, "Unable to find player state for connection!");
     return;
   }
   PlayerState *player = search->second;
+  
+  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
   try {
     std::stringstream ss;
@@ -234,6 +285,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
           for(auto it : m_players) {
             PlayerState *p = it.second;
             if(p->auth && p->data.auth_id == auth_id) {
+              player_lock_unique.unlock();
               chat_send_player(player, "server", "ERROR: player '" + p->data.name + "' is already connected");
               websocketpp::lib::error_code ec;
               m_server.close(hdl, websocketpp::close::status::going_away, "kick", ec);
@@ -246,6 +298,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
           
           PlayerData pdata = db.fetch_player_data(auth_id);
           if(pdata.is_nil) {
+            player_lock_unique.unlock();
             chat_send_player(player, "server", "internal error: no such player");
             log(LogSource::SERVER, LogLevel::ERR, "no such player (auth id " + auth_id + ")");
             return;
@@ -261,6 +314,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         
         player->prepare_nearby_mapblocks(2, 3, 0, map);
         player->prepare_nearby_mapblocks(1, 2, 1, map);
+        
+        player_lock_unique.unlock();
         
         log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " connected!");
         chat_send_player(player, "server", status());
@@ -301,8 +356,12 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       MapblockCompressed *mbc = map.get_mapblock_compressed(mb_pos);
 #ifdef DEBUG_NET
       unsigned int len = player->send_mapblock_compressed(mbc, m_server);
-      mb_out_len += len;
-      mb_out_count++;
+      
+      {
+        std::unique_lock<std::shared_mutex> net_lock(net_debug_lock);
+        mb_out_len += len;
+        mb_out_count++;
+      }
 #else
       player->send_mapblock_compressed(mbc, m_server);
 #endif
@@ -443,7 +502,9 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       //TODO: validate channel, access control, etc.
       //TODO: any other anti-abuse validation (player name and channel character set restrictions, length limits, etc.)
       
+      player_lock_unique.unlock();
       chat_send(channel, from, message);
+      return;
     } else if(type == "chat_command") {
       std::string command = pt.get<std::string>("command");
       
@@ -455,11 +516,14 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       }
       
       if(tokens.size() < 1) {
+        player_lock_unique.unlock();
         chat_send_player(player, "server", "invalid command: empty input");
         return;
       }
       
       std::string command_name = tokens[0];
+      
+      player_lock_unique.unlock();
       
       //TODO table pointing to these functions
       if(tokens[0] == "/nick") {
@@ -482,15 +546,20 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         cmd_privs(player, tokens);
       } else {
         chat_send_player(player, "server", "unknown command");
+        return;
       }
     }
-  } catch(std::exception const& e) {
+  } catch(boost::property_tree::ptree_error const& e) {
     log(LogSource::SERVER, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " payload=" + msg->get_payload());
   }
 }
 
 void Server::on_open(connection_hdl hdl) {
+  std::unique_lock<std::shared_mutex> list_lock(m_players_lock);
+  
   PlayerState *player = new PlayerState(hdl);
+  
+  std::unique_lock<std::shared_mutex> player_lock(player->lock);
   m_players[hdl] = player;
   
   //player is by default auth=false, auth_guest=false
@@ -498,35 +567,49 @@ void Server::on_open(connection_hdl hdl) {
 }
 
 void Server::on_close(connection_hdl hdl) {
+  std::unique_lock<std::shared_mutex> list_lock(m_players_lock);
+  
   PlayerState *player = m_players[hdl];
-  m_players.erase(hdl);
   
-  if(player->auth) {
-    db.update_player_data(player->get_data());
-  }
-  
-  if(player->auth || player->auth_guest) {
-    //Clean up entities.
-    for(auto p : m_players) {
-      PlayerState *receiver = p.second;
-      
-      //Player should *not* know about candidate entity
-      if(receiver->known_player_tags.find(player->get_tag()) != receiver->known_player_tags.end()) {
-        //...but they do
-        //so delete it
-        
-        std::ostringstream out;
-        out << "{\"type\":\"update_entities\",\"actions\":[";
-        out << "{\"type\":\"delete\",\"data\":" << player->entity_data_as_json() << "}";
-        out << "]}";
-        receiver->send(out.str(), m_server);
-        
-        receiver->known_player_tags.erase(player->get_tag());
-      }
+  {
+    std::unique_lock<std::shared_mutex> player_lock(player->lock);
+    
+    m_players.erase(hdl);
+    
+    if(player->auth) {
+      db.update_player_data(player->get_data());
     }
     
-    log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " disconnected.");
-    chat_send("server", "*** " + player->get_name() + " left the server.");
+    if(player->auth || player->auth_guest) {
+      //Clean up entities.
+      for(auto p : m_players) {
+        PlayerState *receiver = p.second;
+        
+        std::shared_lock<std::shared_mutex> receiver_lock(receiver->lock);
+        
+        //Player should *not* know about candidate entity
+        if(receiver->known_player_tags.find(player->get_tag()) != receiver->known_player_tags.end()) {
+          //...but they do
+          //so delete it
+          
+          std::ostringstream out;
+          out << "{\"type\":\"update_entities\",\"actions\":[";
+          out << "{\"type\":\"delete\",\"data\":" << player->entity_data_as_json() << "}";
+          out << "]}";
+          receiver->send(out.str(), m_server);
+          
+          receiver->known_player_tags.erase(player->get_tag());
+        }
+      }
+      
+      std::string name = player->get_name();
+      
+      player_lock.unlock();
+      list_lock.unlock();
+      
+      log(LogSource::SERVER, LogLevel::INFO, name + " disconnected.");
+      chat_send("server", "*** " + name + " left the server.");
+    }
   }
   
   delete player;
@@ -537,6 +620,9 @@ void Server::on_close(connection_hdl hdl) {
 }
 
 void Server::tick(const boost::system::error_code&) {
+  std::unique_lock<std::shared_mutex> tick_info_l(tick_info_lock);
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  
   mapblock_tick_counter++;
   fluid_tick_counter++;
   if(mapblock_tick_counter >= SERVER_MAPBLOCK_TICK_RATIO) {
@@ -544,6 +630,8 @@ void Server::tick(const boost::system::error_code&) {
     
     for(auto p : m_players) {
       PlayerState *player = p.second;
+      std::shared_lock<std::shared_mutex> player_lock(player->lock);
+      
       if(!player->auth && !player->auth_guest) { continue; }
       
       std::vector<MapPos<int>> nearby_known_mapblocks = player->list_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, PLAYER_MAPBLOCK_INTEREST_DISTANCE_W);
@@ -576,6 +664,8 @@ void Server::tick(const boost::system::error_code&) {
   
   for(auto p : m_players) {
     PlayerState *player = p.second;
+    std::shared_lock<std::shared_mutex> player_lock(player->lock);
+    
     if(!player->auth && !player->auth_guest) { continue; }
     
     std::ostringstream out;
@@ -585,6 +675,8 @@ void Server::tick(const boost::system::error_code&) {
     for(auto p_sub : m_players) {
       PlayerState *candidate = p_sub.second;
       if(candidate == player) { continue; }
+      
+      std::shared_lock<std::shared_mutex> candidate_lock(candidate->lock);
       
       std::string candidate_tag = candidate->get_tag();
       
@@ -635,8 +727,11 @@ void Server::tick(const boost::system::error_code&) {
   
 #ifdef DEBUG_NET
   //FIXME doesn't include *all* mapblocks sent
-  if(mb_out_count > 0) {
-    std::cout << std::to_string(mb_out_len / mb_out_count) << " avg mb out bytes, " << std::to_string(mb_out_len / 1048576.0) << " MiB total" << std::endl;
+  {
+    std::shared_lock<std::shared_mutex> net_lock(net_debug_lock);
+    if(mb_out_count > 0) {
+      std::cout << std::to_string(mb_out_len / mb_out_count) << " avg mb out bytes, " << std::to_string(mb_out_len / 1048576.0) << " MiB total" << std::endl;
+    }
   }
 #endif
 

@@ -74,6 +74,11 @@ void Map::tick_fluids(std::set<MapPos<int>> mapblocks) {
   std::map<MapPos<int>, Mapblock*> input_mapblocks;
   std::map<MapPos<int>, Mapblock*> output_mapblocks;
   
+  //Get locks (in order to avoid deadlocks).
+  for(auto it : mapblocks) {
+    db.lock_mapblock_unique(it);
+  }
+  
   for(const MapPos<int>& mb_pos : mapblocks) {
     input_mapblocks[mb_pos] = get_mapblock(mb_pos);
   }
@@ -235,6 +240,11 @@ void Map::tick_fluids(std::set<MapPos<int>> mapblocks) {
   }
   
   if(to_update.size() > 0) {
-    update_mapblock_light(to_update);
+    update_mapblock_light(mapblocks, to_update);
+  }
+  
+  //Release locks.
+  for(auto it : mapblocks) {
+    db.unlock_mapblock_unique(it);
   }
 }
