@@ -817,6 +817,10 @@ class ServerRemote extends ServerBase {
           pos: {x: pos.x, y: pos.y, z: pos.z, w: pos.w, world: pos.world, universe: pos.universe}
         }));
         this.requests.add(index);
+        
+        setTimeout(function(index) {
+          this.requests.delete(index);
+        }.bind(this, index), 5000);
       }
       
       return null;

@@ -24,8 +24,8 @@
 
 #define SUNLIGHT_CHECK_DISTANCE 4
 
-Map::Map(Database& _db, std::map<int, World*> _worlds)
-    : worlds(_worlds), db(_db)
+Map::Map(Database& _db, std::map<int, World*> _worlds, boost::asio::io_context& _io_ctx)
+    : worlds(_worlds), db(_db), io_ctx(_io_ctx)
 {
   
 }
@@ -42,10 +42,34 @@ Node Map::get_node(MapPos<int> pos) {
 
 //High-level setting of a node.
 //Everything is handled automatically, including lighting.
-void Map::set_node(MapPos<int> pos, Node node) {
+void Map::set_node(MapPos<int> pos, Node node, Node expected) {
   MapPos<int> mb_pos = global_to_mapblock(pos);
-  MapPos<int> rel_pos = global_to_relative(pos);
   
+  std::unique_lock<std::shared_mutex> queue_lock(set_node_queue_lock);
+  
+  auto search = set_node_queue.find(mb_pos);
+  if(search != set_node_queue.end()) {
+    search->second.push_back(NodeChange(pos, node, expected));
+  } else {
+    set_node_queue.insert(std::make_pair(mb_pos, std::vector{NodeChange(pos, node, expected)}));
+    
+    boost::asio::steady_timer timer(io_ctx, boost::asio::chrono::milliseconds(1000));
+    timer.async_wait(boost::bind(&Map::set_nodes_queued, this, mb_pos, boost::asio::placeholders::error));
+  }
+}
+
+void Map::set_nodes_queued(MapPos<int> mb_pos, const boost::system::error_code& error) {
+  //Retrieve list of changes to make
+  std::unique_lock<std::shared_mutex> queue_lock(set_node_queue_lock);
+  auto search = set_node_queue.find(mb_pos);
+  if(search == set_node_queue.end()) {
+    return;
+  }
+  std::vector<NodeChange> change_list = search->second;
+  set_node_queue.erase(search);
+  queue_lock.unlock();
+  
+  //Lock all mapblocks that may need to be changed
   std::set<MapPos<int>> locks;
   for(int x = mb_pos.x - 1; x <= mb_pos.x + 1; x++) {
     for(int y = mb_pos.y - 1; y <= mb_pos.y + 1; y++) {
@@ -58,30 +82,83 @@ void Map::set_node(MapPos<int> pos, Node node) {
     db.lock_mapblock_unique(it_lock);
   }
   
-  //db.lock_mapblock_unique(mb_pos);
   Mapblock *mb = get_mapblock(mb_pos);
   
-  Node old_node = mb->get_node_rel(rel_pos);
-  NodeDef old_def = get_node_def(old_node.itemstring);
+  //Pairs of (original node, final node) -- multiple changes could happen to a single node
+  std::map<MapPos<int>, std::pair<Node, Node>> changed_nodes;
+  for(auto change : change_list) {
+    MapPos<int> rel_pos = global_to_relative(change.pos);
+    
+    Node old_node = mb->get_node_rel(rel_pos);
+    Node new_node = change.node;
+    
+    auto search_c = changed_nodes.find(rel_pos);
+    if(search_c != changed_nodes.end()) {
+      search_c->second.second = new_node;
+    } else {
+      changed_nodes.insert(std::make_pair(rel_pos, std::make_pair(old_node, new_node)));
+    }
+  }
   
-  mb->set_node_rel(rel_pos, node);
+  int count_same = 0;
+  int count_no_light_change = 0;
+  int count_fastpath = 0;
+  int count_full = 0;
+  for(auto change : changed_nodes) {
+    MapPos<int> rel_pos = change.first;
+    
+    Node old_node = change.second.first;
+    NodeDef old_def = get_node_def(old_node.itemstring);
+    Node new_node = change.second.second;
+    NodeDef new_def = get_node_def(new_node.itemstring);
+    
+    mb->set_node_rel(rel_pos, new_node);
+    
+    if(new_node == old_node) {
+      //No change to anything.
+      count_same++;
+    } else if(old_def.transparent == new_def.transparent && old_def.pass_sunlight == new_def.pass_sunlight && old_def.light_level == new_def.light_level) {
+      //No change to lighting.
+      count_no_light_change++;
+    } else if(new_def.transparent && new_def.pass_sunlight && old_def.light_level == 0) {
+      count_fastpath++;
+    } else {
+      count_full++;
+    }
+  }
   
-  NodeDef def = get_node_def(node.itemstring);
-  
-  if(node == old_node) {
-    //No change to anything.
-  } else if(old_def.transparent == def.transparent && old_def.pass_sunlight == def.pass_sunlight && old_def.light_level == def.light_level) {
-    //No change to lighting.
+  if(count_no_light_change == 0 && count_fastpath == 0 && count_full == 0) {
+    //Nothing changed.
+  } else if(count_fastpath == 0 && count_full == 0) {
+    //Light did not change.
     mb->update_num++;
     mb->dirty = true;
     db.set_mapblock(mb_pos, mb);
-  } else if(def.transparent && def.pass_sunlight && old_def.light_level == 0) {
+  } else if(count_fastpath <= 3 && count_full == 0) {
+    //Fast-path lighting changes only.
     mb->update_num++;
     mb->dirty = true;
     db.set_mapblock(mb_pos, mb);
     
-    update_mapblock_light_optimized_singlenode_transparent(locks, mb_pos, rel_pos);
+    for(auto change : changed_nodes) {
+      MapPos<int> rel_pos = change.first;
+      
+      Node old_node = change.second.first;
+      NodeDef old_def = get_node_def(old_node.itemstring);
+      Node new_node = change.second.second;
+      NodeDef new_def = get_node_def(new_node.itemstring);
+      
+      if(new_node == old_node) {
+        //No change to anything.
+      } else if(old_def.transparent == new_def.transparent && old_def.pass_sunlight == new_def.pass_sunlight && old_def.light_level == new_def.light_level) {
+        //No change to lighting.
+      } else if(new_def.transparent && new_def.pass_sunlight && old_def.light_level == 0) {
+        //Fast-path.
+        update_mapblock_light_optimized_singlenode_transparent(locks, mb_pos, rel_pos);
+      }
+    }
   } else {
+    //Full.
     //mb->light_needs_update = 2;
     mb->update_num++;
     mb->dirty = true;
@@ -132,14 +209,9 @@ Mapblock* Map::get_mapblock_known_nil(MapPos<int> mb_pos) {
   
   std::map<MapPos<int>, Mapblock*> generated = search->second->mapgen.generate_near(mb_pos);
   for(auto it : generated) {
-    if(it.first == mb_pos) {
-      db.set_mapblock(it.first, it.second);
-    } else {
-      Mapblock *check = db.get_mapblock(it.first);
-      if(check->is_nil) {
-        db.set_mapblock(it.first, it.second);
-      }
-      delete check;
+    db.set_mapblock_if_not_exists(it.first, it.second);
+    
+    if(it.first != mb_pos) {
       delete it.second;
     }
   }

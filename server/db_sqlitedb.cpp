@@ -519,6 +519,30 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
   std::unique_lock<std::shared_mutex> cache_l(cache_lock);
   std::unique_lock<std::shared_mutex> db_l(db_lock);
   
+  return get_mapblock_common_prelock(pos);
+}
+
+bool SQLiteDB::mapblock_exists_prelock(MapPos<int> pos) {
+  //std::unique_lock<std::shared_mutex> cache_l(cache_lock);
+  
+  auto search = read_cache.find(pos);
+  if(search != read_cache.end()) {
+    return true;
+  }
+  auto search_L2 = L2_cache.find(pos);
+  if(search_L2 != L2_cache.end()) {
+    return true;
+  }
+  
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
+  Mapblock *check = get_mapblock_common_prelock(pos);
+  bool res = !check->is_nil;
+  delete check;
+  return res;
+}
+
+Mapblock* SQLiteDB::get_mapblock_common_prelock(MapPos<int> pos) {
   //Try read cache.
   auto search = read_cache.find(pos);
   if(search != read_cache.end()) {
@@ -544,6 +568,8 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
     typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
     Mapblock *mb_store = new Mapblock(*mb);
     read_cache.insert(std::make_pair(pos, std::make_pair(mb_store, k)));
+    
+    clean_cache_prelock();
     
     return mb;
   }
@@ -711,6 +737,8 @@ Mapblock* SQLiteDB::get_mapblock(MapPos<int> pos) {
       typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
       Mapblock *mb_store = new Mapblock(*mb);
       read_cache.insert(std::make_pair(pos, std::make_pair(mb_store, k)));
+      
+      clean_cache_prelock();
     }
   } else if(step_result != SQLITE_DONE) {
     log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_mapblock: ") + std::string(sqlite3_errmsg(db)));
@@ -728,6 +756,21 @@ void SQLiteDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
   std::unique_lock<std::shared_mutex> cache_l(cache_lock);
   std::unique_lock<std::shared_mutex> db_l(db_lock);
   
+  set_mapblock_common_prelock(pos, mb);
+}
+void SQLiteDB::set_mapblock_if_not_exists(MapPos<int> pos, Mapblock *mb) {
+  std::unique_lock<std::shared_mutex> cache_l(cache_lock);
+  
+  if(mapblock_exists_prelock(pos)) {
+    return;
+  }
+  
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
+  set_mapblock_common_prelock(pos, mb);
+}
+
+void SQLiteDB::set_mapblock_common_prelock(MapPos<int> pos, Mapblock *mb) {
   int row_version = 2;
   
   //If in L2 cache, remove.
@@ -757,6 +800,8 @@ void SQLiteDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
     typename std::list<MapPos<int>>::iterator k = read_cache_hits.insert(read_cache_hits.end(), pos);
     Mapblock *mb_store = new Mapblock(*mb);
     read_cache.insert(std::make_pair(pos, std::make_pair(mb_store, k)));
+    
+    clean_cache_prelock();
   }
   
   if(!mb->dirty) { return; }
@@ -893,7 +938,9 @@ void SQLiteDB::set_mapblock(MapPos<int> pos, Mapblock *mb) {
 
 void SQLiteDB::clean_cache() {
   std::unique_lock<std::shared_mutex> cache_l(cache_lock);
-  
+  clean_cache_prelock();
+}
+void SQLiteDB::clean_cache_prelock() {
   size_t target_cache_count = get_config<int>("database.L1_cache_target");
   size_t L2_target_cache_count = get_config<int>("database.L2_cache_target");
   //spam warnings bad; TODO -- warn more nicely, perhaps some sort of "server health info"
@@ -902,11 +949,11 @@ void SQLiteDB::clean_cache() {
   }*/
   size_t evicted_count = 0;
   size_t L2_evicted_count = 0;
-  if(read_cache_hits.size() <= target_cache_count) {
+  /*if(read_cache_hits.size() <= target_cache_count) {
     log(LogSource::SQLITEDB, LogLevel::DEBUG, std::to_string(read_cache_hits.size()) + " mapblocks in cache, " +
                                               std::to_string(L2_cache_hits.size()) + " in L2 cache.");
     return;
-  }
+  }*/
   
   while(read_cache_hits.size() > target_cache_count) {
     const auto oldest = read_cache.find(read_cache_hits.front());
@@ -931,6 +978,8 @@ void SQLiteDB::clean_cache() {
   }
   
   
-  log(LogSource::SQLITEDB, LogLevel::EXTRA, std::to_string(read_cache_hits.size()) + " mapblocks in cache (" + std::to_string(evicted_count) + " demoted), " +
-                                            std::to_string(L2_cache.size()) + " in L2 cache (" + std::to_string(L2_evicted_count) + " evicted).");
+  if(evicted_count >= 100 || L2_evicted_count >= 100) {
+    log(LogSource::SQLITEDB, LogLevel::EXTRA, std::to_string(read_cache_hits.size()) + " mapblocks in cache (" + std::to_string(evicted_count) + " demoted), " +
+                                              std::to_string(L2_cache.size()) + " in L2 cache (" + std::to_string(L2_evicted_count) + " evicted).");
+  }
 }

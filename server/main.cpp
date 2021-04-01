@@ -22,7 +22,11 @@
 #include "config.h"
 #include "arg_parse.h"
 
+#include <malloc.h>
+
 int main(int argc, char *argv[]) {
+  mallopt(M_ARENA_MAX, 2);
+  
   parse_args(argc, argv);
   
   load_node_defs("defs.json");

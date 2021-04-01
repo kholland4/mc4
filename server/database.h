@@ -37,6 +37,7 @@ class Database {
     virtual Mapblock* get_mapblock(MapPos<int> pos) = 0;
     virtual MapblockCompressed* get_mapblock_compressed(MapPos<int> pos) = 0;
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb) = 0;
+    virtual void set_mapblock_if_not_exists(MapPos<int> pos, Mapblock *mb) = 0;
     virtual void clean_cache() = 0;
     
     virtual void store_pw_info(PlayerAuthInfo& info) = 0;
@@ -69,6 +70,7 @@ class MemoryDB : public Database {
     virtual Mapblock* get_mapblock(MapPos<int> pos);
     virtual MapblockCompressed* get_mapblock_compressed(MapPos<int> pos);
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
+    virtual void set_mapblock_if_not_exists(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
     
     virtual void store_pw_info(PlayerAuthInfo& info);
@@ -104,6 +106,7 @@ class SQLiteDB: public Database {
     virtual Mapblock* get_mapblock(MapPos<int> pos);
     virtual MapblockCompressed* get_mapblock_compressed(MapPos<int> pos);
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
+    virtual void set_mapblock_if_not_exists(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
     
     virtual void store_pw_info(PlayerAuthInfo& info);
@@ -128,6 +131,11 @@ class SQLiteDB: public Database {
     std::map<MapPos<int>, std::pair<MapblockCompressed, typename std::list<MapPos<int>>::iterator>> L2_cache;
     std::list<MapPos<int>> L2_cache_hits;
     std::shared_mutex cache_lock;
+    
+    Mapblock* get_mapblock_common_prelock(MapPos<int> pos);
+    bool mapblock_exists_prelock(MapPos<int> pos);
+    void set_mapblock_common_prelock(MapPos<int> pos, Mapblock *mb);
+    void clean_cache_prelock();
 };
 
 #endif

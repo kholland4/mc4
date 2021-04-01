@@ -18,7 +18,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-NUM_WEBSOCKETS = 48
+NUM_WEBSOCKETS = 200
 
 import asyncio, websockets, json, time
 
@@ -35,10 +35,12 @@ async def hello():
         
         await ws[i].send(json.dumps({
             "type": "set_player_pos",
-            "pos": { "x": i * 64, "y": 10, "z": 0, "w": 0, "world": 0, "universe": 0 },
+            "pos": { "x": i, "y": 10, "z": 0, "w": 0, "world": 0, "universe": 0 },
             "vel": { "x": 0, "y": 0, "z": 0, "w": 0, "world": 0, "universe": 0 },
             "rot": { "x": 0, "y": 0, "z": 0, "w": 0 }
         }))
+        
+        time.sleep(0.1)
     
     time.sleep(1)
     
@@ -46,20 +48,24 @@ async def hello():
         for i in range(len(ws)):
             await ws[i].send(json.dumps({
                 "type": "set_node",
-                "pos": { "x": i * 64, "y": 5, "z": 0, "w": 0, "world": 0, "universe": 0 },
+                "pos": { "x": i, "y": 5, "z": 0, "w": 0, "world": 0, "universe": 0 },
                 "data": { "itemstring": "default:stone", "rot": 0 }
             }))
+            
+            #time.sleep(0.5 / float(len(ws)))
         
-        time.sleep(0.5)
+        time.sleep(0.1)
         
         for i in range(len(ws)):
             await ws[i].send(json.dumps({
                 "type": "set_node",
-                "pos": { "x": i * 64, "y": 5, "z": 0, "w": 0, "world": 0, "universe": 0 },
+                "pos": { "x": i, "y": 5, "z": 0, "w": 0, "world": 0, "universe": 0 },
                 "data": { "itemstring": "air", "rot": 0 }
             }))
+            
+            #time.sleep(0.5 / float(len(ws)))
         
-        time.sleep(0.5)
+        time.sleep(0.1)
     
     exit()
 

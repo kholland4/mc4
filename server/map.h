@@ -27,15 +27,29 @@
 
 #include <map>
 #include <set>
+#include <shared_mutex>
+
+#include <boost/asio.hpp>
+#include <boost/bind/bind.hpp>
+
+class NodeChange {
+  public:
+    NodeChange(MapPos<int> _pos, Node _node, Node _expected) : pos(_pos), node(_node), expected(_expected) {}
+    
+    MapPos<int> pos;
+    Node node;
+    Node expected;
+};
 
 class Map {
   public:
-    Map(Database& _db, std::map<int, World*> worlds);
+    Map(Database& _db, std::map<int, World*> worlds, boost::asio::io_context& _io_ctx);
     Mapblock* get_mapblock(MapPos<int> mb_pos);
     MapblockCompressed* get_mapblock_compressed(MapPos<int> mb_pos);
     void set_mapblock(MapPos<int> mb_pos, Mapblock *mb);
     Node get_node(MapPos<int> pos);
-    void set_node(MapPos<int> pos, Node node);
+    void set_node(MapPos<int> pos, Node node, Node expected);
+    void set_nodes_queued(MapPos<int> pos, const boost::system::error_code& error);
     void update_mapblock_light(MapblockUpdateInfo info);
     void update_mapblock_light(std::set<MapPos<int>> prelocked, MapPos<int> min_pos, MapPos<int> max_pos);
     void update_mapblock_light(std::set<MapPos<int>> prelocked, std::set<MapPos<int>> mapblocks_to_update);
@@ -51,6 +65,10 @@ class Map {
     void save_changed_lit_mapblocks(std::map<MapPos<int>, Mapblock*>& mapblocks, std::set<MapPos<int>>& mapblocks_to_update, bool do_clear_light_needs_update);
     
     Database& db;
+    boost::asio::io_context& io_ctx;
+    
+    std::map<MapPos<int>, std::vector<NodeChange>> set_node_queue;
+    std::shared_mutex set_node_queue_lock;
 };
 
 #endif

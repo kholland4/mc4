@@ -38,7 +38,7 @@ MapPos<int> PLAYER_LIMIT_VEL_FAST(200, 200, 200, 6, 0, 0);
 
 
 Server::Server(Database& _db, std::map<int, World*> _worlds)
-    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds),
+    : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds, m_io),
       mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0),
       last_tick(std::chrono::steady_clock::now())
 #ifdef DEBUG_NET
@@ -460,11 +460,15 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         return;
       }
       
+      Node expect("", 0);
+      
+      log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' places '" + node.itemstring + "' at " + pos.to_string());
+      
 #ifdef DEBUG_PERF
       auto start = std::chrono::steady_clock::now();
 #endif
       
-      map.set_node(pos, node);
+      map.set_node(pos, node, expect);
       
 #ifdef DEBUG_PERF
       auto end = std::chrono::steady_clock::now();
@@ -473,9 +477,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       std::cout << "set_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
 #endif
       
-      log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' places '" + node.itemstring + "' at " + pos.to_string());
-      
-      MapPos<int> mb_pos = global_to_mapblock(pos);
+      /*MapPos<int> mb_pos = global_to_mapblock(pos);
       MapPos<int> min_pos = mb_pos - MapPos<int>(1, 1, 1, 0, 0, 0);
       MapPos<int> max_pos = mb_pos + MapPos<int>(1, 1, 1, 0, 0, 0);
       std::vector<MapPos<int>> mapblock_list;
@@ -495,7 +497,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
           }
         }
       }
-      player->update_mapblocks(mapblock_list, map, m_server);
+      player->update_mapblocks(mapblock_list, map, m_server);*/
     } else if(type == "send_chat") {
       std::string from = player->get_name();
       std::string channel = pt.get<std::string>("channel");
@@ -629,7 +631,7 @@ void Server::tick(const boost::system::error_code&) {
   int diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_tick).count(); //milliseconds
   last_tick = now;
   
-  if(diff > SERVER_TICK_INTERVAL * 2) {
+  if(diff > SERVER_TICK_INTERVAL * 2 || diff < SERVER_TICK_INTERVAL / 2) {
     log(LogSource::SERVER, LogLevel::WARNING, "Tick took " + std::to_string(diff) + " ms (expected " + std::to_string(SERVER_TICK_INTERVAL) + " ms)!");
   }
   
@@ -750,5 +752,5 @@ void Server::tick(const boost::system::error_code&) {
 }
 
 void Server::slow_tick() {
-  db.clean_cache();
+  //db.clean_cache();
 }
