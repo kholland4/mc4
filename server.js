@@ -689,10 +689,10 @@ class ServerRemote extends ServerBase {
                 }
                 if(index in renderCurrentMeshes) {
                   if(hasWorker) {
-                    worker.registerOnComplete(function(pos, updateNum) {
+                    worker.registerOnComplete(function(pos, updateNum, index) {
                       renderCurrentMeshes[index].updateNum = updateNum;
                       renderQueueLightingUpdate(pos);
-                    }.bind(null, mapBlock.pos, mapBlock.updateNum));
+                    }.bind(null, mapBlock.pos, mapBlock.updateNum, index));
                   } else {
                     renderCurrentMeshes[index].updateNum = updateNum;
                     renderQueueLightingUpdate(mapBlock.pos);
@@ -820,7 +820,7 @@ class ServerRemote extends ServerBase {
         
         setTimeout(function(index) {
           this.requests.delete(index);
-        }.bind(this, index), 5000);
+        }.bind(this, index), 8000);
       }
       
       return null;

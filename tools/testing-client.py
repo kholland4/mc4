@@ -18,7 +18,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-NUM_WEBSOCKETS = 200
+NUM_WEBSOCKETS = 400
 
 import asyncio, websockets, json, time
 
