@@ -18,7 +18,7 @@
 
 var VERSION = "0.2.6-dev4";
 
-var serverListURL = "https://tausq.s3.us-east-2.amazonaws.com/serverlist.json";
+var serverListURL = "https://ss1.tausquared.net:8083/serverlist.json";
 
 var scene;
 var camera;
@@ -104,7 +104,7 @@ function initEntryMenu() {
   joinServerLogin.className = "joinServerLogin";
   joinServerTab.appendChild(joinServerLogin);
   
-  serverListContainer = uiElement("container");
+  serverListContainer = document.createElement("table");
   serverListContainer.className = "serverListContainer";
   joinServerList.appendChild(serverListContainer);
   
@@ -123,9 +123,12 @@ function initEntryMenu() {
   serverDescBox.innerText = "Select a server!";
   joinServerLogin.appendChild(serverDescBox);
   
-  var loadMessage = document.createElement("div");
+  var loadMessage = document.createElement("tr");
   loadMessage.className = "serverListEntry_header";
-  loadMessage.innerText = "loading server list...";
+  var loadMessageInner1 = document.createElement("td");
+  loadMessageInner1.className = "serverListEntry_header";
+  loadMessageInner1.innerText = "loading server list...";
+  loadMessage.appendChild(loadMessageInner1);
   serverListContainer.appendChild(loadMessage);
   
   loadServerList();
@@ -246,18 +249,30 @@ function loadServerList() {
       serverListContainer.removeChild(serverListContainer.firstChild);
     }
     
-    var header = document.createElement("div");
+    var header = document.createElement("tr");
     header.className = "serverListEntry_header";
-    header.innerText = "Available Servers";
+    
+    var headerInner1 = document.createElement("td");
+    headerInner1.className = "serverListEntry_header";
+    headerInner1.innerText = "Available Servers";
+    header.appendChild(headerInner1);
+    
+    var headerInner2 = document.createElement("td");
+    headerInner2.className = "serverListEntry_header";
+    headerInner2.innerText = "Players";
+    header.appendChild(headerInner2);
+    
     serverListContainer.appendChild(header);
     
     for(var i = 0; i < list.length; i++) {
       var address = list[i].address;
       var desc = list[i].desc;
+      var online = list[i].online;
+      var players = list[i].players;
+      var player_limit = list[i].player_limit;
       
-      var item = document.createElement("div");
+      var item = document.createElement("tr");
       item.className = "serverListEntry";
-      item.innerText = address;
       item.onclick = function() {
         serverAddrBox.value = this.dataset.address;
         serverAddrBox.onchange();
@@ -266,6 +281,25 @@ function loadServerList() {
       };
       item.dataset.address = address;
       item.dataset.desc = desc;
+      
+      var itemInner1 = document.createElement("td");
+      itemInner1.className = "serverListEntry";
+      itemInner1.innerText = address;
+      item.appendChild(itemInner1);
+      
+      var itemInner2 = document.createElement("td");
+      itemInner2.className = "serverListEntry";
+      if(online) {
+        if(player_limit > 0) {
+          itemInner2.innerText = players + " / " + player_limit;
+        } else {
+          itemInner2.innerText = players;
+        }
+      } else {
+        itemInner2.innerText = "[offline]";
+      }
+      item.appendChild(itemInner2);
+      
       serverListContainer.appendChild(item);
     }
   };
