@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.3.0"
+#define VERSION "0.3.1"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -84,6 +84,7 @@ class Server {
     void terminate();
     void terminate(std::string message);
     std::string status() const;
+    std::string list_status_json() const;
     
     void chat_send(std::string channel, std::string from, std::string message);
     void chat_send(std::string channel, std::string message);
@@ -109,6 +110,7 @@ class Server {
     std::pair<websocketpp::close::status::value, std::string> validate_connection(connection_hdl hdl);
     void on_open(connection_hdl hdl);
     void on_close(connection_hdl hdl);
+    void on_http(connection_hdl hdl);
     
 #ifdef TLS
     websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> on_tls_init(connection_hdl hdl);

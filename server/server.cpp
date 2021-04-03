@@ -54,12 +54,12 @@ Server::Server(Database& _db, std::map<int, World*> _worlds)
   
   m_server.set_message_handler(
       websocketpp::lib::bind(&Server::on_message, this, ::_1, ::_2));
-  //m_server.set_validate_handler(
-  //    websocketpp::lib::bind(&Server::on_validate, this, ::_1));
   m_server.set_open_handler(
       websocketpp::lib::bind(&Server::on_open, this, ::_1));
   m_server.set_close_handler(
       websocketpp::lib::bind(&Server::on_close, this, ::_1));
+  m_server.set_http_handler(
+      websocketpp::lib::bind(&Server::on_http, this, ::_1));
 #ifdef TLS
   m_server.set_tls_init_handler(
       websocketpp::lib::bind(&Server::on_tls_init, this, ::_1));
@@ -203,6 +203,26 @@ std::string Server::status() const {
   }
   
   return s;
+}
+
+std::string Server::list_status_json() const {
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  
+  std::ostringstream out;
+  
+  out << "{\"version\":\"" << json_escape(std::string(VERSION)) << "\","
+      << "\"players\":" << m_players.size() << ",";
+  
+  int player_limit = get_config<int>("server.max_players");
+  if(player_limit < 0) {
+    out << "\"player_limit\":null";
+  } else {
+    out << "\"player_limit\":" << player_limit;
+  }
+  
+  out << "}";
+  
+  return out.str();
 }
 
 void Server::chat_send(std::string channel, std::string from, std::string message) {
@@ -729,6 +749,16 @@ void Server::on_close(connection_hdl hdl) {
 #ifdef EXIT_AFTER_PLAYER_DISCONNECT
   exit(0);
 #endif
+}
+
+void Server::on_http(connection_hdl hdl) {
+  try {
+    auto con = m_server.get_con_from_hdl(hdl);
+    con->set_body(list_status_json());
+    con->set_status(websocketpp::http::status_code::ok);
+  } catch(websocketpp::exception const& e) {
+    log(LogSource::SERVER, LogLevel::ERR, "Socket error: " + std::string(e.what()));
+  }
 }
 
 void Server::tick(const boost::system::error_code&) {
