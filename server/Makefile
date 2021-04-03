@@ -5,7 +5,7 @@ OBJDIR = build
 OBJS = $(SRCS:%.cpp=$(OBJDIR)/%.o)
 
 mc4-server: $(OBJS)
-	$(CXX) $(LDFLAGS) $(LIBS) -pthread -o $@ $(OBJS)
+	$(CXX) $(LDFLAGS) -pthread -o $@ $(OBJS) $(LIBS)
 
 $(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MD -c -o $@ $<

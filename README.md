@@ -16,7 +16,11 @@ Library and asset license files are spread throughout the source tree, links are
 
 Install build dependencies:
 
-    # apt-get install make libwebsocketpp-dev libboost-dev libsqlite3-dev libssl-dev
+    # apt-get install make g++ libwebsocketpp-dev libboost-dev libsqlite3-dev libssl-dev
+
+If your distro doesn't package `libwebsocketpp-dev`, grab it from [here](https://github.com/zaphoyd/websocketpp/releases/) and compile with something like:
+
+    $ CPPFLAGS="-I/path/to/websocketpp-x.x.x/" make -j4
 
 The server has optional TLS support, which is strongly recommended for production use
 (the client-server protocol is inherently very insecure).
