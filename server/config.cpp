@@ -34,7 +34,9 @@ std::map<std::string, std::string> config_keys_str = {
   //there are no sensible defaults for these
   {"ssl.cert_chain_file", ""},
   {"ssl.private_key_file", ""},
-  {"ssl.dhparam_file", ""}
+  {"ssl.dhparam_file", ""},
+  
+  {"loader.defs_file", "defs.json"}
 };
 std::map<std::string, std::string> config_str;
 

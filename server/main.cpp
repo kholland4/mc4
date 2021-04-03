@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
   
   parse_args(argc, argv);
   
-  load_node_defs("defs.json");
+  load_node_defs(get_config<std::string>("loader.defs_file"));
   
   Database *db;
   std::string db_backend = get_config<std::string>("database.backend");
