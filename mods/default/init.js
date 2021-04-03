@@ -792,6 +792,32 @@
     ], {shape: {x: 3, y: 3}}));
   
   
+  //---Various white/grey bricks---
+  registerNodeHelper("default:brick_white", {
+    desc: "White Bricks",
+    tex: {texAll: "unifiedbricks_brickblock.png"},
+    icon: "unifiedbricks_brickblock.png",
+    node: {groups: {cracky: 2}}
+  });
+  registerNodeHelper("default:brick_light", {
+    desc: "Light Bricks",
+    tex: {texAll: "unifiedbricks_brickblock_multicolor_light.png"},
+    icon: "unifiedbricks_brickblock_multicolor_light.png",
+    node: {groups: {cracky: 2}}
+  });
+  registerNodeHelper("default:brick_medium", {
+    desc: "Medium Bricks",
+    tex: {texAll: "unifiedbricks_brickblock_multicolor_medium.png"},
+    icon: "unifiedbricks_brickblock_multicolor_medium.png",
+    node: {groups: {cracky: 2}}
+  });
+  registerNodeHelper("default:brick_dark", {
+    desc: "Dark Bricks",
+    tex: {texAll: "unifiedbricks_brickblock_multicolor_dark.png"},
+    icon: "unifiedbricks_brickblock_multicolor_dark.png",
+    node: {groups: {cracky: 2}}
+  });
+  
   
   //---TIME---
   mods.default.timeOffset = 1440 / 2;

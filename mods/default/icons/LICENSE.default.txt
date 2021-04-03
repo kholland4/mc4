@@ -1,4 +1,5 @@
 Abridged from [https://github.com/minetest/minetest_game/blob/master/LICENSE.txt].
+Applies to default_*.png
 See README.default.txt for more author information.
 Cube-style icons were auto-generated from the original texture files.
 =====

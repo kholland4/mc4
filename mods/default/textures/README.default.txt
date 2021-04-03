@@ -1,4 +1,5 @@
 Abridged from [https://github.com/minetest/minetest_game/blob/master/mods/default/README.txt].
+Applies to default_*.png
 =====
 
 Authors of media (textures, sounds, models and schematics)

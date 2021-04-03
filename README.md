@@ -110,6 +110,10 @@ set the appropriate options pointing to certificate files and such.
   Hugo Locurcio and contributors (CC BY-SA 3.0 Unported).
   See [README.moreores.txt](mods/minerals/icons/README.moreores.txt) for full
   license information.
+* [minetest-mods/unifiedbricks](https://github.com/minetest-mods/unifiedbricks):
+  Various authors (WTFPL).
+  See [README.unifiedbricks.txt](mods/default/icons/README.unifiedbricks.txt) for full
+  license information.
 
 ## NOTICE
 
