@@ -28,6 +28,20 @@
 #define PLAYER_MAPBLOCK_INTEREST_DISTANCE 2
 #define PLAYER_MAPBLOCK_INTEREST_DISTANCE_W 0
 
+#include "vector.h"
+
+#define PLAYER_LIMIT_VIEW_DISTANCE MapPos<int>(3, 3, 3, 1, 0, 0)
+
+//Client-side reach distance is 10, max player speed is 16 m/s (fast + sprint), and the client sends position updates every 0.25 seconds.
+//Minimum server-side reach distance would then be 14, more added just in case.
+#define PLAYER_LIMIT_REACH_DISTANCE MapPos<int>(20, 20, 20, 1, 0, 0)
+
+//Measured in nodes per 10 seconds
+#define DISABLE_PLAYER_SPEED_LIMIT //too problematic, disable for now
+#define PLAYER_LIMIT_VEL MapPos<int>(120, 120, 120, 6, 0, 0)
+#define PLAYER_LIMIT_VEL_FAST MapPos<int>(200, 200, 200, 6, 0, 0)
+
+
 #define BOOST_ERROR_CODE_HEADER_ONLY
 
 
@@ -55,7 +69,6 @@
 
 #include <boost/tokenizer.hpp>
 
-#include "vector.h"
 #include "json.h"
 #include "map.h"
 #include "mapblock.h"
