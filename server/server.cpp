@@ -624,7 +624,7 @@ std::pair<websocketpp::close::status::value, std::string> Server::validate_conne
     auto con = m_server.get_con_from_hdl(hdl);
     address_and_port = con->get_remote_endpoint();
     
-    const boost::asio::ip::tcp::socket& socket = con->get_raw_socket();
+    const auto& socket = con->get_raw_socket();
     address = socket.remote_endpoint().address().to_string();
   } catch(websocketpp::exception const& e) {
     log(LogSource::SERVER, LogLevel::ERR, "Socket error: " + std::string(e.what()));

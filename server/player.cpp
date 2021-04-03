@@ -27,7 +27,7 @@ PlayerState::PlayerState(connection_hdl hdl, WsServer& server)
     auto con = server.get_con_from_hdl(hdl);
     address_and_port = con->get_remote_endpoint();
     
-    const boost::asio::ip::tcp::socket& socket = con->get_raw_socket();
+    const auto& socket = con->get_raw_socket();
     address = socket.remote_endpoint().address().to_string();
   } catch(websocketpp::exception const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "Socket error: " + std::string(e.what()));
