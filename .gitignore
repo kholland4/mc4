@@ -2,3 +2,7 @@ server/build/*.d
 server/build/*.o
 server/mc4-server
 server/*.sqlite
+serverlist/build/*.d
+serverlist/build/*.o
+serverlist/mc4-serverlist
+serverlist/*.json
