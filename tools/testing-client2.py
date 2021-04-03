@@ -18,7 +18,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-NUM_WEBSOCKETS = 12
+NUM_WEBSOCKETS = 24
 
 import asyncio, websockets, json, time
 
@@ -32,6 +32,8 @@ async def hello():
             "type": "auth_guest"
         }))
         await s.recv()
+        
+        time.sleep(0.5)
     
     time.sleep(1)
     

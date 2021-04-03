@@ -40,7 +40,8 @@ MapPos<int> PLAYER_LIMIT_VEL_FAST(200, 200, 200, 6, 0, 0);
 Server::Server(Database& _db, std::map<int, World*> _worlds)
     : m_timer(m_io, boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL)), db(_db), map(_db, _worlds, m_io),
       mapblock_tick_counter(0), fluid_tick_counter(0), slow_tick_counter(0),
-      last_tick(std::chrono::steady_clock::now())
+      last_tick(std::chrono::steady_clock::now()),
+      halt(false)
 #ifdef DEBUG_NET
     , mb_out_count(0), mb_out_len(0)
 #endif
@@ -53,6 +54,8 @@ Server::Server(Database& _db, std::map<int, World*> _worlds)
   
   m_server.set_message_handler(
       websocketpp::lib::bind(&Server::on_message, this, ::_1, ::_2));
+  //m_server.set_validate_handler(
+  //    websocketpp::lib::bind(&Server::on_validate, this, ::_1));
   m_server.set_open_handler(
       websocketpp::lib::bind(&Server::on_open, this, ::_1));
   m_server.set_close_handler(
@@ -143,6 +146,40 @@ websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> Server::on_tl
   return ctx;
 }
 #endif
+
+void Server::terminate() {
+  terminate(get_config<std::string>("server.default_terminate_message"));
+}
+void Server::terminate(std::string message) {
+  //std::unique_lock<std::shared_mutex> list_lock(m_players_lock);
+  log(LogSource::SERVER, LogLevel::NOTICE, "Server terminating: " + message);
+  chat_send("server", "Server terminating: " + message);
+  
+  std::unique_lock<std::shared_mutex> tick_info_l(tick_info_lock);
+  halt = true;
+  tick_info_l.unlock();
+  
+  m_server.stop_listening();
+  
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  for(auto p : m_players) {
+    connection_hdl hdl = p.first;
+    PlayerState *player = p.second;
+    
+    {
+      std::unique_lock<std::shared_mutex> player_lock(player->lock);
+      
+      try {
+        //on_close will be run later, so no worries about deadlocks
+        m_server.close(hdl, websocketpp::close::status::going_away, message);
+      } catch(websocketpp::exception const& e) {
+        log(LogSource::SERVER, LogLevel::ERR, "Socket error: " + std::string(e.what()));
+      }
+    }
+  }
+  
+  log(LogSource::SERVER, LogLevel::NOTICE, "Server terminated. Waiting for connections to finish closing.");
+}
 
 std::string Server::status() const {
   std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
@@ -290,7 +327,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
               player_lock_unique.unlock();
               chat_send_player(player, "server", "ERROR: player '" + p->data.name + "' is already connected");
               websocketpp::lib::error_code ec;
-              m_server.close(hdl, websocketpp::close::status::going_away, "kick", ec);
+              m_server.close(hdl, websocketpp::close::status::policy_violation, "kick", ec);
               if(ec) {
                 log(LogSource::SERVER, LogLevel::ERR, "error closing connection: " + ec.message());
               }
@@ -319,7 +356,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         
         player_lock_unique.unlock();
         
-        log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " connected!");
+        log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " (from " + player->address_and_port + ") connected!");
         chat_send_player(player, "server", status());
         chat_send("server", "*** " + player->get_name() + " joined the server!");
       }
@@ -558,10 +595,75 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
   }
 }
 
+std::pair<websocketpp::close::status::value, std::string> Server::validate_connection(connection_hdl hdl) {
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  
+  std::string address_and_port;
+  std::string address;
+  try {
+    auto con = m_server.get_con_from_hdl(hdl);
+    address_and_port = con->get_remote_endpoint();
+    
+    const boost::asio::ip::tcp::socket& socket = con->get_raw_socket();
+    address = socket.remote_endpoint().address().to_string();
+  } catch(websocketpp::exception const& e) {
+    log(LogSource::SERVER, LogLevel::ERR, "Socket error: " + std::string(e.what()));
+    return std::make_pair(websocketpp::close::status::abnormal_close, "internal error");
+  }
+  
+  //overall player limit
+  int max_players = get_config<int>("server.max_players");
+  
+  if(max_players > 0 && (int)m_players.size() >= max_players) {
+    log(LogSource::SERVER, LogLevel::INFO, "Connection from " + address_and_port + " rejected because server is full (" +
+                                           std::to_string(m_players.size()) + "/" + std::to_string(max_players) + ") players");
+    
+    return std::make_pair(websocketpp::close::status::try_again_later,
+                          "server is full (" + std::to_string(m_players.size()) + "/" + std::to_string(max_players) + ") players, try again later.");
+  }
+  
+  //per-ip player limit
+  int max_players_from_address = get_config<int>("server.max_players_from_address");
+  
+  if(max_players_from_address > 0) {
+    int players_with_same_address = 0;
+    for(auto p : m_players) {
+      PlayerState *check = p.second;
+      std::shared_lock<std::shared_mutex> check_lock(check->lock);
+      if(check->address == address) {
+        players_with_same_address++;
+      }
+    }
+    
+    if(players_with_same_address >= max_players_from_address) {
+      log(LogSource::SERVER, LogLevel::INFO, "Connection from " + address_and_port + " rejected because too many players are already connected from that address (" +
+                                             std::to_string(players_with_same_address) + "/" + std::to_string(max_players_from_address) + ")");
+      
+      return std::make_pair(websocketpp::close::status::try_again_later,
+                            "too many connections from your address (" + std::to_string(players_with_same_address) + "/" +
+                            std::to_string(max_players_from_address) +"), try again later.");
+    }
+  }
+  
+  //ok
+  return std::make_pair(websocketpp::close::status::normal, "");
+}
+
 void Server::on_open(connection_hdl hdl) {
+  std::pair<websocketpp::close::status::value, std::string> res = validate_connection(hdl);
+  if(res.second != "") {
+    //validate_connection will send a response and log as needed
+    try {
+      m_server.close(hdl, res.first, res.second);
+    } catch(websocketpp::exception const& e) {
+      log(LogSource::SERVER, LogLevel::ERR, "Socket error: " + std::string(e.what()));
+    }
+    return;
+  }
+  
   std::unique_lock<std::shared_mutex> list_lock(m_players_lock);
   
-  PlayerState *player = new PlayerState(hdl);
+  PlayerState *player = new PlayerState(hdl, m_server);
   
   std::unique_lock<std::shared_mutex> player_lock(player->lock);
   m_players[hdl] = player;
@@ -573,7 +675,13 @@ void Server::on_open(connection_hdl hdl) {
 void Server::on_close(connection_hdl hdl) {
   std::unique_lock<std::shared_mutex> list_lock(m_players_lock);
   
-  PlayerState *player = m_players[hdl];
+  auto search = m_players.find(hdl);
+  if(search == m_players.end()) {
+    //player was never accepted
+    return;
+  }
+  
+  PlayerState *player = search->second;
   
   {
     std::unique_lock<std::shared_mutex> player_lock(player->lock);
@@ -746,9 +854,11 @@ void Server::tick(const boost::system::error_code&) {
     }
   }
 #endif
-
-  m_timer.expires_at(m_timer.expiry() + boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL));
-  m_timer.async_wait(boost::bind(&Server::tick, this, boost::asio::placeholders::error));
+  
+  if(!halt) {
+    m_timer.expires_at(m_timer.expiry() + boost::asio::chrono::milliseconds(SERVER_TICK_INTERVAL));
+    m_timer.async_wait(boost::bind(&Server::tick, this, boost::asio::placeholders::error));
+  }
 }
 
 void Server::slow_tick() {

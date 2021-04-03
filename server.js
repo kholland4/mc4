@@ -490,7 +490,11 @@ class ServerRemote extends ServerBase {
     this.socket.onclose = function() {
       this._socketReady = false;
       
-      debug("client", "status", "disconnected from " + this.socket.url);
+      if(event.reason == "") {
+        debug("client", "status", "disconnected from " + this.socket.url);
+      } else {
+        debug("client", "status", "disconnected: " + event.reason);
+      }
     }.bind(this);
     this.socket.onerror = function() {
       this._socketReady = false;
@@ -790,6 +794,12 @@ class ServerRemote extends ServerBase {
         }
       }
     }.bind(this);
+    
+    window.addEventListener("unload", function () {
+      if(this.socket.readyState == WebSocket.OPEN) {
+        this.socket.close();
+      }
+    }.bind(this));
   }
   
   //TODO: support multiple players

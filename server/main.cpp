@@ -24,6 +24,11 @@
 
 #include <malloc.h>
 
+namespace {
+  std::function<void(int)> terminate_handler;
+  void signal_handler(int signum) { terminate_handler(signum); }
+}
+
 int main(int argc, char *argv[]) {
   mallopt(M_ARENA_MAX, 2);
   
@@ -68,5 +73,12 @@ int main(int argc, char *argv[]) {
     log(LogSource::INIT, LogLevel::EMERG, "invalid server port: " + std::to_string(port));
     exit(1);
   }
+  
+  terminate_handler = [&server](int signum) {
+    server.terminate();
+  };
+  std::signal(SIGINT, signal_handler);
+  
+  
   server.run(port);
 }

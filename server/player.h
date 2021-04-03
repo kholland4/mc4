@@ -54,7 +54,7 @@ using websocketpp::connection_hdl;
 
 class PlayerState {
   public:
-    PlayerState(connection_hdl hdl);
+    PlayerState(connection_hdl hdl, WsServer& server);
     
     bool operator<(const PlayerState& other) const {
       return m_tag < other.m_tag;
@@ -97,7 +97,7 @@ class PlayerState {
     void send(std::string msg, WsServer& sender) {
       try {
         sender.send(m_connection_hdl, msg, websocketpp::frame::opcode::text);
-      } catch(std::exception const& e) {
+      } catch(websocketpp::exception const& e) {
         log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
       }
     }
@@ -138,6 +138,9 @@ class PlayerState {
     
     PlayerAuthenticator auth_state;
     PlayerData data;
+    
+    std::string address_and_port;
+    std::string address;
     
     std::shared_mutex lock;
   private:

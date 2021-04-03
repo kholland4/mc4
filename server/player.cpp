@@ -20,10 +20,18 @@
 
 #include <cstring>
 
-PlayerState::PlayerState(connection_hdl hdl)
+PlayerState::PlayerState(connection_hdl hdl, WsServer& server)
     : auth(false), auth_guest(false), just_tp(false), m_connection_hdl(hdl), m_tag(boost::uuids::random_generator()()), m_name(get_tag())
 {
-  
+  try {
+    auto con = server.get_con_from_hdl(hdl);
+    address_and_port = con->get_remote_endpoint();
+    
+    const boost::asio::ip::tcp::socket& socket = con->get_raw_socket();
+    address = socket.remote_endpoint().address().to_string();
+  } catch(websocketpp::exception const& e) {
+    log(LogSource::PLAYER, LogLevel::ERR, "Socket error: " + std::string(e.what()));
+  }
 }
 
 std::string PlayerState::pos_as_json() {
@@ -65,14 +73,14 @@ std::string PlayerState::privs_as_json() {
 void PlayerState::send_pos(WsServer& sender) {
   try {
     sender.send(m_connection_hdl, pos_as_json(), websocketpp::frame::opcode::text);
-  } catch(std::exception const& e) {
+  } catch(websocketpp::exception const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
   }
 }
 void PlayerState::send_privs(WsServer& sender) {
   try {
     sender.send(m_connection_hdl, privs_as_json(), websocketpp::frame::opcode::text);
-  } catch(std::exception const& e) {
+  } catch(websocketpp::exception const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
   }
 }
@@ -160,7 +168,7 @@ unsigned int PlayerState::send_mapblock_compressed(MapblockCompressed *mbc, WsSe
   
   try {
     sender.send(m_connection_hdl, out_buf, arr_pos * sizeof(uint32_t), websocketpp::frame::opcode::binary);
-  } catch(std::exception const& e) {
+  } catch(websocketpp::exception const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
   }
   

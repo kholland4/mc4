@@ -27,6 +27,7 @@
 
 std::map<std::string, std::string> config_keys_str = {
   {"server.motd", ""},
+  {"server.default_terminate_message", "Server shutting down."},
   
   {"database.backend", "sqlite3"},
   {"database.sqlite3_file", "test_map.sqlite"},
@@ -43,6 +44,8 @@ std::map<std::string, std::string> config_str;
 std::map<std::string, int> config_keys_int = {
   {"server.port", 8080},
   {"server.threads", 0},
+  {"server.max_players", 0},
+  {"server.max_players_from_address", 0},
   
   {"database.L1_cache_target", 10000},
   {"database.L2_cache_target", 100000},

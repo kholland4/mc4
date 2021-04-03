@@ -81,6 +81,8 @@ class Server {
   public:
     Server(Database& _db, std::map<int, World*> _worlds);
     void run(uint16_t port);
+    void terminate();
+    void terminate(std::string message);
     std::string status() const;
     
     void chat_send(std::string channel, std::string from, std::string message);
@@ -104,6 +106,7 @@ class Server {
     void cmd_grantme(PlayerState *player, std::vector<std::string> args);
     void cmd_privs(PlayerState *player, std::vector<std::string> args);
     
+    std::pair<websocketpp::close::status::value, std::string> validate_connection(connection_hdl hdl);
     void on_open(connection_hdl hdl);
     void on_close(connection_hdl hdl);
     
@@ -133,7 +136,9 @@ class Server {
     int fluid_tick_counter;
     int slow_tick_counter;
     std::chrono::time_point<std::chrono::steady_clock> last_tick;
+    bool halt;
     std::shared_mutex tick_info_lock;
+    
 #ifdef DEBUG_NET
     unsigned int mb_out_count;
     unsigned long long mb_out_len;
