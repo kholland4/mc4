@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.2.6-dev3";
+var VERSION = "0.2.6-dev4";
 
 var serverListURL = "https://tausq.s3.us-east-2.amazonaws.com/serverlist.json";
 

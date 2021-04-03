@@ -617,15 +617,40 @@ class ServerRemote extends ServerBase {
         
         this.cache[index] = mapBlock;
         
-        //Since updates are only queued, they won't happen until after this code runs
-        for(var i = this.patches.length - 1; i >= 0; i--) {
+        //Apply mapblock patches, oldest to newest
+        var i = 0;
+        var toApply = [];
+        while(i < this.patches.length) {
           if(mapBlock.pos.equals(this.patches[i].mapBlockPos)) {
-            if(this.patches[i].isAccepted()) {
-              this.patches.splice(i, 1);
-            } else {
-              this.patches[i].doApply();
+            //Don't use previous patches from the same position
+            for(var n = toApply.length - 1; n >= 0; n--) {
+              if(this.patches[i].localPos.equals(toApply[n].localPos)) {
+                toApply.splice(n, 1);
+              }
             }
+            
+            if(this.patches[i].isAccepted()) {
+              var localPos = this.patches[i].localPos;
+              this.patches.splice(i, 1);
+              
+              //Also delete previous patches for the same position
+              for(var n = i - 1; n >= 0; n--) {
+                if(this.patches[n].mapBlockPos.equals(mapBlock.pos) && this.patches[n].localPos.equals(localPos)) {
+                  this.patches.splice(n, 1);
+                  i--;
+                }
+              }
+            } else {
+              toApply.push(this.patches[i]);
+              i++;
+            }
+          } else {
+            i++;
           }
+        }
+        
+        for(var i = 0; i < toApply.length; i++) {
+          toApply[i].doApply();
         }
         
         
