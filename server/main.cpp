@@ -47,9 +47,11 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
   
-  MapgenAlpha mapgen0(82);
+  uint32_t seed = get_config<int>("map.seed");
+  
+  MapgenAlpha mapgen0(seed);
   World *world0 = new World("Earth", mapgen0);
-  MapgenHeck mapgen1(82);
+  MapgenHeck mapgen1(seed);
   World *world1 = new World("Heck", mapgen1);
   
   std::map<int, World*> worlds = {

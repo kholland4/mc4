@@ -18,6 +18,7 @@
 
 #include "mapgen.h"
 #include "log.h"
+#include "config.h"
 
 #include <cmath>
 #include <math.h>
@@ -25,10 +26,6 @@
 #define PI 3.14159265
 
 #define TREE_ITERATION_DEPTH 3
-
-//Recommended parameters are 0 for water depth and 3 for sand depth.
-#define MAPGENALPHA_WATER_DEPTH -16
-#define MAPGENALPHA_SAND_DEPTH -15
 
 //L-system trees [https://en.wikipedia.org/wiki/L-system] [https://dev.minetest.net/Introduction_to_L-system_trees]
 //Defined characters are as follows, same as Minetest:
@@ -330,6 +327,9 @@ TreeDef tree_pine("TTTTLTTMTTN",
       }, 20);
 
 std::map<MapPos<int>, Mapblock*> MapgenAlpha::generate_near(MapPos<int> pos) {
+  int water_depth = get_config<int>("map.water_depth");
+  int sand_depth = get_config<int>("map.sand_depth");
+  
   std::map<MapPos<int>, Mapblock*> to_generate;
   int start_y = pos.y - (((pos.y % 5) + 5) % 5);
   int end_y = start_y + 5;
@@ -380,7 +380,7 @@ std::map<MapPos<int>, Mapblock*> MapgenAlpha::generate_near(MapPos<int> pos) {
       int height = height_map[x][z];
       for(int mb_y = start_y; mb_y < end_y; mb_y++) {
         MapPos<int> where(pos.x, mb_y, pos.z, pos.w, pos.world, pos.universe);
-        if(height >= where.y * MAPBLOCK_SIZE_Y || where.y * MAPBLOCK_SIZE_Y < MAPGENALPHA_WATER_DEPTH) {
+        if(height >= where.y * MAPBLOCK_SIZE_Y || where.y * MAPBLOCK_SIZE_Y < water_depth) {
           Mapblock *mb = to_generate[where];
           mb->sunlit = false;
           
@@ -393,10 +393,10 @@ std::map<MapPos<int>, Mapblock*> MapgenAlpha::generate_near(MapPos<int> pos) {
           for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
             int global_y = y + mb_y * MAPBLOCK_SIZE_Y;
             if(global_y > height) {
-              if(global_y < MAPGENALPHA_WATER_DEPTH) {
+              if(global_y < water_depth) {
                 //water
                 mb->data[x][y][z] = water_id;
-              } else if(global_y == height + 1 && global_y > MAPGENALPHA_SAND_DEPTH) {
+              } else if(global_y == height + 1 && global_y > sand_depth) {
                 //possibly flowers/grass, otherwise air
                 double flowerNoise = perlin.noise3D((x + global_offset.x) / 2.0, (z + global_offset.z) / 2.0, global_offset.w / 2.0);
                 if(flowerNoise > 0.4) {
@@ -421,13 +421,13 @@ std::map<MapPos<int>, Mapblock*> MapgenAlpha::generate_near(MapPos<int> pos) {
                 //air, which is already there
               }
             } else if(global_y == height) {
-              if(global_y < MAPGENALPHA_SAND_DEPTH) {
+              if(global_y < sand_depth) {
                 mb->data[x][y][z] = sand_id;
               } else {
                 mb->data[x][y][z] = grass_id;
               }
             } else if(global_y >= height - 2) {
-              if(global_y < MAPGENALPHA_SAND_DEPTH) {
+              if(global_y < sand_depth) {
                 mb->data[x][y][z] = sand_id;
               } else {
                 mb->data[x][y][z] = dirt_id;
@@ -459,7 +459,7 @@ std::map<MapPos<int>, Mapblock*> MapgenAlpha::generate_near(MapPos<int> pos) {
           }
           
           //no trees below shoreline
-          if(height <= MAPGENALPHA_SAND_DEPTH) { continue; }
+          if(height <= sand_depth) { continue; }
           
           if(height < global_offset.y - max_tree_spread_up.y || height > end_y * MAPBLOCK_SIZE_Y + MAPBLOCK_SIZE_Y + max_tree_spread_down.y) { continue; }
           
