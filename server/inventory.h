@@ -48,6 +48,8 @@ class InvRef {
     InvRef(std::string _obj_type, std::string _obj_id, std::string _list_name, int _index) :
         obj_type(_obj_type), obj_id(_obj_id), list_name(_list_name), index(_index) {};
     
+    bool operator<(const InvRef& other) const;
+    
     std::string obj_type;
     std::string obj_id;
     std::string list_name;

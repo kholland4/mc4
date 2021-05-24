@@ -32,6 +32,7 @@
 
 #include <chrono>
 #include <shared_mutex>
+#include <map>
 
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -84,6 +85,7 @@ class PlayerState {
     void send_privs(WsServer& sender);
     void send_inv(WsServer& sender);
     void send_inv(std::string list_name);
+    //void send_inv(InvRef ref);
     
     bool inv_give(InvStack stack);
     InvStack inv_get(std::string list_name, int index);
@@ -142,6 +144,8 @@ class PlayerState {
     
     std::map<MapPos<int>, MapblockUpdateInfo> known_mapblocks;
     std::set<std::string> known_player_tags;
+    
+    std::map<InvRef, InvList> known_inventories;
     
     PlayerAuthenticator auth_state;
     PlayerData data;

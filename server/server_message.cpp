@@ -398,7 +398,71 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       //TODO craft grid
       //TODO generic send diffs for interested inventories function
     } else if(type == "inv_distribute") {
-      //TODO
+      InvRef ref1(pt.get<std::string>("ref1.objType"), pt.get<std::string>("ref1.objID"), pt.get<std::string>("ref1.listName"), pt.get<int>("ref1.index"));
+      InvRef ref2(pt.get<std::string>("ref2.objType"), pt.get<std::string>("ref2.objID"), pt.get<std::string>("ref2.listName"), pt.get<int>("ref2.index"));
+      int qty1 = pt.get<int>("qty1");
+      int qty2 = pt.get<int>("qty2");
+      
+      if(ref1.obj_type != "player" || ref2.obj_type != "player") {
+        log(LogSource::SERVER, LogLevel::NOTICE, "inv_distribute: unsupported obj_type '" + ref1.obj_type + "' '" + ref2.obj_type + "'");
+        return;
+      }
+      
+      //TODO better errors
+      
+      InvStack stack1 = player->data.inventory.get_at(ref1);
+      InvStack stack2 = player->data.inventory.get_at(ref2);
+      
+      if(stack1.is_nil && stack2.is_nil)
+        return; //nothing to distribute
+      
+      if(!stack1.is_nil && !stack2.is_nil) {
+        if(stack1.itemstring != stack2.itemstring)
+          return; //mismatched stack types
+      }
+      
+      //FIXME fetch from item def
+      int max_stack = 64;
+      bool stackable = true;
+      
+      if(!stackable)
+        return;
+      
+      InvStack combined;
+      if(!stack1.is_nil) {
+        combined = stack1;
+        if(!stack2.is_nil)
+          combined.count += stack2.count;
+      } else {
+        combined = stack2;
+        if(!stack1.is_nil)
+          combined.count += stack1.count;
+      }
+      
+      if(qty1 + qty2 != combined.count)
+        return;
+      
+      if(qty1 > max_stack || qty2 > max_stack)
+        return;
+      
+      InvStack new_stack1 = combined;
+      new_stack1.count = qty1;
+      InvStack new_stack2 = combined;
+      new_stack2.count = qty2;
+      
+      if(new_stack1.count == 0)
+        new_stack1 = InvStack();
+      if(new_stack2.count == 0)
+        new_stack2 = InvStack();
+      
+      player->data.inventory.set_at(ref1, new_stack1);
+      player->data.inventory.set_at(ref2, new_stack2);
+      player->send_inv(ref1.list_name);
+      if(ref1.list_name != ref2.list_name)
+        player->send_inv(ref2.list_name);
+      
+      //TODO craft grid
+      //TODO generic send diffs for interested inventories function
     } else if(type == "send_chat") {
       std::string from = player->get_name();
       std::string channel = pt.get<std::string>("channel");

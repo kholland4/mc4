@@ -23,6 +23,7 @@
 #include "inventory.h"
 
 #include <set>
+#include <shared_mutex>
 
 class PlayerData {
   public:
@@ -41,6 +42,7 @@ class PlayerData {
     
     std::set<std::string> privs;
     InvSet inventory;
+    //std::map<std::string, std::unique_ptr<std::shared_mutex>> inventory_lock;
     
     bool is_nil;
     

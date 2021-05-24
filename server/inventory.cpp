@@ -20,6 +20,22 @@
 #include "json.h"
 #include <sstream>
 
+bool InvRef::operator<(const InvRef& other) const {
+  if(obj_type == other.obj_type) {
+    if(obj_id == other.obj_id) {
+      if(list_name == other.list_name) {
+        return index < other.index;
+      } else {
+        return list_name < other.list_name;
+      }
+    } else {
+      return obj_id < other.obj_id;
+    }
+  } else {
+    return obj_type < other.obj_type;
+  }
+}
+
 InvStack::InvStack(boost::property_tree::ptree pt) : is_nil(false) {
   itemstring = pt.get<std::string>("itemstring");
   count = pt.get<int>("count");
