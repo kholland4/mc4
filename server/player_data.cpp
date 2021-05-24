@@ -20,6 +20,7 @@
 
 #include "json.h"
 #include "log.h"
+#include "inventory.h"
 
 #include <sstream>
 
@@ -60,6 +61,15 @@ PlayerData::PlayerData(std::string json, std::string _auth_id) : is_nil(true), a
       privs.insert(priv);
     }
     
+    if(pt.get_child_optional("inventory")) {
+      inventory = InvSet(pt.get_child("inventory"));
+    } else {
+      inventory.add("main", InvList(32));
+      inventory.add("craft", InvList(9));
+      inventory.add("craftOutput", InvList(1));
+      inventory.add("hand", InvList(1));
+    }
+    
     is_nil = false;
   } catch(boost::property_tree::ptree_error const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " json=" + json);
@@ -84,7 +94,11 @@ std::string PlayerData::to_json() {
     out << "\"" << json_escape(it) << "\"";
   }
   
-  out << "]}";
+  out << "],";
+  
+  out << "\"inventory\":" << inventory.as_json();
+  
+  out << "}";
   
   return out.str();
 }

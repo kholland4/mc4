@@ -19,9 +19,10 @@
 #include "player.h"
 
 #include <cstring>
+#include <algorithm>
 
 PlayerState::PlayerState(connection_hdl hdl, WsServer& server)
-    : auth(false), auth_guest(false), just_tp(false), m_connection_hdl(hdl), m_tag(boost::uuids::random_generator()()), m_name(get_tag())
+    : auth(false), auth_guest(false), just_tp(false), m_connection_hdl(hdl), m_tag(boost::uuids::random_generator()()), m_name(get_tag()), m_sender(server)
 {
   try {
     auto con = server.get_con_from_hdl(hdl);
@@ -83,6 +84,66 @@ void PlayerState::send_privs(WsServer& sender) {
   } catch(websocketpp::exception const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
   }
+}
+void PlayerState::send_inv(WsServer& sender) {
+  try {
+    for(auto it : data.inventory.inventory) {
+      send_inv(it.first);
+    }
+    sender.send(m_connection_hdl, "{\"type\": \"inv_ready\"}", websocketpp::frame::opcode::text);
+  } catch(websocketpp::exception const& e) {
+    log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
+  }
+}
+void PlayerState::send_inv(std::string list_name) {
+  try {
+    if(!data.inventory.has_list(list_name)) {
+      return;
+    }
+    
+    std::ostringstream out;
+    out << "{\"type\":\"inv_list\","
+        << "\"ref\":{\"objType\":\"player\",\"objID\":null,\"listName\":\"" << json_escape(list_name) << "\", \"index\": null},"
+        << "\"list\":[";
+    
+    bool first = true;
+    InvList& list = data.inventory.get(list_name);
+    for(auto item : list.list) {
+      if(!first)
+        out << ",";
+      first = false;
+      out << item.as_json();
+    }
+    
+    out << "]}";
+    m_sender.send(m_connection_hdl, out.str(), websocketpp::frame::opcode::text);
+  } catch(websocketpp::exception const& e) {
+    log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
+  }
+}
+
+bool PlayerState::inv_give(InvStack stack) {
+  InvList& list = data.inventory.get("main");
+  if(list.is_nil)
+    return false;
+  
+  return list.give(stack);
+}
+
+InvStack PlayerState::inv_get(std::string list_name, int index) {
+  InvList& list = data.inventory.get(list_name);
+  if(list.is_nil)
+    return InvStack();
+  
+  return list.get_at(index);
+}
+
+bool PlayerState::inv_take_at(std::string list_name, int index, InvStack to_take) {
+  InvList& list = data.inventory.get(list_name);
+  if(list.is_nil)
+    return false;
+  
+  return list.take_at(index, to_take);
 }
 
 bool PlayerState::needs_mapblock_update(MapblockUpdateInfo info) {

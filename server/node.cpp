@@ -41,6 +41,7 @@ void load_node_defs(std::string filename) {
     def->pass_sunlight = n.second.get<bool>("passSunlight");
     def->light_level = n.second.get<int>("lightLevel");
     def->is_fluid = n.second.get<bool>("isFluid");
+    def->can_dig = true;
     
     all_node_defs[itemstring] = def;
     
@@ -56,5 +57,5 @@ NodeDef get_node_def(std::string itemstring) {
     return *(search->second);
   }
   
-  return NodeDef("nothing");
+  return NodeDef();
 }

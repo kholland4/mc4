@@ -91,6 +91,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(player->auth || player->auth_guest) {
         player->send_pos(m_server);
         player->send_privs(m_server);
+        player->send_inv(m_server);
         
         player->prepare_nearby_mapblocks(2, 3, 0, map);
         player->prepare_nearby_mapblocks(1, 2, 1, map);
@@ -221,7 +222,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       player->prepare_nearby_mapblocks(2, 3, 0, map);
       player->prepare_nearby_mapblocks(1, 2, 1, map);
-    } else if(type == "set_node") {
+    }/* else if(type == "set_node") {
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       Node node(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
       
@@ -254,28 +255,150 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       std::cout << "set_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
 #endif
+    }*/ else if(type == "dig_node") {
+      MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
+      int wield_index = pt.get<int>("wield");
+      Node existing(pt.get<std::string>("existing.itemstring"), pt.get<unsigned int>("existing.rot"));
       
-      /*MapPos<int> mb_pos = global_to_mapblock(pos);
-      MapPos<int> min_pos = mb_pos - MapPos<int>(1, 1, 1, 0, 0, 0);
-      MapPos<int> max_pos = mb_pos + MapPos<int>(1, 1, 1, 0, 0, 0);
-      std::vector<MapPos<int>> mapblock_list;
-      mapblock_list.push_back(mb_pos); //Send the main affected mapblock first.
-      for(int universe = min_pos.universe; universe <= max_pos.universe; universe++) {
-        for(int world = min_pos.world; world <= max_pos.world; world++) {
-          for(int w = min_pos.w; w <= max_pos.w; w++) {
-            for(int x = min_pos.x; x <= max_pos.x; x++) {
-              for(int y = min_pos.y; y <= max_pos.y; y++) {
-                for(int z = min_pos.z; z <= max_pos.z; z++) {
-                  MapPos<int> rel_mb_pos(x, y, z, w, world, universe);
-                  if(rel_mb_pos == mb_pos) { continue; }
-                  mapblock_list.push_back(rel_mb_pos);
-                }
-              }
-            }
-          }
-        }
+      Node target = map.get_node(pos);
+      
+      if(existing != target) {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name()
+                                                 + " attempted to dig node '" + existing.itemstring + "' at " + pos.to_string() + " but it has since changed");
+        //TODO tell the client
+        return;
       }
-      player->update_mapblocks(mapblock_list, map, m_server);*/
+      
+      MapPos<int> player_pos_int((int)std::round(player->pos.x), (int)std::round(player->pos.y), (int)std::round(player->pos.z), player->pos.w, player->pos.world, player->pos.universe);
+      MapBox<int> bounding(player_pos_int - PLAYER_LIMIT_REACH_DISTANCE, player_pos_int + PLAYER_LIMIT_REACH_DISTANCE);
+      if(!bounding.contains(pos)) {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' at " + player_pos_int.to_string()
+                                                 + " attempted to dig node '" + target.itemstring + "' far away at " + pos.to_string());
+        return;
+      }
+      
+      NodeDef target_def = get_node_def(target.itemstring);
+      if(target_def.itemstring == "nothing") {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to dig nonexistent node '" + target.itemstring + "' at " + pos.to_string());
+        return;
+      } else if(!target_def.can_dig) {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to dig '" + target.itemstring + "' at " + pos.to_string() + ", but digging this node is not allowed");
+        return;
+      }
+      
+      //TODO check tool
+      
+      log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' digs '" + target.itemstring + "' at " + pos.to_string());
+      
+#ifdef DEBUG_PERF
+      auto start = std::chrono::steady_clock::now();
+#endif
+      
+      map.set_node(pos, Node("air"), target);
+      
+#ifdef DEBUG_PERF
+      auto end = std::chrono::steady_clock::now();
+      auto diff = end - start;
+      
+      std::cout << "dig_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
+#endif
+      
+      //TODO consume tool
+      
+      //give the dug node to the player
+      //TODO handle drops
+      InvStack to_give(target.itemstring, 1, std::nullopt, std::nullopt);
+      
+      if(player->inv_give(to_give)) {
+        player->send_inv("main");
+      } else {
+        //TODO
+      }
+      
+      if(player->auth) {
+        db.update_player_data(player->get_data());
+      }
+    } else if(type == "place_node") {
+      MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
+      int wield_index = pt.get<int>("wield");
+      Node to_place(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
+      
+      InvStack wield_stack = player->inv_get("main", wield_index);
+      
+      if(wield_stack.is_nil) {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name()
+                                                 + " attempted to place node '" + to_place.itemstring + " but they are not wielding anything");
+        //TODO tell the client
+        return;
+      }
+      if(to_place.itemstring != wield_stack.itemstring) {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name()
+                                                 + " attempted to place node '" + to_place.itemstring + " but they are really wielding '" + wield_stack.itemstring + "'");
+        //TODO tell the client
+        return;
+      }
+      
+      MapPos<int> player_pos_int((int)std::round(player->pos.x), (int)std::round(player->pos.y), (int)std::round(player->pos.z), player->pos.w, player->pos.world, player->pos.universe);
+      MapBox<int> bounding(player_pos_int - PLAYER_LIMIT_REACH_DISTANCE, player_pos_int + PLAYER_LIMIT_REACH_DISTANCE);
+      if(!bounding.contains(pos)) {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' at " + player_pos_int.to_string()
+                                                 + " attempted to place node '" + to_place.itemstring + "' far away at " + pos.to_string());
+        return;
+      }
+      
+      NodeDef to_place_def = get_node_def(to_place.itemstring);
+      if(to_place_def.itemstring == "nothing") {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to place nonexistent node '" + to_place.itemstring + "' at " + pos.to_string());
+        return;
+      }
+      
+      //take the dug node from the player
+      InvStack to_take(to_place.itemstring, 1, std::nullopt, std::nullopt);
+      if(player->inv_take_at("main", wield_index, to_take)) {
+        player->send_inv("main");
+      } else {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to place '" + to_place.itemstring + " but they don't have any in inventory");
+        return;
+      }
+      if(player->auth) {
+        db.update_player_data(player->get_data());
+      }
+      
+      log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' places '" + to_place.itemstring + "' at " + pos.to_string());
+      
+#ifdef DEBUG_PERF
+      auto start = std::chrono::steady_clock::now();
+#endif
+      
+      map.set_node(pos, to_place, Node("air"));
+      
+#ifdef DEBUG_PERF
+      auto end = std::chrono::steady_clock::now();
+      auto diff = end - start;
+      
+      std::cout << "place_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
+#endif
+    } else if(type == "inv_swap") {
+      InvRef ref1(pt.get<std::string>("ref1.objType"), pt.get<std::string>("ref1.objID"), pt.get<std::string>("ref1.listName"), pt.get<int>("ref1.index"));
+      InvRef ref2(pt.get<std::string>("ref2.objType"), pt.get<std::string>("ref2.objID"), pt.get<std::string>("ref2.listName"), pt.get<int>("ref2.index"));
+      
+      if(ref1.obj_type != "player" || ref2.obj_type != "player") {
+        log(LogSource::SERVER, LogLevel::NOTICE, "inv_swap: unsupported obj_type '" + ref1.obj_type + "' '" + ref2.obj_type + "'");
+        return;
+      }
+      
+      InvStack stack1 = player->data.inventory.get_at(ref1);
+      InvStack stack2 = player->data.inventory.get_at(ref2);
+      player->data.inventory.set_at(ref1, stack2);
+      player->data.inventory.set_at(ref2, stack1);
+      player->send_inv(ref1.list_name);
+      if(ref1.list_name != ref2.list_name)
+        player->send_inv(ref2.list_name);
+      
+      //TODO craft grid
+      //TODO generic send diffs for interested inventories function
+    } else if(type == "inv_distribute") {
+      //TODO
     } else if(type == "send_chat") {
       std::string from = player->get_name();
       std::string channel = pt.get<std::string>("channel");

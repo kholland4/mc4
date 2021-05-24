@@ -33,6 +33,9 @@ class Node {
     bool operator==(const Node& other) {
       return itemstring == other.itemstring && rot == other.rot;
     };
+    bool operator!=(const Node& other) {
+      return !operator==(other);
+    };
     
     std::string itemstring;
     unsigned int rot;
@@ -40,13 +43,14 @@ class Node {
 
 class NodeDef {
   public:
-    NodeDef() : itemstring("nothing"), transparent(false), pass_sunlight(false), light_level(0), is_fluid(false) {};
-    NodeDef(std::string _itemstring) : itemstring(_itemstring), transparent(false), pass_sunlight(false), light_level(0), is_fluid(false) {};
+    NodeDef() : itemstring("nothing"), transparent(false), pass_sunlight(false), light_level(0), is_fluid(false), can_dig(false) {};
+    NodeDef(std::string _itemstring) : itemstring(_itemstring), transparent(false), pass_sunlight(false), light_level(0), is_fluid(false), can_dig(true) {};
     std::string itemstring;
     bool transparent;
     bool pass_sunlight;
     int light_level;
     bool is_fluid;
+    bool can_dig;
 };
 
 void load_node_defs(std::string filename);

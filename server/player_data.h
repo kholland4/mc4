@@ -20,6 +20,7 @@
 #define __PLAYER_DATA_H__
 
 #include "vector.h"
+#include "inventory.h"
 
 #include <set>
 
@@ -39,6 +40,7 @@ class PlayerData {
     Quaternion rot;
     
     std::set<std::string> privs;
+    InvSet inventory;
     
     bool is_nil;
     

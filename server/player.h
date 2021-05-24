@@ -28,6 +28,7 @@
 #include "player_data.h"
 #include "player_auth.h"
 #include "log.h"
+#include "inventory.h"
 
 #include <chrono>
 #include <shared_mutex>
@@ -81,6 +82,12 @@ class PlayerState {
     
     void send_pos(WsServer& sender);
     void send_privs(WsServer& sender);
+    void send_inv(WsServer& sender);
+    void send_inv(std::string list_name);
+    
+    bool inv_give(InvStack stack);
+    InvStack inv_get(std::string list_name, int index);
+    bool inv_take_at(std::string list_name, int index, InvStack to_take);
     
     bool needs_mapblock_update(MapblockUpdateInfo info);
     unsigned int send_mapblock_compressed(MapblockCompressed *mbc, WsServer& sender);
@@ -147,6 +154,7 @@ class PlayerState {
     connection_hdl m_connection_hdl;
     boost::uuids::uuid m_tag;
     std::string m_name;
+    WsServer& m_sender;
 };
 
 #endif

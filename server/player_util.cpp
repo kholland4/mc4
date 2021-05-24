@@ -24,6 +24,11 @@ void init_player_data(PlayerData &data) {
   data.pos.set(0, 20, 0, 0, 0, 0);
   data.vel.set(0, 0, 0, 0, 0, 0);
   data.rot.set(0, 0, 0, 0);
+  
+  data.inventory.add("main", InvList(32));
+  data.inventory.add("craft", InvList(9));
+  data.inventory.add("craftOutput", InvList(1));
+  data.inventory.add("hand", InvList(1));
 }
 
 bool validate_player_name(std::string name) {
