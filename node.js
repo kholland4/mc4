@@ -314,7 +314,7 @@ function calcDigTime(node, tool) {
 }
 
 function useTool(node, inv, listName, index) {
-  var tool = inv.getStack(listName, index);
+  /*var tool = inv.getStack(listName, index);
   var digTime = calcDigTimeActual(node, tool);
   if(digTime != null) {
     if(tool.wear != null) {
@@ -322,7 +322,7 @@ function useTool(node, inv, listName, index) {
       if(tool.wear <= 0) { tool = null; }
       inv.setStack(listName, index, tool);
     }
-  }
+  }*/
 }
 
 api.Node = Node;

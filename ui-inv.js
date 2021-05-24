@@ -1,6 +1,6 @@
 /*
     mc4, a web voxel building game
-    Copyright (C) 2019 kholland4
+    Copyright (C) 2019-2021 kholland4
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -58,13 +58,17 @@ function uiRenderItemStack(stack) {
   return container;
 }
 
-function uiRenderInventoryList(inv, listName, kwargs) {
-  var list = inv.getList(listName);
+function uiRenderInventoryList(ref, kwargs) {
+  var list = server.invGetList(ref);
   
-  var args = Object.assign({start: 0, count: list.length, width: list.length, interactive: true, onUpdate: function() {}, scrollHeight: null}, kwargs);
+  var args = Object.assign({start: 0, count: list.length, width: list.length, interactive: true, scrollHeight: null}, kwargs);
   
   var container = document.createElement("div");
   container.className = "uiInvList";
+  container.dataset.inv = JSON.stringify({
+    ref: ref,
+    args: kwargs
+  });
   
   for(var i = args.start; i < args.start + args.count; i++) {
     var sq = document.createElement("div");
@@ -82,16 +86,12 @@ function uiRenderInventoryList(inv, listName, kwargs) {
     
     if(args.interactive) {
       sq.onclick = function() {
-        uiInteractInventoryList(this.inv, this.listName, this.index, "leftclick");
-        uiUpdateInventoryList(this.inv, this.listName, this.args, this.container);
-        this.args.onUpdate();
-      }.bind({inv: inv, listName: listName, index: i, args: args, container: container});
+        uiInteractInventoryList(this.ref.cloneWithIndex(this.index), "leftclick");
+      }.bind({ref: ref, index: i, args: args, container: container});
       sq.oncontextmenu = function(e) {
         e.preventDefault();
-        uiInteractInventoryList(this.inv, this.listName, this.index, "rightclick");
-        uiUpdateInventoryList(this.inv, this.listName, this.args, this.container);
-        this.args.onUpdate();
-      }.bind({inv: inv, listName: listName, index: i, args: args, container: container});
+        uiInteractInventoryList(this.ref.cloneWithIndex(this.index), "rightclick");
+      }.bind({ref: ref, index: i, args: args, container: container});
     }
     
     container.appendChild(sq);
@@ -128,8 +128,8 @@ function uiRenderInventoryList(inv, listName, kwargs) {
 }
 
 //FIXME: check that container.children.length == args.count
-function uiUpdateInventoryList(inv, listName, kwargs, container) {
-  var list = inv.getList(listName);
+function uiUpdateInventoryList(ref, kwargs, container) {
+  var list = server.invGetList(ref);
   
   var args = Object.assign({start: 0, count: list.length, width: list.length + 1, interactive: true}, kwargs);
   
@@ -173,80 +173,56 @@ function uiUpdateInventoryList(inv, listName, kwargs, container) {
   return container;
 }
 
-function uiInteractInventoryList(inv, listName, index, type="leftclick") {
-  var handInv = player.inventory;
-  var handListName = "hand";
-  var handListIndex = 0;
+function uiInteractInventoryList(ref, type="leftclick") {
+  var handRef = new InvRef("player", null, "hand", 0);
   
-  var handStack = handInv.getStack(handListName, handListIndex);
-  var targetStack = inv.getStack(listName, index);
+  var handStack = server.invGetStack(handRef);
+  var targetStack = server.invGetStack(ref);
   
   var typeMatch = false;
+  var def;
   if(handStack != null && targetStack != null) {
     if(targetStack.typeMatch(handStack)) {
       typeMatch = true;
+      def = targetStack.getDef();
     }
   }
   
   if(type == "leftclick") {
-    if(typeMatch) {
+    if(typeMatch && def.stackable) {
       if(targetStack.count < targetStack.getDef().maxStack) {
         var amt = Math.min(handStack.count, targetStack.getDef().maxStack - targetStack.count);
-        targetStack.count += amt;
-        handStack.count -= amt;
-        if(handStack.count <= 0) { handStack = null; }
-        handInv.setStack(handListName, handListIndex, handStack);
-        inv.setStack(listName, index, targetStack);
+        server.invDistribute(ref, targetStack.count + amt, handRef, handStack.count - amt);
       } else {
-        handInv.setStack(handListName, handListIndex, targetStack);
-        inv.setStack(listName, index, handStack);
+        server.invSwap(ref, handRef);
       }
     } else {
-      handInv.setStack(handListName, handListIndex, targetStack);
-      inv.setStack(listName, index, handStack);
+      server.invSwap(ref, handRef);
     }
   } else if(type == "rightclick") {
-    if(typeMatch) {
+    if(typeMatch && def.stackable) {
       if(targetStack.count < targetStack.getDef().maxStack) {
         var amt = 1;
-        targetStack.count += amt;
-        handStack.count -= amt;
-        if(handStack.count <= 0) { handStack = null; }
-        handInv.setStack(handListName, handListIndex, handStack);
-        inv.setStack(listName, index, targetStack);
+        server.invDistribute(ref, targetStack.count + amt, handRef, handStack.count - amt);
       } else {
-        handInv.setStack(handListName, handListIndex, targetStack);
-        inv.setStack(listName, index, handStack);
+        server.invSwap(ref, handRef);
       }
     } else if(targetStack == null && handStack != null) {
       if(handStack.getDef().maxStack > 1 && handStack.getDef().stackable) {
         var amt = 1;
-        targetStack = handStack.clone();
-        targetStack.count = amt;
-        handStack.count -= amt;
-        if(handStack.count <= 0) { handStack = null; }
-        handInv.setStack(handListName, handListIndex, handStack);
-        inv.setStack(listName, index, targetStack);
+        server.invDistribute(ref, amt, handRef, handStack.count - amt);
       } else {
-        handInv.setStack(handListName, handListIndex, targetStack);
-        inv.setStack(listName, index, handStack);
+        server.invSwap(ref, handRef);
       }
     } else if(targetStack != null && handStack == null) {
       if(targetStack.count > 1 && targetStack.getDef().stackable) {
         var amt = Math.ceil(targetStack.count / 2);
-        handStack = targetStack.clone();
-        handStack.count = amt;
-        targetStack.count -= amt;
-        if(targetStack.count <= 0) { targetStack = null; }
-        handInv.setStack(handListName, handListIndex, handStack);
-        inv.setStack(listName, index, targetStack);
+        server.invDistribute(ref, targetStack.count - amt, handRef, amt);
       } else {
-        handInv.setStack(handListName, handListIndex, targetStack);
-        inv.setStack(listName, index, handStack);
+        server.invSwap(ref, handRef);
       }
     } else {
-      handInv.setStack(handListName, handListIndex, targetStack);
-      inv.setStack(listName, index, handStack);
+      server.invSwap(ref, handRef);
     }
   }
 }
@@ -256,18 +232,14 @@ api.registerOnFrame(uiUpdateHand);
 //---
 
 var uiHandVisible = false;
-var uiHandInv;
-var uiHandListName;
-var uiHandIndex;
+var uiHandRef;
 
-function uiShowHand(inv, listName, index) {
-  uiHandInv = inv;
-  uiHandListName = listName;
-  uiHandIndex = index;
+function uiShowHand(ref) {
+  uiHandRef = ref;
   
   var el = document.getElementById("uiHand");
   while(el.firstChild) { el.removeChild(el.firstChild); }
-  el.appendChild(uiRenderInventoryList(uiHandInv, uiHandListName, {start: uiHandIndex, count: 1, interactive: false}));
+  el.appendChild(uiRenderInventoryList(uiHandRef, {start: uiHandRef.index, count: 1, interactive: false}));
   el.children[0].children[0].className += " uiHand_square";
   
   el.style.display = "block";
@@ -282,7 +254,7 @@ function uiHideHand() {
 function uiUpdateHand() {
   if(uiHandVisible) {
     var el = document.getElementById("uiHand");
-    uiUpdateInventoryList(uiHandInv, uiHandListName, {start: uiHandIndex, count: 1, interactive: false}, el);
+    uiUpdateInventoryList(uiHandRef, {start: uiHandRef.index, count: 1, interactive: false}, el);
     
     el.style.left = api.mouse.x + "px";
     el.style.top = api.mouse.y + "px";

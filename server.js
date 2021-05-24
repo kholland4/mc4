@@ -21,6 +21,25 @@
 var SERVER_REMOTE_UPDATE_INTERVAL = 0.25; //how often to send updates about, i. e., the player position to the remote server
 var serverUncacheDist = new MapPos(7, 4, 7, 2, 0, 0);
 
+class InvRef {
+  constructor(objType, objID, listName, index) {
+    this.objType = objType;
+    this.objID = objID;
+    this.listName = listName;
+    this.index = index;
+  }
+  
+  cloneWithIndex(index) {
+    return new InvRef(this.objType, this.objID, this.listName, index);
+  }
+  
+  sameList(other) {
+    return this.objType == other.objType &&
+           compareObj(this.objID, other.objID) &&
+           this.listName == other.listName;
+  }
+}
+
 class ServerBase {
   constructor() {
     this.entities = {};
@@ -102,121 +121,74 @@ class ServerBase {
     this.setMapBlock(mapBlockPos, mapBlock);
   }
   
-  digNode(player, pos) {
-    var nodeData = this.getNode(pos);
-    var stack = ItemStack.fromNodeData(nodeData);
+  calcPlaceRot(nodeData, pos, pos_on) {
+    var nodeDef = nodeData.getDef();
     
-    var canGive = player.inventory.canGive("main", stack);
-    if(player.creativeDigPlace && player.inventory.canTake("main", stack)) {
-      canGive = true;
-    }
-    if(canGive) {
-      if(player.creativeDigPlace && player.inventory.canTake("main", stack)) {
-        //player already has this item, no need to give them more
-      } else {
-        player.inventory.give("main", stack);
+    if(nodeDef.setRotOnPlace && nodeDef.rotDataType == "rot") {
+      var rotAxis = 0; //the face that will be on top of the block; 0=+y, 1=-y, 2=+x, 3=+z, 4=-x, 5=-z
+      var rotFace = 0;
+      if(pos.equals(pos_on)) {
+        //pretend we're placing on the ground
+        pos_on = pos.add(new MapPos(0, -1, 0, 0, 0, 0));
       }
-      this.setNode(pos, new NodeData("air"));
       
-      debug("server", "log", "dig " + nodeData.itemstring + " at " + pos.toString());
-      
-      return true;
-    }
-    
-    return false;
-  }
-  placeNode(player, pos, pos_on) {
-    if(player.wield == null) { return false; }
-    
-    var stack = player.wield;
-    if(player.wield.getDef().stackable) {
-      stack = player.wield.clone();
-      stack.count = 1;
-    }
-    
-    var def = stack.getDef();
-    if(!def.isNode) { return false; }
-    
-    if(player.inventory.canTakeIndex("main", player.wieldIndex, stack)) {
-      if(!player.creativeDigPlace) {
-        player.inventory.takeIndex("main", player.wieldIndex, stack);
-      }
-      var nodeData = NodeData.fromItemStack(stack);
-      var nodeDef = nodeData.getDef();
-      if(nodeDef.setRotOnPlace && nodeDef.rotDataType == "rot") {
-        var rotAxis = 0; //the face that will be on top of the block; 0=+y, 1=-y, 2=+x, 3=+z, 4=-x, 5=-z
-        var rotFace = 0;
-        if(pos.equals(pos_on)) {
-          //pretend we're placing on the ground
-          pos_on = pos.add(new MapPos(0, -1, 0, 0, 0, 0));
+      if(pos_on.add(new MapPos(0, 1, 0, 0, 0, 0)).equals(pos) ||
+         pos_on.add(new MapPos(0, -1, 0, 0, 0, 0)).equals(pos)) {
+        //on ground or ceiling
+        if(pos_on.add(new MapPos(0, 1, 0, 0, 0, 0)).equals(pos)) {
+          //on ground
+          rotAxis = 0;
+        } else {
+          //on ceiling
+          rotAxis = 1;
         }
-        
-        if(pos_on.add(new MapPos(0, 1, 0, 0, 0, 0)).equals(pos) ||
-           pos_on.add(new MapPos(0, -1, 0, 0, 0, 0)).equals(pos)) {
-          //on ground or ceiling
-          if(pos_on.add(new MapPos(0, 1, 0, 0, 0, 0)).equals(pos)) {
-            //on ground
-            rotAxis = 0;
-          } else {
-            //on ceiling
-            rotAxis = 1;
+        if(!nodeDef.limitRotOnPlace) {
+          //rotate based on player position
+          var euler = new THREE.Euler().setFromQuaternion(player.rot, "YXZ");
+          var yaw = euler.y;
+          
+          if(yaw >= (-3/4)*Math.PI && yaw <= (-1/4)*Math.PI) {
+            rotFace = 0;
+          } else if(yaw < (-3/4)*Math.PI || yaw > (3/4)*Math.PI) {
+            rotFace = 1;
+          } else if(yaw >= (1/4)*Math.PI && yaw <= (3/4)*Math.PI) {
+            rotFace = 2;
+          } else { //yaw > (-1/4)*Math.PI && yaw < (1/4)*Math.PI
+            rotFace = 3;
           }
-          if(!nodeDef.limitRotOnPlace) {
-            //rotate based on player position
-            var euler = new THREE.Euler().setFromQuaternion(player.rot, "YXZ");
-            var yaw = euler.y;
-            
-            if(yaw >= (-3/4)*Math.PI && yaw <= (-1/4)*Math.PI) {
-              rotFace = 0;
-            } else if(yaw < (-3/4)*Math.PI || yaw > (3/4)*Math.PI) {
-              rotFace = 1;
-            } else if(yaw >= (1/4)*Math.PI && yaw <= (3/4)*Math.PI) {
-              rotFace = 2;
-            } else { //yaw > (-1/4)*Math.PI && yaw < (1/4)*Math.PI
-              rotFace = 3;
-            }
-          }
-        } else if(pos_on.add(new MapPos(-1, 0, 0, 0, 0, 0)).equals(pos)) {
-          //+y face is pointing in the -x direction
-          rotAxis = 2;
-          rotFace = 2;
-        } else if(pos_on.add(new MapPos(1, 0, 0, 0, 0, 0)).equals(pos)) {
-          //+y face is pointing in the +x direction
-          rotAxis = 2;
-          rotFace = 0;
-        } else if(pos_on.add(new MapPos(0, 0, -1, 0, 0, 0)).equals(pos)) {
-          //+y face is pointing in the -z direction
-          rotAxis = 2;
-          rotFace = 3;
-        } else if(pos_on.add(new MapPos(0, 0, 1, 0, 0, 0)).equals(pos)) {
-          //+y face is pointing in the +z direction
-          rotAxis = 2;
-          rotFace = 1;
         }
-        
-        assert(rotAxis >= 0 && rotAxis < 6, "0 <= rotAxis < 6");
-        assert(rotFace >= 0 && rotFace < 4, "0 <= rotFace < 4");
-        nodeData.rot = (rotAxis << 2) | rotFace;
+      } else if(pos_on.add(new MapPos(-1, 0, 0, 0, 0, 0)).equals(pos)) {
+        //+y face is pointing in the -x direction
+        rotAxis = 2;
+        rotFace = 2;
+      } else if(pos_on.add(new MapPos(1, 0, 0, 0, 0, 0)).equals(pos)) {
+        //+y face is pointing in the +x direction
+        rotAxis = 2;
+        rotFace = 0;
+      } else if(pos_on.add(new MapPos(0, 0, -1, 0, 0, 0)).equals(pos)) {
+        //+y face is pointing in the -z direction
+        rotAxis = 2;
+        rotFace = 3;
+      } else if(pos_on.add(new MapPos(0, 0, 1, 0, 0, 0)).equals(pos)) {
+        //+y face is pointing in the +z direction
+        rotAxis = 2;
+        rotFace = 1;
       }
-      this.setNode(pos, nodeData);
       
-      debug("server", "log", "place " + stack.itemstring + " at " + pos.toString());
-      
-      return true;
+      assert(rotAxis >= 0 && rotAxis < 6, "0 <= rotAxis < 6");
+      assert(rotFace >= 0 && rotFace < 4, "0 <= rotFace < 4");
+      return (rotAxis << 2) | rotFace;
     }
     
-    return false;
+    return 0;
   }
+  
   nodeToPlace(player) {
     if(player.wield == null) { return null; }
     
     if(!player.wield.getDef().isNode) { return null; }
     
     return NodeData.fromItemStack(player.wield);
-  }
-  
-  getInventory(thing) {
-    return new Inventory();
   }
   
   onFrame(tscale) {}
@@ -249,6 +221,18 @@ class ServerBase {
   sendMessage(obj) {}
   isRemote() { return false; }
   connect() {}
+  postInit() {}
+  
+  updateInvDisplay(ref) {
+    var el = document.getElementsByClassName("uiInvList");
+    for(var i = 0; i < el.length; i++) {
+      var props = JSON.parse(el[i].dataset.inv);
+      var pRef = new InvRef(props.ref.objType, props.ref.objID, props.ref.listName, props.ref.index);
+      if(ref.sameList(pRef)) {
+        uiUpdateInventoryList(pRef, props.args, el[i]);
+      }
+    }
+  }
 }
 
 class ServerLocal extends ServerBase {
@@ -258,16 +242,32 @@ class ServerLocal extends ServerBase {
     this.map = map;
     
     this.playerInventory = {};
+    this.playerInventory["main"] = new Array(32).fill(null);
+    this.playerInventory["craft"] = new Array(9).fill(null);
+    this.playerInventory["craftOutput"] = new Array(1).fill(null);
+    this.playerInventory["hand"] = new Array(1).fill(null);
+    
+    this.playerInventory["creative"] = [];
+  }
+  
+  postInit() {
+    var allItemStrings = api.listAllItems();
+    for(var i = 0; i < allItemStrings.length; i++) {
+      var itemstring = allItemStrings[i];
+      var def = api.getItemDef(itemstring);
+      if(def == null) {
+        debug("server", "warning", "creative inventory: unable to retrieve definition for '" + itemstring + "'");
+        continue;
+      }
+      if(!def.inCreativeInventory) { continue; }
+      
+      var stack = new api.ItemStack(itemstring);
+      this.playerInventory["creative"].push(stack);
+    }
   }
   
   //TODO: support multiple players
   addPlayer(player) {
-    var inv = this.getInventory(player);
-    
-    inv.setList("main", new Array(32).fill(null));
-    inv.setList("craft", new Array(9).fill(null));
-    inv.setList("hand", new Array(1).fill(null));
-    
     var playerEntity = new Entity();
     playerEntity.updatePosVelRot(player.pos, player.vel, player.rot);
     player.registerUpdateHook(playerEntity.updatePosVelRot.bind(playerEntity));
@@ -287,42 +287,406 @@ class ServerLocal extends ServerBase {
   }
   //No need to implement requestMapBlock, as it wouldn't do anything meaningful.
   
-  getInventory(thing) {
-    if(thing instanceof Player) {
-      var inv = new Inventory();
-      inv._getList = function(name) {
-        if(name in this.playerInventory) {
-          return this.playerInventory[name];
-        }
-        return [];
-      }.bind(this);
-      inv._setList = function(name, data) {
-        this.playerInventory[name] = data;
-        return true;
-      }.bind(this);
-      
-      inv._getStack = function(name, index) {
-        if(name in this.playerInventory) {
-          var list = this.playerInventory[name];
-          if(index < list.length) {
-            return list[index];
-          }
-        }
-        return null;
-      }.bind(this);
-      inv._setStack = function(name, index, data) {
-        if(name in this.playerInventory) {
-          var list = this.playerInventory[name];
-          if(index < list.length) {
-            list[index] = data;
-            return true;
-          }
-        }
-        return false;
-      }.bind(this);
-      
-      return inv;
+  digNode(player, pos) {
+    var nodeData = this.getNode(pos);
+    var stack = ItemStack.fromNodeData(nodeData);
+    
+    var canGive = this.invCanGive(new InvRef("player", null, "main", null), stack);
+    if(player.creativeDigPlace && this.invCanTake(new InvRef("player", null, "main", null), stack)) {
+      canGive = true;
     }
+    if(canGive) {
+      if(player.creativeDigPlace && this.invCanTake(new InvRef("player", null, "main", null), stack)) {
+        //player already has this item, no need to give them more
+      } else {
+        this.invGive(new InvRef("player", null, "main", null), stack);
+      }
+      this.setNode(pos, new NodeData("air"));
+      
+      debug("server", "log", "dig " + nodeData.itemstring + " at " + pos.toString());
+      
+      return true;
+    }
+    
+    return false;
+  }
+  
+  placeNode(player, pos, pos_on) {
+    if(player.wield == null) { return false; }
+    
+    var stack = player.wield;
+    if(player.wield.getDef().stackable) {
+      stack = player.wield.clone();
+      stack.count = 1;
+    }
+    
+    var def = stack.getDef();
+    if(!def.isNode) { return false; }
+    
+    if(this.invCanTakeIndex(new InvRef("player", null, "main", player.wieldIndex), stack)) {
+      if(!player.creativeDigPlace) {
+        this.invTakeIndex(new InvRef("player", null, "main", player.wieldIndex), stack);
+      }
+      var nodeData = NodeData.fromItemStack(stack);
+      nodeData.rot = this.calcPlaceRot(nodeData);
+      this.setNode(pos, nodeData);
+      
+      debug("server", "log", "place " + stack.itemstring + " at " + pos.toString());
+      
+      return true;
+    }
+    
+    return false;
+  }
+  
+  invGetList(ref) {
+    if(ref.objType == "player") {
+      if(ref.listName in this.playerInventory) {
+        return this.playerInventory[ref.listName];
+      }
+      return [];
+    }
+    
+    throw new Error("unsupported inventory object type: " + ref.objType);
+  }
+  invSetList(ref, list) {
+    if(ref.objType == "player") {
+      if(ref.listName in this.playerInventory) {
+        this.playerInventory[ref.listName] = list;
+        this.updateInvDisplay(ref);
+        return true;
+      }
+      return false;
+    }
+    
+    throw new Error("unsupported inventory object type: " + ref.objType);
+  }
+  invGetStack(ref) {
+    if(ref.objType == "player") {
+      if(ref.listName in this.playerInventory) {
+        var list = this.playerInventory[ref.listName];
+        if(ref.index < list.length) {
+          return list[ref.index];
+        }
+      }
+      return null;
+    }
+    
+    throw new Error("unsupported inventory object type: " + ref.objType);
+  }
+  invSetStack(ref, stack) {
+    if(ref.objType == "player") {
+      if(ref.listName in this.playerInventory) {
+        var list = this.playerInventory[ref.listName];
+        if(ref.index < list.length) {
+          list[ref.index] = stack;
+          this.updateInvDisplay(ref);
+          return true;
+        }
+      }
+      return false;
+    }
+    
+    throw new Error("unsupported inventory object type: " + ref.objType);
+  }
+  
+  invTryOverride(first, second, stack1, stack2) {
+    //Creative inventory
+    if(first.objType == "player" && first.listName == "creative") {
+      if(stack2 != null)
+        return false;
+      this.invSetStack(second, stack1);
+      return true;
+    }
+    if(second.objType == "player" && second.listName == "creative") {
+      if(stack1 != null)
+        return false;
+      this.invSetStack(first, stack2);
+      return true;
+    }
+    
+    //Craft output
+    if((first.objType == "player" && first.listName == "craftOutput") ||
+       (second.objType == "player" && second.listName == "craftOutput")) {
+      if(second.objType == "player" && second.listName == "craftOutput") {
+        var temp = first;
+        first = second;
+        second = temp;
+        temp = stack1;
+        stack1 = stack2;
+        stack2 = temp;
+      }
+      
+      var craftRef = new InvRef("player", null, "craft", null);
+      var craftList = this.invGetList(craftRef);
+      var r = getCraftRes(craftList, {x: 3, y: 3});
+      if(r == null)
+        return false;
+      
+      if(stack1 == null)
+        return false;
+      
+      if(stack2 != null) {
+        if(!stack2.typeMatch(stack1))
+          return false;
+        var def = stack1.getDef();
+        if(!def.stackable)
+          return false;
+        if(stack1.count + stack2.count > def.maxStack)
+          return false;
+        
+        stack2.count += stack1.count;
+      } else {
+        stack2 = stack1;
+      }
+      
+      craftConsumeEntry(r, craftList, {x: 3, y: 3});
+      this.invSetList(craftRef, craftList);
+      this.invSetStack(second, stack2);
+      
+      var craftRes = null;
+      var rNew = getCraftRes(this.invGetList(new InvRef("player", null, "craft", null)), {x: 3, y: 3});
+      if(rNew != null) {
+        craftRes = r.getRes();
+      }
+      this.invSetStack(new InvRef("player", null, "craftOutput", 0), craftRes);
+      
+      return true;
+    }
+    
+    return null;
+  }
+  
+  invSwap(first, second) {
+    var stack1 = this.invGetStack(first);
+    var stack2 = this.invGetStack(second);
+    
+    var res = this.invTryOverride(first, second, stack1, stack2);
+    if(res !== null)
+      return res;
+    
+    
+    var stack1 = this.invGetStack(first);
+    var stack2 = this.invGetStack(second);
+    this.invSetStack(first, stack2);
+    this.invSetStack(second, stack1);
+    
+    //Craft grid
+    if((first.objType == "player" && first.listName == "craft") ||
+       (second.objType == "player" && second.listName == "craft")) {
+      var craftRes = null;
+      var r = getCraftRes(this.invGetList(new InvRef("player", null, "craft", null)), {x: 3, y: 3});
+      if(r != null) {
+        craftRes = r.getRes();
+      }
+      this.invSetStack(new InvRef("player", null, "craftOutput", 0), craftRes);
+    }
+    
+    return true;
+  }
+  
+  invDistribute(first, qty1, second, qty2) {
+    var stack1 = this.invGetStack(first);
+    var stack2 = this.invGetStack(second);
+    
+    var res = this.invTryOverride(first, second, stack1, stack2);
+    if(res !== null)
+      return res;
+    
+    
+    if(stack1 == null && stack2 == null) {
+      throw new Error("nothing to distribute");
+    }
+    
+    if(stack1 != null && stack2 != null) {
+      if(!stack1.typeMatch(stack2)) {
+        throw new Error("cannot distribute differing itemstacks");
+      }
+      
+      var def = stack1.getDef();
+      if(!def.stackable) {
+        throw new Error("cannot distribute unstackable items");
+      }
+    }
+    
+    var def;
+    var combined;
+    var stack1Count = 0;
+    var stack2Count = 0;
+    if(stack1 != null) {
+      def = stack1.getDef();
+      stack1Count = stack1.count;
+      combined = stack1.clone();
+      if(stack2 != null) {
+        combined.count += stack2.count;
+        stack2Count = stack2.count;
+      }
+    } else {
+      def = stack2.getDef();
+      stack2Count = stack2.count;
+      combined = stack2.clone();
+      if(stack1 != null) {
+        combined.count += stack1.count;
+        stack1Count = stack1.count;
+      }
+    }
+    
+    if(!def.stackable) {
+      throw new Error("cannot distribute unstackable items");
+    }
+    
+    if(qty1 + qty2 != combined.count) {
+      throw new Error("distribute must conserve items");
+    }
+    if(qty1 > Math.max(stack1Count, stack2Count, def.maxStack) || qty2 > Math.max(stack1Count, stack2Count, def.maxStack)) {
+      throw new Error("cannot exceed max stack in distribute");
+    }
+    
+    var newStack1 = null;
+    if(qty1 > 0) {
+      newStack1 = combined.clone();
+      newStack1.count = qty1;
+    }
+    var newStack2 = null;
+    if(qty2 > 0) {
+      newStack2 = combined.clone();
+      newStack2.count = qty2;
+    }
+    this.invSetStack(first, newStack1);
+    this.invSetStack(second, newStack2);
+    
+    //Craft grid
+    if((first.objType == "player" && first.listName == "craft") ||
+       (second.objType == "player" && second.listName == "craft")) {
+      var craftRes = null;
+      var r = getCraftRes(this.invGetList(new InvRef("player", null, "craft", null)), {x: 3, y: 3});
+      if(r != null) {
+        craftRes = r.getRes();
+      }
+      this.invSetStack(new InvRef("player", null, "craftOutput", 0), craftRes);
+    }
+    
+    return true;
+  }
+  
+  invAutomerge(ref, qty, target) {
+    
+  }
+  
+  invCanGive(ref, stack) {
+    if(stack == null) { return true; }
+    
+    var list = this.invGetList(ref);
+    
+    var def = stack.getDef();
+    
+    var maxStack = def.maxStack;
+    var needed = stack.count;
+    var found = 0;
+    for(var i = 0; i < list.length; i++) {
+      if(list[i] == null) {
+        found += maxStack;
+      } else if(list[i].typeMatch(stack)) {
+        found += maxStack - list[i].count;
+      }
+      
+      if(found >= needed) { return true; }
+    }
+    
+    return false;
+  }
+  invGive(ref, stack) {
+    if(!this.invCanGive(ref, stack)) { return false; }
+    
+    if(stack == null) { return true; }
+    
+    var list = this.invGetList(ref);
+    
+    var def = stack.getDef();
+    
+    var maxStack = def.maxStack;
+    var needed = stack.count;
+    for(var i = 0; i < list.length; i++) {
+      if(list[i] != null) {
+        if(list[i].typeMatch(stack)) {
+          var avail = maxStack - list[i].count;
+          if(avail > 0) {
+            list[i].count += Math.min(avail, needed);
+            needed -= Math.min(avail, needed);
+          }
+        }
+      }
+      
+      if(needed <= 0) { break; }
+    }
+    
+    if(needed > 0) {
+      //FIXME: mutilates original stack
+      //FIXME: canGive vs give behavior differs on stacks where size > maxStack
+      stack.count = needed;
+      for(var i = 0; i < list.length; i++) {
+        if(list[i] == null) {
+          list[i] = stack;
+          needed -= list[i].count;
+        }
+        
+        if(needed <= 0) { break; }
+      }
+    }
+    
+    if(needed > 0) {
+      //TODO
+    }
+    
+    this.invSetList(ref, list);
+    
+    return true;
+  }
+  
+  invCanTake(ref, stack) {
+    if(stack == null) { return true; }
+    
+    var list = this.invGetList(ref);
+    
+    var needed = stack.count;
+    var found = 0;
+    for(var i = 0; i < list.length; i++) {
+      if(list[i] != null) {
+        if(list[i].typeMatch(stack)) {
+          found += list[i].count;
+        }
+      }
+      
+      if(found >= needed) { return true; }
+    }
+    
+    return false;
+  }
+  
+  invCanTakeIndex(ref, stack) {
+    var compStack = this.invGetStack(ref);
+    
+    if(compStack == null && stack != null) { return false; }
+    if(stack == null) { return true; }
+    
+    if(!compStack.typeMatch(stack)) { return false; }
+    if(compStack.count < stack.count) { return false; }
+    
+    return true;
+  }
+  invTakeIndex(ref, stack) {
+    if(!this.invCanTakeIndex(ref, stack)) { return false; }
+    
+    if(stack == null) { return true; }
+    
+    var compStack = this.invGetStack(ref);
+    
+    compStack.count -= stack.count;
+    if(compStack.count <= 0) { compStack = null; }
+    
+    this.invSetStack(ref, compStack);
+    
+    return true;
   }
 }
 
@@ -396,7 +760,7 @@ class MapBlockPatch {
   doRevert() {
     var mapBlock = this.server.getMapBlock(this.mapBlockPos);
     if(mapBlock == null) {
-      throw new Exception("cannot patch an unloaded mapblock");
+      throw new Error("cannot patch an unloaded mapblock");
     }
     var val = nodeN(mapBlock.getNodeID(this.oldNodeData.itemstring), this.oldNodeData.rot, this.oldLight);
     mapBlock.data[this.localPos.x][this.localPos.y][this.localPos.z] = val;
@@ -415,7 +779,7 @@ class MapBlockPatch {
   isAccepted() {
     var mapBlock = this.server.getMapBlock(this.mapBlockPos);
     if(mapBlock == null) {
-      throw new Exception("cannot patch an unloaded mapblock");
+      throw new Error("cannot patch an unloaded mapblock");
     }
     var actualNode = mapBlock.getNode(this.localPos);
     if(this.nodeData.itemstring == actualNode.itemstring && this.nodeData.rot == actualNode.rot) {
@@ -442,7 +806,7 @@ class ServerRemote extends ServerBase {
     this.player = null;
     this.timeSinceUpdateSent = 0;
     this._socketReady = false;
-    this._invReady = true;
+    this._invReady = false;
     this._authReady = false;
     this._posReady = false;
     this._authCredentials = null;
@@ -771,6 +1135,22 @@ class ServerRemote extends ServerBase {
         this._posReady = true;
       } else if(data.type == "set_player_privs") {
         this.player.privs = data.privs;
+      } else if(data.type == "inv_list") {
+        var ref = new InvRef(data.ref.objType, data.ref.objID, data.ref.listName, data.ref.index);
+        var list = data.list;
+        for(var i = 0; i < list.length; i++) {
+          if(list[i] == null)
+            continue;
+          list[i] = new ItemStack(list[i].itemstring, list[i].count, list[i].wear, list[i].data);
+        }
+        if(ref.objType == "player") {
+          this.playerInventory[ref.listName] = list;
+          this.updateInvDisplay(ref);
+        } else {
+          throw new Error("unsupported inventory object type: " + ref.objType);
+        }
+      } else if(data.type == "inv_ready") {
+        this._invReady = true;
       } else if(data.type == "auth_step") {
         if(data.message == "auth_ok") {
           this._authReady = true;
@@ -805,12 +1185,6 @@ class ServerRemote extends ServerBase {
   //TODO: support multiple players
   addPlayer(player) {
     this.player = player;
-    
-    var inv = this.getInventory(player);
-    
-    inv.setList("main", new Array(32).fill(null));
-    inv.setList("craft", new Array(9).fill(null));
-    inv.setList("hand", new Array(1).fill(null));
     
     var playerEntity = new Entity();
     playerEntity.doInterpolate = false;
@@ -884,7 +1258,7 @@ class ServerRemote extends ServerBase {
     }
   }
   
-  setNode(pos, nodeData) {
+  setNodePatchOnly(pos, nodeData) {
     //FIXME
     var patch = new MapBlockPatch(this, pos, nodeData);
     
@@ -902,6 +1276,10 @@ class ServerRemote extends ServerBase {
         this.patches.splice(index, 1);
       }
     }.bind(this, patch), 5000);
+  }
+  
+  setNode(pos, nodeData) {
+    this.setNodePatchOnly(pos, nodeData);
       
     if(this._socketReady) {
       this.socket.send(JSON.stringify({
@@ -912,46 +1290,55 @@ class ServerRemote extends ServerBase {
     }
   }
   
-  getInventory(thing) {
-    if(thing instanceof Player) {
-      var inv = new Inventory();
-      inv._getList = function(name) {
-        if(name in this.playerInventory) {
-          return this.playerInventory[name];
-        }
-        return [];
-      }.bind(this);
-      inv._setList = function(name, data) {
-        this.playerInventory[name] = data;
-        return true;
-      }.bind(this);
-      
-      inv._getStack = function(name, index) {
-        if(name in this.playerInventory) {
-          var list = this.playerInventory[name];
-          if(index < list.length) {
-            return list[index];
-          }
-        }
-        return null;
-      }.bind(this);
-      inv._setStack = function(name, index, data) {
-        if(name in this.playerInventory) {
-          var list = this.playerInventory[name];
-          if(index < list.length) {
-            list[index] = data;
-            return true;
-          }
-        }
-        return false;
-      }.bind(this);
-      
-      return inv;
+  digNode(player, pos) {
+    var nodeData = this.getNode(pos);
+    var stack = ItemStack.fromNodeData(nodeData);
+    
+    this.setNodePatchOnly(pos, new NodeData("air"));
+    
+    if(this._socketReady) {
+      this.socket.send(JSON.stringify({
+        type: "dig_node",
+        pos: {x: pos.x, y: pos.y, z: pos.z, w: pos.w, world: pos.world, universe: pos.universe},
+        wield: player.wieldIndex,
+        existing: nodeData
+      }));
     }
+    
+    return true;
+  }
+  
+  placeNode(player, pos, pos_on) {
+    if(player.wield == null) { return false; }
+    
+    var stack = player.wield;
+    if(player.wield.getDef().stackable) {
+      stack = player.wield.clone();
+      stack.count = 1;
+    }
+    
+    var def = stack.getDef();
+    if(!def.isNode) { return false; }
+    
+    var nodeData = NodeData.fromItemStack(stack);
+    nodeData.rot = this.calcPlaceRot(nodeData, pos, pos_on);
+    
+    this.setNodePatchOnly(pos, nodeData);
+    
+    if(this._socketReady) {
+      this.socket.send(JSON.stringify({
+        type: "place_node",
+        pos: {x: pos.x, y: pos.y, z: pos.z, w: pos.w, world: pos.world, universe: pos.universe},
+        wield: player.wieldIndex,
+        data: nodeData
+      }));
+    }
+    
+    return true;
   }
   
   get ready() {
-    return this._socketReady && this._invReady && this._authReady && this._posReady;
+    return this._socketReady && this._invReady && this._authReady && this._posReady && this._invReady;
   }
   
   onFrame(tscale) {
@@ -993,6 +1380,61 @@ class ServerRemote extends ServerBase {
     this.socket.send(JSON.stringify(obj));
   }
   isRemote() { return true; }
+  
+  invGetList(ref) {
+    if(ref.objType == "player") {
+      if(ref.listName in this.playerInventory) {
+        return this.playerInventory[ref.listName];
+      }
+      //return [];
+      throw new Error("no such inventory list: player/" + ref.listName);
+    }
+    
+    throw new Error("unsupported inventory object type: " + ref.objType);
+  }
+  invGetStack(ref) {
+    if(ref.objType == "player") {
+      if(ref.listName in this.playerInventory) {
+        var list = this.playerInventory[ref.listName];
+        if(ref.index < list.length) {
+          return list[ref.index];
+        }
+        
+        throw new Error("out of bounds inventory access: player/" + ref.listName + "/" + ref.index);
+      }
+      //return null;
+      throw new Error("no such inventory list: player/" + ref.listName);
+    }
+    
+    throw new Error("unsupported inventory object type: " + ref.objType);
+  }
+  invSwap(first, second) {
+    if(this._socketReady) {
+      this.socket.send(JSON.stringify({
+        type: "inv_swap",
+        ref1: first,
+        ref2: second
+      }));
+      return true;
+    }
+    return false;
+  }
+  invDistribute(first, qty1, second, qty2) {
+    if(this._socketReady) {
+      this.socket.send(JSON.stringify({
+        type: "inv_distribute",
+        ref1: first,
+        qty1: qty1,
+        ref2: second,
+        qty2: qty2
+      }));
+      return true;
+    }
+    return false;
+  }
+  invAutomerge(ref, qty, target) {
+    
+  }
 }
 
 api.getNode = function(pos) { return server.getNode(pos); };

@@ -138,3 +138,27 @@ function assert(val, message) {
     throw new Error("assertion failed: " + message);
   }
 }
+
+function compareObj(first, second) {
+  if(first === null && second === null) {
+    return true;
+  }
+  if(first === null || second === null) {
+    return false;
+  }
+  
+  var firstProps = Object.getOwnPropertyNames(first);
+  var secondProps = Object.getOwnPropertyNames(second);
+  
+  if(firstProps.length != secondProps.length) {
+    return false;
+  }
+  
+  for(var i = 0; i < firstProps.length; i++) {
+    if(first[firstProps[i]] !== second[firstProps[i]]) {
+      return false;
+    }
+  }
+  
+  return true;
+}

@@ -1,6 +1,6 @@
 /*
     mc4, a web voxel building game
-    Copyright (C) 2019 kholland4
+    Copyright (C) 2019-2021 kholland4
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,67 +30,8 @@
     });
   });
   
-  mods.inventory.craftOutput = api.createTempInventory();
-  mods.inventory.craftOutput.setList("main", [null]);
   mods.inventory.craftOutputEl = null;
   mods.inventory.craftListEl = null;
-  
-  mods.inventory.updateCraftOutput = function() {
-    var list = api.player.inventory.getList("craft");
-    
-    var craftRes = api.getCraftRes(list, {x: 3, y: 3});
-    if(craftRes != null) { craftRes = craftRes.getRes(); }
-    mods.inventory.craftOutput.setStack("main", 0, craftRes);
-    
-    api.uiUpdateInventoryList(mods.inventory.craftOutput, "main", {interactive: true}, mods.inventory.craftOutputEl);
-  };
-  
-  mods.inventory.onCraftOutputTake = function() {
-    var list = api.player.inventory.getList("craft");
-    var craftEntry = api.getCraftRes(list, {x: 3, y: 3});
-    if(mods.inventory.craftOutput.getStack("main", 0) == null && craftEntry != null) {
-      craftConsumeEntry(craftEntry, api.player.inventory, "craft", {x: 3, y: 3});
-      api.uiUpdateInventoryList(api.player.inventory, "craft", {width: 3}, mods.inventory.craftListEl);
-      mods.inventory.updateCraftOutput();
-    } else if(mods.inventory.craftOutput.getStack("main", 0) != null) {
-      //FIXME - this is a bodge but it seems to work correctly
-      
-      if(api.player.inventory.getStack("hand", 0) == null) {
-        var handStack = api.player.inventory.getStack("hand", 0);
-        var targetStack = mods.inventory.craftOutput.getStack("main", 0);
-        api.player.inventory.setStack("hand", 0, targetStack);
-        mods.inventory.craftOutput.setStack("main", 0, handStack);
-        
-        if(craftEntry != null) {
-          craftConsumeEntry(craftEntry, api.player.inventory, "craft", {x: 3, y: 3});
-          api.uiUpdateInventoryList(api.player.inventory, "craft", {width: 3}, mods.inventory.craftListEl);
-        }
-      } else {
-        var handStack = api.player.inventory.getStack("hand", 0);
-        var targetStack = mods.inventory.craftOutput.getStack("main", 0);
-        
-        if(handStack.typeMatch(targetStack) && handStack.count + targetStack.count <= handStack.getDef().maxStack) {
-          handStack.count += targetStack.count;
-          targetStack = null;
-          api.player.inventory.setStack("hand", 0, handStack);
-          mods.inventory.craftOutput.setStack("main", 0, targetStack);
-          
-          if(craftEntry != null) {
-            craftConsumeEntry(craftEntry, api.player.inventory, "craft", {x: 3, y: 3});
-            api.uiUpdateInventoryList(api.player.inventory, "craft", {width: 3}, mods.inventory.craftListEl);
-          }
-        } else {
-          //swap
-          var handStack = api.player.inventory.getStack("hand", 0);
-          var targetStack = mods.inventory.craftOutput.getStack("main", 0);
-          api.player.inventory.setStack("hand", 0, targetStack);
-          mods.inventory.craftOutput.setStack("main", 0, handStack);
-        }
-      }
-      
-      mods.inventory.updateCraftOutput();
-    }
-  };
   
   mods.inventory.isOpen = false;
   mods.inventory.show = function() {
@@ -102,70 +43,28 @@
       var win = new api.UIWindow();
       
       if(mods.inventory.creative) {
-        mods.inventory.creativeDatastore = {"creative": []};
-        
-        var allItemStrings = api.listAllItems();
-        for(var i = 0; i < allItemStrings.length; i++) {
-          var itemstring = allItemStrings[i];
-          var def = api.getItemDef(itemstring);
-          if(def == null) {
-            api.modDebug("inventory", "warning", "creative inventory: unable to retrieve definition for '" + itemstring + "'");
-            continue;
-          }
-          if(!def.inCreativeInventory) { continue; }
-          
-          var stack = new api.ItemStack(itemstring);
-          mods.inventory.creativeDatastore["creative"].push(stack);
-        }
-        
-        mods.inventory.creativeInv = new api.Inventory();
-        var cinv = mods.inventory.creativeInv;
-        cinv._getList = function(name) {
-          if(name in mods.inventory.creativeDatastore) {
-            return mods.inventory.creativeDatastore[name];
-          }
-          return [];
-        };
-        cinv._setList = function(name, data) { return false; };
-        
-        cinv._getStack = function(name, index) {
-          if(name in mods.inventory.creativeDatastore) {
-            var list = mods.inventory.creativeDatastore[name];
-            if(index < list.length) {
-              if(list[index] instanceof ItemStack) {
-                return list[index].clone();
-              } else {
-                return list[index];
-              }
-            }
-          }
-          return null;
-        };
-        cinv._setStack = function(name, index, data) { return false; };
-        
-        mods.inventory.creativeInvEl = api.uiRenderInventoryList(mods.inventory.creativeInv, "creative", {width: 8, interactive: true, scrollHeight: 3});
+        mods.inventory.creativeInvEl = api.uiRenderInventoryList(new InvRef("player", null, "creative", null), {width: 8, interactive: true, scrollHeight: 3});
         
         win.add(mods.inventory.creativeInvEl);
         
         win.add(api.uiElement("spacer"));
       } else {
-        mods.inventory.craftListEl = api.uiRenderInventoryList(api.player.inventory, "craft", {width: 3, interactive: true, onUpdate: mods.inventory.updateCraftOutput});
+        mods.inventory.craftListEl = api.uiRenderInventoryList(new InvRef("player", null, "craft", null), {width: 3, interactive: true});
         win.add(mods.inventory.craftListEl);
         
         win.add(api.uiElement("spacer"));
         
-        mods.inventory.craftOutputEl = api.uiRenderInventoryList(mods.inventory.craftOutput, "main", {interactive: true, onUpdate: mods.inventory.onCraftOutputTake});
+        mods.inventory.craftOutputEl = api.uiRenderInventoryList(new InvRef("player", null, "craftOutput", null), {interactive: true});
         win.add(mods.inventory.craftOutputEl);
-        mods.inventory.updateCraftOutput();
         
         win.add(api.uiElement("spacer"));
       }
       
-      var invList = api.uiRenderInventoryList(api.player.inventory, "main", {width: 8, interactive: true});
+      var invList = api.uiRenderInventoryList(new InvRef("player", null, "main", null), {width: 8, interactive: true});
       win.add(invList);
       
       api.uiShowWindow(win);
-      api.uiShowHand(api.player.inventory, "hand", 0);
+      api.uiShowHand(new InvRef("player", null, "hand", 0));
       mods.inventory.isOpen = true;
     }
   };

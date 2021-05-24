@@ -187,24 +187,24 @@
     }
   }, "/help [<command>] : list available commands or give help for a command"));
   
-  mods.chat.registerCommand(new mods.chat.ChatCommand("/giveme", function(args) {
-    if(args.length >= 2) {
-      var itemstring = args.slice(1).join(" ");
-      var stack = api.ItemStack.fromString(itemstring);
-      if(stack == null) { return "item '" + itemstring + "' not found"; }
-      var displayIS = stack.toString();
-      var res = api.player.inventory.give("main", stack);
-      if(res) {
-        return "'" + displayIS + "' added to inventory";
-      } else {
-        return "unable to add '" + displayIS + "' to inventory";
-      }
-    } else {
-      return "no item specified";
-    }
-  }, "/giveme <itemstring> [<count>] : add an item stack to player's inventory"));
-  
   if(!api.server.isRemote()) {
+    mods.chat.registerCommand(new mods.chat.ChatCommand("/giveme", function(args) {
+      if(args.length >= 2) {
+        var itemstring = args.slice(1).join(" ");
+        var stack = api.ItemStack.fromString(itemstring);
+        if(stack == null || stack.getDef().isUnknown) { return "item '" + itemstring + "' not found"; }
+        var displayIS = stack.toString();
+        var res = server.invGive(new InvRef("player", null, "main", null), stack);
+        if(res) {
+          return "'" + displayIS + "' added to inventory";
+        } else {
+          return "unable to add '" + displayIS + "' to inventory";
+        }
+      } else {
+        return "no item specified";
+      }
+    }, "/giveme <itemstring> [<count>] : add an item stack to player's inventory"));
+    
     mods.chat.registerCommand(new mods.chat.ChatCommand("/tp", function(args) {
       if(args.length >= 2) {
         var whereRaw = args.slice(1).join(" ");
@@ -216,13 +216,13 @@
         return "teleported to " + api.util.fmtXYZ(api.player.pos);
       }
     }, "/tp <x>,<y>,<z> : teleport to a given position"));
+    
+    mods.chat.registerCommand(new mods.chat.ChatCommand("/clearinv", function(args) {
+      for(var i = 0; i < server.invGetList(new InvRef("player", null, "main", null)).length; i++) {
+        server.invSetStack(new InvRef("player", null, "main", i), null);
+      }
+    }, "/clearinv : remove all items from your main inventory"));
   }
-  
-  mods.chat.registerCommand(new mods.chat.ChatCommand("/clearinv", function(args) {
-    for(var i = 0; i < api.player.inventory.getListLength("main"); i++) {
-      api.player.inventory.setStack("main", i, null);
-    }
-  }, "/clearinv : remove all items from your main inventory"));
   
   
   

@@ -1,6 +1,6 @@
 /*
     mc4, a web voxel building game
-    Copyright (C) 2019 kholland4
+    Copyright (C) 2019-2021 kholland4
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,8 +39,7 @@ function getCraftRes(list, listShape) {
   return null;
 }
 
-function craftConsumeEntry(entry, inv, listName, listShape) {
-  var list = inv.getList(listName);
+function craftConsumeEntry(entry, list, listShape) {
   if(!entry.match(list, listShape)) { return false; }
   
   //TODO
@@ -123,8 +122,6 @@ function craftConsumeEntry(entry, inv, listName, listShape) {
       }
     }
   }
-  
-  inv.setList(listName, list);
   
   return true;
 }
@@ -232,8 +229,6 @@ class CraftEntry {
   }
 }
 
-api.getCraftRes = getCraftRes;
-api.craftConsumeEntry = craftConsumeEntry;
 api.CraftEntry = CraftEntry;
 api.registerCraft = function(craft) {
   //TODO: validation

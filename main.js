@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.2.6-dev5";
+var VERSION = "0.3.0-dev1";
 
 var serverListURL = "https://ss1.tausquared.net:8083/serverlist.json";
 
@@ -499,6 +499,7 @@ function loadLoop2() {
   if(!server.ready) { ready = false; }
   
   if(ready) {
+    server.postInit();
     afterLoad();
   } else {
     requestAnimationFrame(loadLoop2);

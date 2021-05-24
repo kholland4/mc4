@@ -1,6 +1,6 @@
 /*
     mc4, a web voxel building game
-    Copyright (C) 2019 kholland4
+    Copyright (C) 2019-2021 kholland4
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -110,7 +110,6 @@ class Player {
     
     this.fly = false;
     
-    this.inventory = server.getInventory(this);
     this.wieldIndex = 0;
     this.creativeDigPlace = false;
     
@@ -332,7 +331,7 @@ class Player {
   }
   
   get wield() {
-    var stack = this.inventory.getStack("main", this.wieldIndex);
+    var stack = server.invGetStack(new InvRef("player", null, "main", this.wieldIndex));
     if(stack == undefined) { return null; }
     return stack;
   }
