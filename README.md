@@ -18,12 +18,12 @@ Install build dependencies:
 
     # apt-get install make g++ libwebsocketpp-dev libboost-dev libsqlite3-dev libssl-dev
 
-If your distro doesn't package `libwebsocketpp-dev`, grab it from [here](https://github.com/zaphoyd/websocketpp/releases/) and compile with something like:
+If your distro doesn't package `libwebsocketpp-dev`, grab it from [here](https://github.com/zaphoyd/websocketpp/releases/) and compile the server with something like:
 
     $ CPPFLAGS="-I/path/to/websocketpp-x.x.x/" make -j4
 
 The server has optional TLS support, which is strongly recommended for production use
-(the client-server protocol is inherently very insecure).
+(the client-server protocol relies on it for security).
 If you're running locally or just testing, this is not necessary.
 The decision as to whether or not to use TLS must be made at compile time.
 
