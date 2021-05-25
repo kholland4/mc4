@@ -22,7 +22,7 @@
 
 #include <regex>
 
-std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime"};
+std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime", "give"};
 
 
 void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
@@ -279,4 +279,52 @@ void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {
   }
   
   chat_send_player(player, "server", ss.str());
+}
+
+void Server::cmd_giveme(PlayerState *player, std::vector<std::string> args) {
+  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
+  
+  if(player->data.privs.find("give") == player->data.privs.end()) {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "missing priv: give");
+    return;
+  }
+  
+  if(args.size() < 2) {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "please specify an itemstring");
+    return;
+  }
+  
+  std::string itemstring = args[1];
+  ItemDef def = get_item_def(itemstring);
+  if(def.itemstring == "nothing") {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "unknown item '" + itemstring + "'");
+    return;
+  }
+  
+  std::ostringstream spec;
+  for(size_t i = 1; i < args.size(); i++) {
+    if(i > 1)
+      spec << " ";
+    spec << args[i];
+  }
+  
+  InvStack to_give = InvStack(spec.str());
+  bool res = player->inv_give(to_give);
+  
+  if(res) {
+    if(player->auth) {
+      db.update_player_data(player->get_data());
+    }
+    player->send_inv("main");
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "'" + to_give.spec() + "' added to inventory.");
+    return;
+  }
+  
+  player_lock_unique.unlock();
+  chat_send_player(player, "server", "unable to add '" + to_give.spec() + "' to inventory");
+  return;
 }

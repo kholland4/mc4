@@ -363,6 +363,10 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(ref1.list_name != ref2.list_name)
         player->send_inv(ref2.list_name);
       
+      if(player->auth) {
+        db.update_player_data(player->get_data());
+      }
+      
       //TODO craft grid
       //TODO generic send diffs for interested inventories function
     } else if(type == "inv_distribute") {
@@ -428,8 +432,37 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(ref1.list_name != ref2.list_name)
         player->send_inv(ref2.list_name);
       
+      if(player->auth) {
+        db.update_player_data(player->get_data());
+      }
+      
       //TODO craft grid
       //TODO generic send diffs for interested inventories function
+    } else if(type == "inv_pulverize") {
+      int wield_index = pt.get<int>("wield");
+      InvStack wield_stack = player->inv_get("main", wield_index);
+      
+      if(wield_stack.is_nil) {
+        player_lock_unique.unlock();
+        chat_send_player(player, "server", "nothing to pulverize");
+        return;
+      }
+      
+      //take the dug node from the player
+      if(player->inv_take_at("main", wield_index, wield_stack)) {
+        if(player->auth) {
+          db.update_player_data(player->get_data());
+        }
+        
+        player->send_inv("main");
+        
+        player_lock_unique.unlock();
+        chat_send_player(player, "server", "pulverized '" + wield_stack.spec() + "'");
+        return;
+      }
+      
+      player_lock_unique.unlock();
+      chat_send_player(player, "server", "failed to pulverize '" + wield_stack.spec() + "'!");
     } else if(type == "send_chat") {
       std::string from = player->get_name();
       std::string channel = pt.get<std::string>("channel");
@@ -480,6 +513,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         cmd_grantme(player, tokens);
       } else if(tokens[0] == "/privs") {
         cmd_privs(player, tokens);
+      } else if(tokens[0] == "/giveme") {
+        cmd_giveme(player, tokens);
       } else {
         chat_send_player(player, "server", "unknown command");
         return;

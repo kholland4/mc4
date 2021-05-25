@@ -109,6 +109,15 @@ InvStack::InvStack(std::string spec) : count(1), wear(std::nullopt), data(std::n
   }
   
   //TODO use the remaining string as 'data' if present
+  
+  ItemDef def = get_item_def(itemstring);
+  if(def.is_tool)
+    wear = def.tool_wear;
+}
+
+InvStack::InvStack(ItemDef def) : itemstring(def.itemstring), count(1), wear(std::nullopt), data(std::nullopt), is_nil(false) {
+  if(def.is_tool)
+    wear = def.tool_wear;
 }
 
 InvList::InvList(boost::property_tree::ptree pt) : is_nil(false) {
@@ -137,6 +146,15 @@ std::string InvList::as_json() {
   
   out << "]";
   
+  return out.str();
+}
+std::string InvStack::spec() {
+  std::ostringstream out;
+  out << itemstring << " " << count;
+  if(wear)
+    out << " " << std::to_string(*wear);
+  if(data)
+    out << " " << *data;
   return out.str();
 }
 

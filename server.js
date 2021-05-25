@@ -40,6 +40,8 @@ class InvRef {
   }
 }
 
+api.InvRef = InvRef;
+
 class ServerBase {
   constructor() {
     this.entities = {};

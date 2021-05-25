@@ -19,6 +19,8 @@
 #ifndef __INVENTORY_H__
 #define __INVENTORY_H__
 
+#include "item.h"
+
 #include <string>
 #include <map>
 #include <vector>
@@ -32,9 +34,11 @@ class InvStack {
     InvStack(std::string _itemstring, int _count, std::optional<int> _wear, std::optional<std::string> _data) :
         itemstring(_itemstring), count(_count), wear(_wear), data(_data), is_nil(false) {}
     InvStack(std::string spec);
+    InvStack(ItemDef def);
     InvStack(boost::property_tree::ptree pt);
     
     std::string as_json();
+    std::string spec();
     
     std::string itemstring;
     int count;

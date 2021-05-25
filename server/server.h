@@ -126,6 +126,7 @@ class Server {
     void cmd_tp_universe(PlayerState *player, std::vector<std::string> args);
     void cmd_grantme(PlayerState *player, std::vector<std::string> args);
     void cmd_privs(PlayerState *player, std::vector<std::string> args);
+    void cmd_giveme(PlayerState *player, std::vector<std::string> args);
     
     std::pair<websocketpp::close::status::value, std::string> validate_connection(connection_hdl hdl);
     void on_open(connection_hdl hdl);

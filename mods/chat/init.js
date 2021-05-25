@@ -224,6 +224,24 @@
     }, "/clearinv : remove all items from your main inventory"));
   }
   
+  mods.chat.registerCommand(new mods.chat.ChatCommand("/pulverize", function(args) {
+    if(api.server.isRemote()) {
+      api.server.sendMessage({
+        type: "inv_pulverize",
+        wield: api.player.wieldIndex
+      });
+    } else {
+      var current = server.invGetStack(new api.InvRef("player", null, "main", api.player.wieldIndex));
+      
+      if(current == null)
+        return "nothing to pulverize";
+      
+      server.invSetStack(new api.InvRef("player", null, "main", api.player.wieldIndex), null);
+      
+      return "pulverized '" + current.toString() + "'"
+    }
+  }, "/pulverize : destroy the currently held item stack"));
+  
   
   
   mods.chat.registerCommand(new mods.chat.ChatCommand("/about", function(args) {
