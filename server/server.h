@@ -73,6 +73,7 @@
 #include "map.h"
 #include "mapblock.h"
 #include "node.h"
+#include "item.h"
 #include "database.h"
 
 #include "player.h"

@@ -222,40 +222,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       player->prepare_nearby_mapblocks(2, 3, 0, map);
       player->prepare_nearby_mapblocks(1, 2, 1, map);
-    }/* else if(type == "set_node") {
-      MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
-      Node node(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
-      
-      MapPos<int> player_pos_int((int)std::round(player->pos.x), (int)std::round(player->pos.y), (int)std::round(player->pos.z), player->pos.w, player->pos.world, player->pos.universe);
-      MapBox<int> bounding(player_pos_int - PLAYER_LIMIT_REACH_DISTANCE, player_pos_int + PLAYER_LIMIT_REACH_DISTANCE);
-      if(!bounding.contains(pos)) {
-        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' at " + player_pos_int.to_string()
-                                                 + " attempted to set node '" + node.itemstring + "' far away at " + pos.to_string());
-        return;
-      }
-      
-      if(get_node_def(node.itemstring).itemstring == "nothing") {
-        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to place nonexistent node '" + node.itemstring + "' at " + pos.to_string());
-        return;
-      }
-      
-      Node expect("", 0);
-      
-      log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' places '" + node.itemstring + "' at " + pos.to_string());
-      
-#ifdef DEBUG_PERF
-      auto start = std::chrono::steady_clock::now();
-#endif
-      
-      map.set_node(pos, node, expect);
-      
-#ifdef DEBUG_PERF
-      auto end = std::chrono::steady_clock::now();
-      auto diff = end - start;
-      
-      std::cout << "set_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
-#endif
-    }*/ else if(type == "dig_node") {
+    } else if(type == "dig_node") {
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       int wield_index = pt.get<int>("wield");
       Node existing(pt.get<std::string>("existing.itemstring"), pt.get<unsigned int>("existing.rot"));
@@ -306,8 +273,9 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       //TODO consume tool
       
       //give the dug node to the player
-      //TODO handle drops
       InvStack to_give(target.itemstring, 1, std::nullopt, std::nullopt);
+      if(target_def.drops != "")
+        to_give = InvStack(target_def.drops);
       
       if(player->inv_give(to_give)) {
         player->send_inv("main");
@@ -421,13 +389,6 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
           return; //mismatched stack types
       }
       
-      //FIXME fetch from item def
-      int max_stack = 64;
-      bool stackable = true;
-      
-      if(!stackable)
-        return;
-      
       InvStack combined;
       if(!stack1.is_nil) {
         combined = stack1;
@@ -439,10 +400,16 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
           combined.count += stack1.count;
       }
       
+      ItemDef def = get_item_def(combined.itemstring);
+      if(def.itemstring == "nothing")
+        return;
+      if(!def.stackable)
+        return;
+      
       if(qty1 + qty2 != combined.count)
         return;
       
-      if(qty1 > max_stack || qty2 > max_stack)
+      if(qty1 > def.max_stack || qty2 > def.max_stack)
         return;
       
       InvStack new_stack1 = combined;

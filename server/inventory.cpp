@@ -72,6 +72,45 @@ std::string InvStack::as_json() {
   return out.str();
 }
 
+InvStack::InvStack(std::string spec) : count(1), wear(std::nullopt), data(std::nullopt), is_nil(false) {
+  //"default:wood 64" etc.
+  
+  //split by spaces
+  std::vector<std::string> parts;
+  size_t start = 0;
+  size_t end = spec.find(" ");
+  while(end != std::string::npos) {
+    parts.push_back(spec.substr(start, end - start));
+    start = end + 1; //length of " "
+    end = spec.find(" ", start);
+  }
+  parts.push_back(spec.substr(start));
+  
+  itemstring = parts[0];
+  
+  if(parts.size() >= 2) {
+    try {
+      count = std::stoi(parts[1]);
+    } catch(std::invalid_argument const& e) {
+      
+    } catch(std::out_of_range const& e) {
+      
+    }
+  }
+  
+  if(parts.size() >= 3) {
+    try {
+      wear = std::stoi(parts[2]);
+    } catch(std::invalid_argument const& e) {
+      
+    } catch(std::out_of_range const& e) {
+      
+    }
+  }
+  
+  //TODO use the remaining string as 'data' if present
+}
+
 InvList::InvList(boost::property_tree::ptree pt) : is_nil(false) {
   for(auto it : pt) {
     if(it.second.data().empty())

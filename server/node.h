@@ -20,6 +20,7 @@
 #define __NODE_H__
 
 #include <ostream>
+#include <vector>
 
 class Node {
   public:
@@ -45,12 +46,19 @@ class NodeDef {
   public:
     NodeDef() : itemstring("nothing"), transparent(false), pass_sunlight(false), light_level(0), is_fluid(false), can_dig(false) {};
     NodeDef(std::string _itemstring) : itemstring(_itemstring), transparent(false), pass_sunlight(false), light_level(0), is_fluid(false), can_dig(true) {};
+    
     std::string itemstring;
+    
     bool transparent;
     bool pass_sunlight;
     int light_level;
+    
     bool is_fluid;
     bool can_dig;
+    
+    std::string drops;
+    bool breakable;
+    std::vector<std::string> groups;
 };
 
 void load_node_defs(std::string filename);

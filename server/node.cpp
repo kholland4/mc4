@@ -33,15 +33,24 @@ void load_node_defs(std::string filename) {
   
   size_t count = 0;
   
-  for(auto& n : pt.get_child("nodeDefs")) {
+  for(const auto& n : pt.get_child("nodeDefs")) {
     std::string itemstring = n.first;
     
     NodeDef *def = new NodeDef(itemstring);
+    
     def->transparent = n.second.get<bool>("transparent");
     def->pass_sunlight = n.second.get<bool>("passSunlight");
     def->light_level = n.second.get<int>("lightLevel");
+    
     def->is_fluid = n.second.get<bool>("isFluid");
     def->can_dig = true;
+    
+    def->drops = n.second.get<std::string>("drops");
+    if(def->drops == "null")
+      def->drops = "";
+    def->breakable = n.second.get<bool>("breakable");
+    for(const auto& group : n.second.get_child("groups"))
+      def->groups.push_back(group.first);
     
     all_node_defs[itemstring] = def;
     

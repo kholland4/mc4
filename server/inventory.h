@@ -31,6 +31,7 @@ class InvStack {
     InvStack() : is_nil(true) {}
     InvStack(std::string _itemstring, int _count, std::optional<int> _wear, std::optional<std::string> _data) :
         itemstring(_itemstring), count(_count), wear(_wear), data(_data), is_nil(false) {}
+    InvStack(std::string spec);
     InvStack(boost::property_tree::ptree pt);
     
     std::string as_json();
