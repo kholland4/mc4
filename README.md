@@ -40,7 +40,7 @@ Any time you recompile with different `CPPFLAGS`, be sure to `make clean` first.
 ### Running
 
 The server's runtime dependencies are `libsqlite3` and `libssl1.1`,
-but these will have been installed when the server was compiled.
+but these will have been installed alongside the build dependencies.
 
 The server can be configured using an ini file (see [config_example.ini](server/config_example.ini)) or on the command line.
 For example:
