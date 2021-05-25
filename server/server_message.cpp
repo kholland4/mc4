@@ -21,6 +21,7 @@
 #include "log.h"
 #include "config.h"
 #include "player_util.h"
+#include "tool.h"
 
 void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_type::ptr msg) {
   std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
@@ -227,6 +228,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       int wield_index = pt.get<int>("wield");
       Node existing(pt.get<std::string>("existing.itemstring"), pt.get<unsigned int>("existing.rot"));
       
+      InvStack wield_stack = player->inv_get("main", wield_index);
       Node target = map.get_node(pos);
       
       if(existing != target) {
@@ -248,12 +250,16 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(target_def.itemstring == "nothing") {
         log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to dig nonexistent node '" + target.itemstring + "' at " + pos.to_string());
         return;
-      } else if(!target_def.can_dig) {
-        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to dig '" + target.itemstring + "' at " + pos.to_string() + ", but digging this node is not allowed");
-        return;
       }
       
-      //TODO check tool
+      if(!target_def.breakable)
+        return;
+      
+      std::optional<double> break_time_tool = calc_dig_time(target, wield_stack);
+      std::optional<double> break_time_hand = calc_dig_time(target, InvStack());
+      
+      if(!break_time_tool && !break_time_hand)
+        return;
       
       log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' digs '" + target.itemstring + "' at " + pos.to_string());
       
@@ -270,19 +276,31 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       std::cout << "dig_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
 #endif
       
-      //TODO consume tool
+      //consume tool
+      if(break_time_tool) {
+        bool do_consume = true;
+        if(break_time_hand) {
+          if(*break_time_hand <= *break_time_tool)
+            do_consume = false;
+        }
+        if(do_consume && wield_stack.wear) {
+          wield_stack.wear = *wield_stack.wear - 1;
+          if(*wield_stack.wear <= 0)
+            wield_stack = InvStack();
+          player->inv_set("main", wield_index, wield_stack);
+        }
+      }
       
       //give the dug node to the player
       InvStack to_give(target.itemstring, 1, std::nullopt, std::nullopt);
       if(target_def.drops != "")
         to_give = InvStack(target_def.drops);
       
-      if(player->inv_give(to_give)) {
-        player->send_inv("main");
-      } else {
+      if(!player->inv_give(to_give)) {
         //TODO
       }
       
+      player->send_inv("main");
       if(player->auth) {
         db.update_player_data(player->get_data());
       }

@@ -20,8 +20,6 @@
 
 #include "log.h"
 
-#include <map>
-
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
@@ -43,14 +41,14 @@ void load_node_defs(std::string filename) {
     def->light_level = n.second.get<int>("lightLevel");
     
     def->is_fluid = n.second.get<bool>("isFluid");
-    def->can_dig = true;
     
     def->drops = n.second.get<std::string>("drops");
     if(def->drops == "null")
       def->drops = "";
     def->breakable = n.second.get<bool>("breakable");
-    for(const auto& group : n.second.get_child("groups"))
-      def->groups.push_back(group.first);
+    for(const auto& group : n.second.get_child("groups")) {
+      def->groups[group.first] = std::stoi(group.second.data());
+    }
     
     all_node_defs[itemstring] = def;
     

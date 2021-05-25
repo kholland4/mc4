@@ -89,6 +89,7 @@ class PlayerState {
     
     bool inv_give(InvStack stack);
     InvStack inv_get(std::string list_name, int index);
+    bool inv_set(std::string list_name, int index, InvStack stack);
     bool inv_take_at(std::string list_name, int index, InvStack to_take);
     
     bool needs_mapblock_update(MapblockUpdateInfo info);

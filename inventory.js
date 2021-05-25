@@ -22,7 +22,6 @@ class ItemStackBase {
     this.count = count;
     this.wear = wear;
     this.data = data;
-    if(this.data == null) { this.data = {}; }
   }
   
   getDef() {

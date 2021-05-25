@@ -167,6 +167,13 @@ InvStack PlayerState::inv_get(std::string list_name, int index) {
   
   return list.get_at(index);
 }
+bool PlayerState::inv_set(std::string list_name, int index, InvStack stack) {
+  InvList& list = data.inventory.get(list_name);
+  if(list.is_nil)
+    return false;
+  
+  return list.set_at(index, stack);
+}
 
 bool PlayerState::inv_take_at(std::string list_name, int index, InvStack to_take) {
   InvList& list = data.inventory.get(list_name);
