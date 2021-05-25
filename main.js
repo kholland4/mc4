@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.3.0-dev3";
+var VERSION = "0.3.0-dev4";
 
 var serverListURL = "https://ss1.tausquared.net:8083/serverlist.json";
 
@@ -641,7 +641,7 @@ function animate() {
     var nodeData = server.getNode(digSel);
     if(digTimer <= DIG_PREEMPT_TIME && nodeData.itemstring != "air") {
       if(!player.creativeDigPlace) {
-        useTool(nodeData, player.inventory, "main", player.wieldIndex);
+        useTool(nodeData, new InvRef("player", null, "main", player.wieldIndex));
       }
       server.digNode(player, digSel);
     } else if(digTimer <= 0) {

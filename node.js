@@ -313,16 +313,19 @@ function calcDigTime(node, tool) {
   return calcDigTimeActual(node, new ItemStack(":"));
 }
 
-function useTool(node, inv, listName, index) {
-  /*var tool = inv.getStack(listName, index);
+function useTool(node, invRef) {
+  if(api.server.isRemote())
+    return;
+  
+  var tool = server.invGetStack(invRef);
   var digTime = calcDigTimeActual(node, tool);
   if(digTime != null) {
     if(tool.wear != null) {
       tool.wear--;
       if(tool.wear <= 0) { tool = null; }
-      inv.setStack(listName, index, tool);
+      server.invSetStack(invRef, tool);
     }
-  }*/
+  }
 }
 
 api.Node = Node;
