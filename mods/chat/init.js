@@ -242,6 +242,14 @@
     }
   }, "/pulverize : destroy the currently held item stack"));
   
+  mods.chat.registerCommand(new mods.chat.ChatCommand("/whatisthis", function(args) {
+    var current = server.invGetStack(new api.InvRef("player", null, "main", api.player.wieldIndex));
+    
+    if(current == null)
+      return "(nothing)";
+    return current.toString();
+  }, "/whatisthis : info about the currently held item stack"));
+  
   
   
   mods.chat.registerCommand(new mods.chat.ChatCommand("/about", function(args) {

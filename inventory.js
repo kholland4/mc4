@@ -60,6 +60,12 @@ class ItemStackBase {
     if(this.count != 1) {
       out += " " + this.count.toString();
     }
+    if(this.wear != null) {
+      out += " " + this.wear;
+    }
+    if(this.data != null) {
+      out += " " + this.data;
+    }
     return out;
   }
   
