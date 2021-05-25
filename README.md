@@ -2,7 +2,7 @@
 
 Voxel building game inspired by [Minetest](https://www.minetest.net/)
 
-[![Play](play-button.png)](https://kholland4.github.io/mc4/)
+[![Play](play-button.png)](https://www.tausquared.net/mc4/)
 
 ## License
 
