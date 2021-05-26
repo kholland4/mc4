@@ -42,7 +42,6 @@ class PlayerData {
     
     std::set<std::string> privs;
     InvSet inventory;
-    //std::map<std::string, std::unique_ptr<std::shared_mutex>> inventory_lock;
     
     bool is_nil;
     

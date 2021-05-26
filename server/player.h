@@ -154,6 +154,7 @@ class PlayerState {
     std::set<std::string> known_player_tags;
     
     std::map<InvRef, InvList> known_inventories;
+    std::map<std::string, std::shared_mutex*> inventory_lock;
     
     PlayerAuthenticator auth_state;
     PlayerData data;

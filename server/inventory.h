@@ -37,7 +37,10 @@ class InvStack {
     InvStack(ItemDef def);
     InvStack(boost::property_tree::ptree pt);
     
-    std::string as_json();
+    bool operator==(const InvStack& other) const;
+    bool operator!=(const InvStack& other) const;
+    
+    std::string as_json() const;
     std::string spec();
     
     std::string itemstring;
@@ -50,11 +53,15 @@ class InvStack {
 
 class InvRef {
   public:
-    InvRef(std::string _obj_type, std::string _obj_id, std::string _list_name, int _index) :
-        obj_type(_obj_type), obj_id(_obj_id), list_name(_list_name), index(_index) {};
+    InvRef(std::string _obj_type, std::string _obj_id, std::string _list_name, int _index)
+        : obj_type(_obj_type), obj_id(_obj_id), list_name(_list_name), index(_index) {};
+    InvRef(boost::property_tree::ptree pt)
+        : obj_type(pt.get<std::string>("objType")), obj_id(pt.get<std::string>("objID")),
+          list_name(pt.get<std::string>("listName")), index(pt.get<int>("index")) {};
     
     bool operator<(const InvRef& other) const;
-    std::string as_json();
+    bool operator==(const InvRef& other) const;
+    std::string as_json() const;
     
     std::string obj_type;
     std::string obj_id;
@@ -62,12 +69,38 @@ class InvRef {
     int index;
 };
 
+class InvDiff {
+  public:
+    InvDiff(InvRef _ref, InvStack _prev, InvStack _current)
+        : ref(_ref), prev(_prev), current(_current) {};
+    
+    std::string as_json() const;
+    
+    InvRef ref;
+    InvStack prev;
+    InvStack current;
+};
+
+class InvPatch {
+  public:
+    InvPatch()
+        : req_id(std::nullopt) {};
+    InvPatch(std::optional<std::string> _req_id)
+        : req_id(_req_id) {};
+    
+    std::string as_json(std::string type) const;
+    void make_deny();
+    
+    std::optional<std::string> req_id;
+    std::vector<InvDiff> diffs;
+};
+
 class InvList {
   public:
     InvList() : is_nil(true) {};
     InvList(int count) : list(count, InvStack()), is_nil(false) {};
     InvList(boost::property_tree::ptree pt);
-    std::string as_json();
+    std::string as_json() const;
     
     bool give(InvStack stack);
     InvStack get_at(int index);
@@ -85,9 +118,10 @@ class InvSet {
   public:
     InvSet() {};
     InvSet(boost::property_tree::ptree pt);
-    std::string as_json();
+    std::string as_json() const;
     
     InvList& get(std::string list_name);
+    bool set(std::string list_name, InvList list);
     void add(std::string list_name, InvList list);
     bool has_list(std::string list_name);
     InvStack get_at(InvRef ref);

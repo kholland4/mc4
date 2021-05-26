@@ -35,8 +35,12 @@ bool InvRef::operator<(const InvRef& other) const {
     return obj_type < other.obj_type;
   }
 }
+bool InvRef::operator==(const InvRef& other) const {
+  return obj_type == other.obj_type && obj_id == other.obj_id
+         && list_name == other.list_name && index == other.index;
+}
 
-std::string InvRef::as_json() {
+std::string InvRef::as_json() const {
   std::ostringstream out;
   
   out << "{\"objType\":\"" << json_escape(obj_type) << "\",";
@@ -71,7 +75,7 @@ InvStack::InvStack(boost::property_tree::ptree pt) : is_nil(false) {
   else
     data = pt.get<std::string>("data");
 }
-std::string InvStack::as_json() {
+std::string InvStack::as_json() const {
   if(is_nil)
     return "null";
   
@@ -141,12 +145,58 @@ InvStack::InvStack(ItemDef def) : itemstring(def.itemstring), count(1), wear(std
     wear = def.tool_wear;
 }
 
+bool InvStack::operator==(const InvStack& other) const {
+  if(is_nil && other.is_nil)
+    return true;
+  if(is_nil || other.is_nil)
+    return false;
+  return itemstring == other.itemstring && count == other.count
+         && wear == other.wear && data == other.data;
+}
+bool InvStack::operator!=(const InvStack& other) const {
+  return !operator==(other);
+}
+
+std::string InvDiff::as_json() const {
+  std::ostringstream out;
+  out << "{\"ref\":" << ref.as_json() << ",\"prev\":" << prev.as_json() << ",\"current\":" << current.as_json() << "}";
+  return out.str();
+}
+
+std::string InvPatch::as_json(std::string type) const {
+  std::ostringstream out;
+  
+  out << "{\"type\":\"" << json_escape(type) << "\",";
+  if(req_id)
+    out << "\"reqID\":\"" << json_escape(*req_id) << "\",";
+  
+  out << "\"diffs\":[";
+  
+  bool first = true;
+  for(const auto& it : diffs) {
+    if(!first)
+      out << ",";
+    first = false;
+    out << it.as_json();
+  }
+  
+  out << "]}";
+  
+  return out.str();
+}
+
+void InvPatch::make_deny() {
+  for(auto& it : diffs) {
+    it.current = it.prev;
+  }
+}
+
 InvList::InvList(boost::property_tree::ptree pt) : is_nil(false) {
   for(auto it : pt) {
     list.push_back(InvStack(it.second));
   }
 }
-std::string InvList::as_json() {
+std::string InvList::as_json() const {
   if(is_nil)
     return "null";
   
@@ -266,7 +316,7 @@ InvSet::InvSet(boost::property_tree::ptree pt) {
   }
 }
 
-std::string InvSet::as_json() {
+std::string InvSet::as_json() const {
   std::ostringstream out;
   
   out << "{";
@@ -289,6 +339,14 @@ InvList& InvSet::get(std::string list_name) {
   if(search == inventory.end())
     return nil_list;
   return search->second;
+}
+bool InvSet::set(std::string list_name, InvList list) {
+  auto search = inventory.find(list_name);
+  if(search == inventory.end())
+    return false;
+  
+  inventory[list_name] = list;
+  return true;
 }
 void InvSet::add(std::string list_name, InvList list) {
   inventory[list_name] = list;

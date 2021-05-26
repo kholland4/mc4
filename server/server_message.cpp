@@ -23,6 +23,51 @@
 #include "player_util.h"
 #include "tool.h"
 
+std::optional<std::pair<InvStack, InvStack>> inv_calc_distribute(InvStack stack1, int qty1, InvStack stack2, int qty2) {
+  if(stack1.is_nil && stack2.is_nil)
+    return std::nullopt; //nothing to distribute
+  
+  if(!stack1.is_nil && !stack2.is_nil) {
+    if(stack1.itemstring != stack2.itemstring)
+      return std::nullopt; //mismatched stack types
+  }
+  
+  InvStack combined;
+  if(!stack1.is_nil) {
+    combined = stack1;
+    if(!stack2.is_nil)
+      combined.count += stack2.count;
+  } else {
+    combined = stack2;
+    if(!stack1.is_nil)
+      combined.count += stack1.count;
+  }
+  
+  ItemDef def = get_item_def(combined.itemstring);
+  if(def.itemstring == "nothing")
+    return std::nullopt;
+  if(!def.stackable)
+    return std::nullopt;
+  
+  if(qty1 + qty2 != combined.count)
+    return std::nullopt;
+  
+  if(qty1 > def.max_stack || qty2 > def.max_stack)
+    return std::nullopt;
+  
+  InvStack new_stack1 = combined;
+  new_stack1.count = qty1;
+  InvStack new_stack2 = combined;
+  new_stack2.count = qty2;
+  
+  if(new_stack1.count == 0)
+    new_stack1 = InvStack();
+  if(new_stack2.count == 0)
+    new_stack2 = InvStack();
+  
+  return std::make_pair(new_stack1, new_stack2);
+}
+
 void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_type::ptr msg) {
   std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
   auto search = m_players.find(hdl);
@@ -365,110 +410,61 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       std::cout << "place_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
 #endif
     } else if(type == "inv_swap") {
-      InvRef ref1(pt.get<std::string>("ref1.objType"), pt.get<std::string>("ref1.objID"), pt.get<std::string>("ref1.listName"), pt.get<int>("ref1.index"));
-      InvRef ref2(pt.get<std::string>("ref2.objType"), pt.get<std::string>("ref2.objID"), pt.get<std::string>("ref2.listName"), pt.get<int>("ref2.index"));
-      
+      InvRef ref1(pt.get_child("ref1"));
+      ref1.obj_id = "null"; //prevent access to other players' inventories (FIXME)
+      InvRef ref2(pt.get_child("ref2"));
+      ref2.obj_id = "null";
       InvStack orig1(pt.get_child("orig1"));
       InvStack orig2(pt.get_child("orig2"));
       std::string req_id = pt.get<std::string>("reqID");
       
-      if(ref1.obj_type != "player" || ref2.obj_type != "player") {
-        log(LogSource::SERVER, LogLevel::NOTICE, "inv_swap: unsupported obj_type '" + ref1.obj_type + "' '" + ref2.obj_type + "'");
-        return;
-      }
+      //TODO: access control (incl. accessing only own player's inventory)
       
-      InvStack stack1 = player->data.inventory.get_at(ref1);
-      InvStack stack2 = player->data.inventory.get_at(ref2);
-      player->data.inventory.set_at(ref1, stack2);
-      player->data.inventory.set_at(ref2, stack1);
-      //player->send_inv(ref1.list_name);
-      //if(ref1.list_name != ref2.list_name)
-      //  player->send_inv(ref2.list_name);
-      
-      if(player->auth) {
-        db.update_player_data(player->get_data());
-      }
-      
-      std::ostringstream accept_json;
-      accept_json << "{\"type\":\"inv_patch_accept\",\"reqID\":\"" << json_escape(req_id) << "\",\"diffs\":["
-                  << "{\"ref\":" << ref1.as_json() << ",\"prev\":" << orig1.as_json() << ",\"current\":" << stack2.as_json() << "},"
-                  << "{\"ref\":" << ref2.as_json() << ",\"prev\":" << orig2.as_json() << ",\"current\":" << stack1.as_json() << "}"
-                  << "]}";
+      InvPatch patch(req_id);
+      patch.diffs.push_back(
+          InvDiff(ref1, orig1, orig2));
+      patch.diffs.push_back(
+          InvDiff(ref2, orig2, orig1));
       
       player_lock_unique.unlock();
-      player->send(accept_json.str());
-      
-      //TODO craft grid
-      //TODO generic send diffs for interested inventories function
+      bool res = inv_apply_patch(patch, player);
+      //TODO craft grid and creative
     } else if(type == "inv_distribute") {
-      InvRef ref1(pt.get<std::string>("ref1.objType"), pt.get<std::string>("ref1.objID"), pt.get<std::string>("ref1.listName"), pt.get<int>("ref1.index"));
-      InvRef ref2(pt.get<std::string>("ref2.objType"), pt.get<std::string>("ref2.objID"), pt.get<std::string>("ref2.listName"), pt.get<int>("ref2.index"));
+      InvRef ref1(pt.get_child("ref1"));
+      ref1.obj_id = "null"; //prevent access to other players' inventories (FIXME)
+      InvRef ref2(pt.get_child("ref2"));
+      ref2.obj_id = "null";
+      InvStack orig1(pt.get_child("orig1"));
+      InvStack orig2(pt.get_child("orig2"));
       int qty1 = pt.get<int>("qty1");
       int qty2 = pt.get<int>("qty2");
+      std::string req_id = pt.get<std::string>("reqID");
       
-      if(ref1.obj_type != "player" || ref2.obj_type != "player") {
-        log(LogSource::SERVER, LogLevel::NOTICE, "inv_distribute: unsupported obj_type '" + ref1.obj_type + "' '" + ref2.obj_type + "'");
+      std::optional<std::pair<InvStack, InvStack>> distributed = inv_calc_distribute(orig1, qty1, orig2, qty2);
+      
+      if(!distributed) {
+        InvPatch patch(req_id);
+        patch.diffs.push_back(
+            InvDiff(ref1, orig1, orig1));
+        patch.diffs.push_back(
+            InvDiff(ref2, orig2, orig2));
+        patch.make_deny();
+        player_lock_unique.unlock();
+        player->send(patch.as_json("inv_patch_deny"));
         return;
       }
       
-      //TODO better errors
+      //TODO: access control (incl. accessing only own player's inventory)
       
-      InvStack stack1 = player->data.inventory.get_at(ref1);
-      InvStack stack2 = player->data.inventory.get_at(ref2);
+      InvPatch patch(req_id);
+      patch.diffs.push_back(
+          InvDiff(ref1, orig1, (*distributed).first));
+      patch.diffs.push_back(
+          InvDiff(ref2, orig2, (*distributed).second));
       
-      if(stack1.is_nil && stack2.is_nil)
-        return; //nothing to distribute
-      
-      if(!stack1.is_nil && !stack2.is_nil) {
-        if(stack1.itemstring != stack2.itemstring)
-          return; //mismatched stack types
-      }
-      
-      InvStack combined;
-      if(!stack1.is_nil) {
-        combined = stack1;
-        if(!stack2.is_nil)
-          combined.count += stack2.count;
-      } else {
-        combined = stack2;
-        if(!stack1.is_nil)
-          combined.count += stack1.count;
-      }
-      
-      ItemDef def = get_item_def(combined.itemstring);
-      if(def.itemstring == "nothing")
-        return;
-      if(!def.stackable)
-        return;
-      
-      if(qty1 + qty2 != combined.count)
-        return;
-      
-      if(qty1 > def.max_stack || qty2 > def.max_stack)
-        return;
-      
-      InvStack new_stack1 = combined;
-      new_stack1.count = qty1;
-      InvStack new_stack2 = combined;
-      new_stack2.count = qty2;
-      
-      if(new_stack1.count == 0)
-        new_stack1 = InvStack();
-      if(new_stack2.count == 0)
-        new_stack2 = InvStack();
-      
-      player->data.inventory.set_at(ref1, new_stack1);
-      player->data.inventory.set_at(ref2, new_stack2);
-      player->send_inv(ref1.list_name);
-      if(ref1.list_name != ref2.list_name)
-        player->send_inv(ref2.list_name);
-      
-      if(player->auth) {
-        db.update_player_data(player->get_data());
-      }
-      
-      //TODO craft grid
-      //TODO generic send diffs for interested inventories function
+      player_lock_unique.unlock();
+      bool res = inv_apply_patch(patch, player);
+      //TODO craft grid and creative
     } else if(type == "inv_pulverize") {
       int wield_index = pt.get<int>("wield");
       InvStack wield_stack = player->inv_get("main", wield_index);

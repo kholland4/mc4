@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.2-dev2"
+#define VERSION "0.4.3-dev1"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -104,12 +104,17 @@ class Server {
     void chat_send(std::string channel, std::string message);
     void chat_send_player(PlayerState *player, std::string channel, std::string message);
     
-    /*bool lock_invlist(InvRef ref);
-    bool unlock_invlist(InvRef ref);
-    InvList get_invlist(InvRef ref);
-    bool put_invlist(InvRef ref, InvList list);*/
+    bool lock_invlist(InvRef ref, PlayerState *player_hint);
+    bool unlock_invlist(InvRef ref, PlayerState *player_hint);
+    InvList get_invlist(InvRef ref, PlayerState *player_hint);
+    bool set_invlist(InvRef ref, InvList list, PlayerState *player_hint);
     
-    void update_known_inventories(PlayerState *player);
+    bool inv_apply_patch(InvPatch patch, PlayerState *requesting_player);
+    bool inv_apply_patch(InvPatch patch) {
+      return inv_apply_patch(patch, NULL);
+    };
+    
+    //void update_known_inventories(PlayerState *player);
     
     void set_motd(std::string new_motd);
     void set_time(int hours, int minutes);
@@ -140,7 +145,7 @@ class Server {
     void tick(const boost::system::error_code&);
     void slow_tick();
     
-    //bool lock_unlock_invlist(InvRef ref, bool do_lock);
+    bool lock_unlock_invlist(InvRef ref, bool do_lock, PlayerState *player_hint);
     
     typedef std::map<connection_hdl, PlayerState*, std::owner_less<connection_hdl>> player_list;
     

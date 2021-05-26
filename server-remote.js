@@ -900,13 +900,94 @@ class ServerRemote extends ServerBase {
     if(!this._socketReady)
       return false;
     
+    //do the swap locally to display to the player
+    
+    var stack1 = this.invGetStack(first);
+    if(stack1 != null)
+      stack1 = new ItemStack(stack1.itemstring, stack1.count, stack1.wear, stack1.data);
+    var stack2 = this.invGetStack(second);
+    if(stack2 != null)
+      stack2 = new ItemStack(stack2.itemstring, stack2.count, stack2.wear, stack2.data);
+    
+    
+    if(stack1 == null && stack2 == null) {
+      throw new Error("nothing to distribute");
+    }
+    
+    if(stack1 != null && stack2 != null) {
+      if(!stack1.typeMatch(stack2)) {
+        throw new Error("cannot distribute differing itemstacks");
+      }
+      
+      var def = stack1.getDef();
+      if(!def.stackable) {
+        throw new Error("cannot distribute unstackable items");
+      }
+    }
+    
+    var def;
+    var combined;
+    var stack1Count = 0;
+    var stack2Count = 0;
+    if(stack1 != null) {
+      def = stack1.getDef();
+      stack1Count = stack1.count;
+      combined = stack1.clone();
+      if(stack2 != null) {
+        combined.count += stack2.count;
+        stack2Count = stack2.count;
+      }
+    } else {
+      def = stack2.getDef();
+      stack2Count = stack2.count;
+      combined = stack2.clone();
+      if(stack1 != null) {
+        combined.count += stack1.count;
+        stack1Count = stack1.count;
+      }
+    }
+    
+    if(!def.stackable) {
+      throw new Error("cannot distribute unstackable items");
+    }
+    
+    if(qty1 + qty2 != combined.count) {
+      throw new Error("distribute must conserve items");
+    }
+    if(qty1 > Math.max(stack1Count, stack2Count, def.maxStack) || qty2 > Math.max(stack1Count, stack2Count, def.maxStack)) {
+      throw new Error("cannot exceed max stack in distribute");
+    }
+    
+    var newStack1 = null;
+    if(qty1 > 0) {
+      newStack1 = combined.clone();
+      newStack1.count = qty1;
+    }
+    var newStack2 = null;
+    if(qty2 > 0) {
+      newStack2 = combined.clone();
+      newStack2.count = qty2;
+    }
+    
+    
+    var patch = new InvPatch(server, hopefullyPassableUUIDv4Generator());
+    patch.add(first, stack1, newStack1);
+    patch.add(second, stack2, newStack2);
+    
     this.socket.send(JSON.stringify({
       type: "inv_distribute",
       ref1: first,
+      orig1: stack1,
       qty1: qty1,
       ref2: second,
-      qty2: qty2
+      orig2: stack2,
+      qty2: qty2,
+      reqID: patch.reqID
     }));
+    
+    patch.doApply();
+    this.invPatches.push(patch);
+    
     return true;
   }
   invAutomerge(ref, qty, target) {
