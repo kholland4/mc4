@@ -36,7 +36,28 @@ bool InvRef::operator<(const InvRef& other) const {
   }
 }
 
+std::string InvRef::as_json() {
+  std::ostringstream out;
+  
+  out << "{\"objType\":\"" << json_escape(obj_type) << "\",";
+  
+  if(obj_id != "null")
+    out << "\"objID\":\"" << json_escape(obj_id) << "\",";
+  else
+    out << "\"objID\":null,";
+  
+  out << "\"listName\":\"" << json_escape(list_name) << "\","
+      << "\"index\":" << std::to_string(index) << "}";
+  
+  return out.str();
+}
+
 InvStack::InvStack(boost::property_tree::ptree pt) : is_nil(false) {
+  if(!pt.data().empty()) {
+    is_nil = true;
+    return;
+  }
+  
   itemstring = pt.get<std::string>("itemstring");
   count = pt.get<int>("count");
   if(pt.get<std::string>("wear") == "null")
@@ -122,10 +143,7 @@ InvStack::InvStack(ItemDef def) : itemstring(def.itemstring), count(1), wear(std
 
 InvList::InvList(boost::property_tree::ptree pt) : is_nil(false) {
   for(auto it : pt) {
-    if(it.second.data().empty())
-      list.push_back(InvStack(it.second));
-    else
-      list.push_back(InvStack());
+    list.push_back(InvStack(it.second));
   }
 }
 std::string InvList::as_json() {

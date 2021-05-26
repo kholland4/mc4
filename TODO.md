@@ -65,10 +65,6 @@
 
 ## Server (remote)
 
-* Server-side inventory handling (anticheat)
-* Server-side dig/place handling (anticheat)
-* Store player inventories
-
 
 ## Mapgen
 

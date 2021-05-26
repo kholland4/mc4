@@ -117,6 +117,94 @@ class MapBlockPatch {
   }
 }
 
+class InvPatch {
+  constructor(server, reqID=null) {
+    this.server = server;
+    
+    this.diffs = [];
+    this.reqID = reqID;
+  }
+  
+  //'prev' and 'current' are ItemStacks or null
+  add(ref, prev, current) {
+    this.diffs.push({
+      ref: ref,
+      prev: prev,
+      current: current
+    });
+  }
+  
+  doApply(use_current=true) {
+    for(var diff of this.diffs) {
+      if(diff.ref.objType == "player") {
+        if(!(diff.ref.listName in this.server.playerInventory))
+          throw new Error("invalid inventory list: player/" + diff.ref.listName);
+          
+        var list = this.server.playerInventory[diff.ref.listName];
+        if(diff.ref.index >= list.length)
+          throw new Error("out of bounds inventory reference: " + diff.ref.index);
+        
+        if(use_current)
+          list[diff.ref.index] = diff.current;
+        else
+          list[diff.ref.index] = diff.prev;
+        this.server.updateInvDisplay(diff.ref);
+        
+        continue;
+      }
+      
+      throw new Error("unsupported inventory object type: " + diff.ref.objType);
+    }
+  }
+  doRevert() {
+    this.doApply(false);
+  }
+  
+  equals(other) {
+    var diffList1 = [...this.diffs];
+    var diffList2 = [...other.diffs];
+    
+    if(diffList1.length != diffList2.length)
+      return false;
+    
+    while(diffList1.length > 0) {
+      var toMatch = diffList1[0];
+      var didMatch = false;
+      for(var i = 0; i < diffList2.length; i++) {
+        if(!toMatch.ref.equals(diffList2[i].ref))
+          continue;
+        
+        if(toMatch.prev == null && diffList2[i].prev == null) {
+          //ok
+        } else if(toMatch.prev == null || diffList2[i].prev == null) {
+          continue;
+        } else if(!toMatch.prev.equals(diffList2[i].prev)) {
+          continue;
+        }
+        
+        if(toMatch.current == null && diffList2[i].current == null) {
+          //ok
+        } else if(toMatch.current == null || diffList2[i].current == null) {
+          continue;
+        } else if(!toMatch.current.equals(diffList2[i].current)) {
+          continue;
+        }
+        
+        //match, remove elements
+        diffList1.splice(0, 1);
+        diffList2.splice(i, 1);
+        didMatch = true;
+        break;
+      }
+      
+      //no match
+      if(!didMatch)
+        return false;
+    }
+    return true;
+  }
+}
+
 class ServerRemote extends ServerBase {
   constructor(url) {
     super();
@@ -129,6 +217,7 @@ class ServerRemote extends ServerBase {
     this.requests = new Set();
     
     this.patches = [];
+    this.invPatches = [];
     
     this.player = null;
     this.timeSinceUpdateSent = 0;
@@ -478,6 +567,46 @@ class ServerRemote extends ServerBase {
         }
       } else if(data.type == "inv_ready") {
         this._invReady = true;
+      } else if(data.type == "inv_patch_deny" || data.type == "inv_patch_accept" || data.type == "inv_patch") {
+        var server_patch = new InvPatch(this);
+        if("reqID" in data)
+          server_patch.reqID = data.reqID;
+        
+        for(var diff of data.diffs) {
+          var prev = null;
+          if(diff.prev != null)
+            prev = new ItemStack(diff.prev.itemstring, diff.prev.count, diff.prev.wear, diff.prev.data);
+          var current = null;
+          if(diff.current != null)
+            current = new ItemStack(diff.current.itemstring, diff.current.count, diff.current.wear, diff.current.data);
+          
+          server_patch.add(
+              new InvRef(diff.ref.objType, diff.ref.objID, diff.ref.listName, diff.ref.index),
+              prev,
+              current
+          );
+        }
+        
+        var didAccept = false;
+        if(data.type == "inv_patch_accept" && this.invPatches.length > 0) {
+          if(this.invPatches[0].reqID == server_patch.reqID) {
+            if(this.invPatches[0].equals(server_patch))
+              didAccept = true;
+          }
+        }
+        
+        if(didAccept) {
+          this.invPatches.splice(0, 1);
+        } else {
+          //either a denial, or an unreleated inv patch
+          //revert all pending inv patches and apply the received one
+          
+          for(var i = this.invPatches.length - 1; i >= 0; i--) {
+            this.invPatches[i].doRevert();
+          }
+          
+          server_patch.doApply();
+        }
       } else if(data.type == "auth_step") {
         if(data.message == "auth_ok") {
           this._authReady = true;
@@ -734,28 +863,51 @@ class ServerRemote extends ServerBase {
     throw new Error("unsupported inventory object type: " + ref.objType);
   }
   invSwap(first, second) {
-    if(this._socketReady) {
-      this.socket.send(JSON.stringify({
-        type: "inv_swap",
-        ref1: first,
-        ref2: second
-      }));
-      return true;
-    }
-    return false;
+    if(!this._socketReady)
+      return false;
+    
+    //do the swap locally to display to the player
+    
+    var origStack1 = this.invGetStack(first);
+    if(origStack1 != null)
+      origStack1 = new ItemStack(origStack1.itemstring, origStack1.count, origStack1.wear, origStack1.data);
+    var origStack2 = this.invGetStack(second);
+    if(origStack2 != null)
+      origStack2 = new ItemStack(origStack2.itemstring, origStack2.count, origStack2.wear, origStack2.data);
+    
+    var newStack1 = origStack2;
+    var newStack2 = origStack1;
+    
+    var patch = new InvPatch(server, hopefullyPassableUUIDv4Generator());
+    patch.add(first, origStack1, newStack1);
+    patch.add(second, origStack2, newStack2);
+    
+    this.socket.send(JSON.stringify({
+      type: "inv_swap",
+      ref1: first,
+      ref2: second,
+      orig1: origStack1,
+      orig2: origStack2,
+      reqID: patch.reqID
+    }));
+    
+    patch.doApply();
+    this.invPatches.push(patch);
+    
+    return true;
   }
   invDistribute(first, qty1, second, qty2) {
-    if(this._socketReady) {
-      this.socket.send(JSON.stringify({
-        type: "inv_distribute",
-        ref1: first,
-        qty1: qty1,
-        ref2: second,
-        qty2: qty2
-      }));
-      return true;
-    }
-    return false;
+    if(!this._socketReady)
+      return false;
+    
+    this.socket.send(JSON.stringify({
+      type: "inv_distribute",
+      ref1: first,
+      qty1: qty1,
+      ref2: second,
+      qty2: qty2
+    }));
+    return true;
   }
   invAutomerge(ref, qty, target) {
     

@@ -111,6 +111,13 @@ class PlayerState {
         log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
       }
     }
+    void send(std::string msg) {
+      try {
+        m_sender.send(m_connection_hdl, msg, websocketpp::frame::opcode::text);
+      } catch(websocketpp::exception const& e) {
+        log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
+      }
+    }
     
     void load_data(PlayerData _data) {
       data = _data;

@@ -368,6 +368,10 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       InvRef ref1(pt.get<std::string>("ref1.objType"), pt.get<std::string>("ref1.objID"), pt.get<std::string>("ref1.listName"), pt.get<int>("ref1.index"));
       InvRef ref2(pt.get<std::string>("ref2.objType"), pt.get<std::string>("ref2.objID"), pt.get<std::string>("ref2.listName"), pt.get<int>("ref2.index"));
       
+      InvStack orig1(pt.get_child("orig1"));
+      InvStack orig2(pt.get_child("orig2"));
+      std::string req_id = pt.get<std::string>("reqID");
+      
       if(ref1.obj_type != "player" || ref2.obj_type != "player") {
         log(LogSource::SERVER, LogLevel::NOTICE, "inv_swap: unsupported obj_type '" + ref1.obj_type + "' '" + ref2.obj_type + "'");
         return;
@@ -377,13 +381,22 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       InvStack stack2 = player->data.inventory.get_at(ref2);
       player->data.inventory.set_at(ref1, stack2);
       player->data.inventory.set_at(ref2, stack1);
-      player->send_inv(ref1.list_name);
-      if(ref1.list_name != ref2.list_name)
-        player->send_inv(ref2.list_name);
+      //player->send_inv(ref1.list_name);
+      //if(ref1.list_name != ref2.list_name)
+      //  player->send_inv(ref2.list_name);
       
       if(player->auth) {
         db.update_player_data(player->get_data());
       }
+      
+      std::ostringstream accept_json;
+      accept_json << "{\"type\":\"inv_patch_accept\",\"reqID\":\"" << json_escape(req_id) << "\",\"diffs\":["
+                  << "{\"ref\":" << ref1.as_json() << ",\"prev\":" << orig1.as_json() << ",\"current\":" << stack2.as_json() << "},"
+                  << "{\"ref\":" << ref2.as_json() << ",\"prev\":" << orig2.as_json() << ",\"current\":" << stack1.as_json() << "}"
+                  << "]}";
+      
+      player_lock_unique.unlock();
+      player->send(accept_json.str());
       
       //TODO craft grid
       //TODO generic send diffs for interested inventories function

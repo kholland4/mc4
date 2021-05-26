@@ -54,6 +54,7 @@ class InvRef {
         obj_type(_obj_type), obj_id(_obj_id), list_name(_list_name), index(_index) {};
     
     bool operator<(const InvRef& other) const;
+    std::string as_json();
     
     std::string obj_type;
     std::string obj_id;

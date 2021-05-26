@@ -38,6 +38,10 @@ class InvRef {
            compareObj(this.objID, other.objID) &&
            this.listName == other.listName;
   }
+  
+  equals(other) {
+    return this.sameList(other) && this.index == other.index;
+  }
 }
 
 api.InvRef = InvRef;
@@ -78,9 +82,18 @@ class ServerBase {
     return n;
   }
   getNode(pos) {
-    var n = getNodeRaw(pos);
-    if(n == null)
+    var mapBlockPos = new MapPos(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z), pos.w, pos.world, pos.universe);
+    var mapBlock = this.getMapBlock(mapBlockPos);
+    if(mapBlock == null)
       return null;
+    
+    var localPos = new MapPos(
+      ((pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
+      ((pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
+      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z,
+      0, 0, 0);
+    
+    var n = mapBlock.data[localPos.x][localPos.y][localPos.z];
     
     var id = nodeID(n);
     return new NodeData(mapBlock.getItemstring(id), nodeRot(n));
