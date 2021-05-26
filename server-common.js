@@ -64,7 +64,8 @@ class ServerBase {
   getNodeRaw(pos) {
     var mapBlockPos = new MapPos(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z), pos.w, pos.world, pos.universe);
     var mapBlock = this.getMapBlock(mapBlockPos);
-    if(mapBlock == null) { return null; }
+    if(mapBlock == null)
+      return null;
     
     var localPos = new MapPos(
       ((pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
@@ -77,17 +78,9 @@ class ServerBase {
     return n;
   }
   getNode(pos) {
-    var mapBlockPos = new MapPos(Math.floor(pos.x / MAPBLOCK_SIZE.x), Math.floor(pos.y / MAPBLOCK_SIZE.y), Math.floor(pos.z / MAPBLOCK_SIZE.z), pos.w, pos.world, pos.universe);
-    var mapBlock = this.getMapBlock(mapBlockPos);
-    if(mapBlock == null) { return null; }
-    
-    var localPos = new MapPos(
-      ((pos.x % MAPBLOCK_SIZE.x) + MAPBLOCK_SIZE.x) % MAPBLOCK_SIZE.x,
-      ((pos.y % MAPBLOCK_SIZE.y) + MAPBLOCK_SIZE.y) % MAPBLOCK_SIZE.y,
-      ((pos.z % MAPBLOCK_SIZE.z) + MAPBLOCK_SIZE.z) % MAPBLOCK_SIZE.z,
-      0, 0, 0);
-    
-    var n = mapBlock.data[localPos.x][localPos.y][localPos.z];
+    var n = getNodeRaw(pos);
+    if(n == null)
+      return null;
     
     var id = nodeID(n);
     return new NodeData(mapBlock.getItemstring(id), nodeRot(n));
@@ -106,20 +99,7 @@ class ServerBase {
     mapBlock.data[localPos.x][localPos.y][localPos.z] = val;
     if(nodeData.itemstring != "air") { mapBlock.props.sunlit = false; }
     mapBlock.markDirty();
-    //FIXME
-    /*if(localPos.x == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0))).markDirty(); } else
-    if(localPos.x == MAPBLOCK_SIZE.x - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(1, 0, 0))).markDirty(); }
-    if(localPos.y == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, -1, 0))).markDirty(); } else
-    if(localPos.y == MAPBLOCK_SIZE.y - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 1, 0))).markDirty(); }
-    if(localPos.z == 0) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1))).markDirty(); } else
-    if(localPos.z == MAPBLOCK_SIZE.z - 1) { this.getMapBlock(mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1))).markDirty(); }*/
-    /*if(localPos.x == 0) { var p = mapBlockPos.clone().add(new THREE.Vector3(-1, 0, 0)); this.setMapBlock(p, this.getMapBlock(p)); } else
-    if(localPos.x == MAPBLOCK_SIZE.z - 1) { var p = mapBlockPos.clone().add(new THREE.Vector3(1, 0, 0)); this.setMapBlock(p, this.getMapBlock(p)); }
-    if(localPos.y == 0) { var p = mapBlockPos.clone().add(new THREE.Vector3(0, -1, 0)); this.setMapBlock(p, this.getMapBlock(p)); } else
-    if(localPos.y == MAPBLOCK_SIZE.z - 1) { var p = mapBlockPos.clone().add(new THREE.Vector3(0, 1, 0)); this.setMapBlock(p, this.getMapBlock(p)); }
-    if(localPos.z == 0) { var p = mapBlockPos.clone().add(new THREE.Vector3(0, 0, -1)); this.setMapBlock(p, this.getMapBlock(p)); } else
-    if(localPos.z == MAPBLOCK_SIZE.z - 1) { var p = mapBlockPos.clone().add(new THREE.Vector3(0, 0, 1)); this.setMapBlock(p, this.getMapBlock(p)); }*/
-    //---
+    
     this.setMapBlock(mapBlockPos, mapBlock);
   }
   

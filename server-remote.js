@@ -117,7 +117,6 @@ class MapBlockPatch {
   }
 }
 
-//TODO
 class ServerRemote extends ServerBase {
   constructor(url) {
     super();
@@ -510,7 +509,6 @@ class ServerRemote extends ServerBase {
     }.bind(this));
   }
   
-  //TODO: support multiple players
   addPlayer(player) {
     this.player = player;
     
@@ -548,7 +546,6 @@ class ServerRemote extends ServerBase {
       if(!this._socketReady) { return null; }
       
       if(!this.requests.has(index)) {
-        //console.log("req " + index);
         this.socket.send(JSON.stringify({
           type: "req_mapblock",
           pos: {x: pos.x, y: pos.y, z: pos.z, w: pos.w, world: pos.world, universe: pos.universe}

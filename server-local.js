@@ -49,7 +49,6 @@ class ServerLocal extends ServerBase {
     }
   }
   
-  //TODO: support multiple players
   addPlayer(player) {
     var playerEntity = new Entity();
     playerEntity.updatePosVelRot(player.pos, player.vel, player.rot);
