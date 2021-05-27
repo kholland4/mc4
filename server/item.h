@@ -19,10 +19,11 @@
 #ifndef __ITEM_H__
 #define __ITEM_H__
 
-#include <ostream>
 #include <set>
 #include <map>
 #include <vector>
+
+#include <boost/property_tree/ptree.hpp>
 
 class ItemDef {
   public:
@@ -43,7 +44,9 @@ class ItemDef {
     std::map<std::string, std::pair<std::vector<double>, int>> tool_groups;
 };
 
-void load_item_defs(std::string filename);
+extern std::map<std::string, ItemDef*> all_item_defs;
+
+void load_item_defs(boost::property_tree::ptree pt);
 ItemDef get_item_def(std::string itemstring);
 
 #endif

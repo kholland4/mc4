@@ -23,6 +23,7 @@
 
 #include <string>
 #include <map>
+#include <set>
 #include <vector>
 #include <optional>
 
@@ -84,15 +85,16 @@ class InvDiff {
 class InvPatch {
   public:
     InvPatch()
-        : req_id(std::nullopt) {};
+        : req_id(std::nullopt), is_deny(false) {};
     InvPatch(std::optional<std::string> _req_id)
-        : req_id(_req_id) {};
+        : req_id(_req_id), is_deny(false) {};
     
     std::string as_json(std::string type) const;
     void make_deny();
     
     std::optional<std::string> req_id;
     std::vector<InvDiff> diffs;
+    bool is_deny;
 };
 
 class InvList {
@@ -103,7 +105,7 @@ class InvList {
     std::string as_json() const;
     
     bool give(InvStack stack);
-    InvStack get_at(int index);
+    InvStack get_at(int index) const;
     bool set_at(int index, InvStack stack);
     bool take_at(int index, InvStack to_take);
     
@@ -119,6 +121,7 @@ class InvSet {
     InvSet() {};
     InvSet(boost::property_tree::ptree pt);
     std::string as_json() const;
+    std::string as_json(std::set<std::string> exclude_lists) const;
     
     InvList& get(std::string list_name);
     bool set(std::string list_name, InvList list);

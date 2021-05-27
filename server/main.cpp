@@ -24,6 +24,9 @@
 
 #include <malloc.h>
 
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+
 namespace {
   std::function<void(int)> terminate_handler;
   void signal_handler(int signum) { terminate_handler(signum); }
@@ -34,8 +37,13 @@ int main(int argc, char *argv[]) {
   
   parse_args(argc, argv);
   
-  load_node_defs(get_config<std::string>("loader.defs_file"));
-  load_item_defs(get_config<std::string>("loader.defs_file"));
+  boost::property_tree::ptree defs_pt;
+  boost::property_tree::read_json(
+      get_config<std::string>("loader.defs_file"), defs_pt);
+  
+  load_node_defs(defs_pt);
+  load_item_defs(defs_pt);
+  load_craft_defs(defs_pt);
   
   Database *db;
   std::string db_backend = get_config<std::string>("database.backend");

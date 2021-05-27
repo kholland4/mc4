@@ -22,7 +22,7 @@
 
 #include <regex>
 
-std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime", "give"};
+std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime", "give", "creative"};
 
 
 void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
@@ -69,7 +69,7 @@ void Server::cmd_status(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
-  if(player->data.privs.find("settime") == player->data.privs.end()) {
+  if(!player->has_priv("settime")) {
     chat_send_player(player, "server", "missing priv: settime");
     return;
   }
@@ -113,7 +113,7 @@ void Server::cmd_whereami(PlayerState *player, std::vector<std::string> args) {
 void Server::cmd_tp(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
-  if(player->data.privs.find("teleport") == player->data.privs.end()) {
+  if(!player->has_priv("teleport")) {
     player_lock_unique.unlock();
     chat_send_player(player, "server", "missing priv: teleport");
     return;
@@ -159,7 +159,7 @@ void Server::cmd_tp(PlayerState *player, std::vector<std::string> args) {
 void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
-  if(player->data.privs.find("teleport") == player->data.privs.end()) {
+  if(!player->has_priv("teleport")) {
     player_lock_unique.unlock();
     chat_send_player(player, "server", "missing priv: teleport");
     return;
@@ -197,7 +197,7 @@ void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
 void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
-  if(player->data.privs.find("teleport") == player->data.privs.end()) {
+  if(!player->has_priv("teleport")) {
     player_lock_unique.unlock();
     chat_send_player(player, "server", "missing priv: teleport");
     return;
@@ -250,7 +250,7 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
     return;
   }
   
-  if(player->data.privs.find(new_priv) != player->data.privs.end()) {
+  if(player->has_priv(new_priv)) {
     player_lock_unique.unlock();
     chat_send_player(player, "server", "you already have '" + new_priv + "'");
     return;
@@ -284,7 +284,7 @@ void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {
 void Server::cmd_giveme(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
-  if(player->data.privs.find("give") == player->data.privs.end()) {
+  if(!player->has_priv("give")) {
     player_lock_unique.unlock();
     chat_send_player(player, "server", "missing priv: give");
     return;

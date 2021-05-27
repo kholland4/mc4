@@ -16,28 +16,27 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "player_util.h"
 #include "creative.h"
 
-#include <regex>
-
-void init_player_data(PlayerData &data) {
-  data.pos.set(0, 20, 0, 0, 0, 0);
-  data.vel.set(0, 0, 0, 0, 0, 0);
-  data.rot.set(0, 0, 0, 0);
+InvList get_creative_inventory() {
+  InvList creative;
+  creative.is_nil = false;
   
-  data.inventory.add("main", InvList(32));
-  data.inventory.add("craft", InvList(9));
-  data.inventory.add("craftOutput", InvList(1));
-  data.inventory.add("hand", InvList(1));
-  data.inventory.add("creative", get_creative_inventory());
-}
-
-bool validate_player_name(std::string name) {
-  std::regex nick_allow("^[a-zA-Z0-9\\-_]{1,40}$");
-  if(!std::regex_match(name, nick_allow)) {
-    //not ok
-    return false;
+  //TODO sort or something
+  
+  for(auto it : all_item_defs) {
+    const ItemDef& def = *it.second;
+    if(!def.in_creative_inventory)
+      continue;
+    
+    std::optional<int> wear = std::nullopt;
+    if(def.is_tool)
+      wear = def.tool_wear;
+    
+    InvStack s(def.itemstring, 1, wear, std::nullopt);
+    
+    creative.list.push_back(s);
   }
-  return true;
+  
+  return creative;
 }

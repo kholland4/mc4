@@ -17,20 +17,11 @@
 */
 
 #include "item.h"
-
 #include "log.h"
-
-#include <map>
-
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 
 std::map<std::string, ItemDef*> all_item_defs;
 
-void load_item_defs(std::string filename) {
-  boost::property_tree::ptree pt;
-  boost::property_tree::read_json(filename, pt);
-  
+void load_item_defs(boost::property_tree::ptree pt) {
   size_t count = 0;
   
   for(const auto& n : pt.get_child("itemDefs")) {

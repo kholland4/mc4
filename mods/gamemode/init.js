@@ -57,6 +57,10 @@
       } else {
         var str = args[1];
         if(str == "creative") {
+          if(!mods.gamemode.creative && !api.player.privs.includes("creative")) {
+            return "no creative priv";
+          }
+          
           var didChange = mods.gamemode.set({creative: true});
           return didChange ? "game set to creative" : "already in creative";
         } else if(str == "survival") {

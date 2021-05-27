@@ -77,6 +77,10 @@ class PlayerState {
       m_name = new_name;
     }
     
+    bool has_priv(std::string priv) {
+      return data.privs.find(priv) != data.privs.end();
+    }
+    
     std::string pos_as_json();
     std::string entity_data_as_json();
     std::string privs_as_json();
@@ -88,6 +92,7 @@ class PlayerState {
     //void send_inv(InvRef ref);
     
     bool inv_give(InvStack stack);
+    InvList inv_get(std::string list_name);
     InvStack inv_get(std::string list_name, int index);
     bool inv_set(std::string list_name, int index, InvStack stack);
     bool inv_take_at(std::string list_name, int index, InvStack to_take);

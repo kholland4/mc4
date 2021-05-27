@@ -60,7 +60,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
     InvStack orig_stack = list.get_at(diff.ref.index);
     if(orig_stack != diff.prev) {
       ok = false;
-      err_message = "patch doesn't match current state at reference: " + diff.ref.as_json();
+      err_message = "patch doesn't match current state at reference: " + diff.ref.as_json() + " (expected " + orig_stack.as_json() + " got " + diff.prev.as_json() + ")";
       break;
     }
     continue;

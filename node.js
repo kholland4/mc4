@@ -300,11 +300,10 @@ function calcDigTime(node, tool) {
   
   if(getItemDef(":") == null) {
     var noToolDef = new Item(":", {isTool: true, toolWear: null, toolGroups: {
-      crumbly: {times: [0, 2], maxlevel: 1},
-      cracky: {times: [0, 2], maxlevel: 1},
-      choppy: {times: [0, 2], maxlevel: 1},
-      snappy: {times: [0, 2], maxlevel: 1},
-      oddly_breakable_by_hand: {times: [0, 1], maxlevel: 1}
+      crumbly: {times: [0, 1, 2], maxlevel: 2},
+      choppy: {times: [0, 2, 4], maxlevel: 2},
+      snappy: {times: [0, 1], maxlevel: 1},
+      oddly_breakable_by_hand: {times: [0, 0.2, 0.5], maxlevel: 2}
     }});
     
     api.registerItem(noToolDef);

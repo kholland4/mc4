@@ -22,6 +22,7 @@
 #include "config.h"
 #include "player_util.h"
 #include "tool.h"
+#include "craft.h"
 
 std::optional<std::pair<InvStack, InvStack>> inv_calc_distribute(InvStack stack1, int qty1, InvStack stack2, int qty2) {
   if(stack1.is_nil && stack2.is_nil)
@@ -66,6 +67,189 @@ std::optional<std::pair<InvStack, InvStack>> inv_calc_distribute(InvStack stack1
     new_stack2 = InvStack();
   
   return std::make_pair(new_stack1, new_stack2);
+}
+
+std::optional<InvPatch> inv_interact_override(const InvRef& ref1, const InvStack& orig1, const InvRef& ref2, const InvStack& orig2, const std::string& req_id, PlayerState *player)
+{
+  InvPatch deny_patch(req_id);
+  deny_patch.diffs.push_back(
+      InvDiff(ref1, orig1, orig1));
+  deny_patch.diffs.push_back(
+      InvDiff(ref2, orig2, orig2));
+  deny_patch.make_deny();
+  
+  if(ref1 == ref2)
+    return deny_patch;
+  
+  //Creative inventory.
+  if(
+    (ref1.obj_type == "player" && ref1.list_name == "creative") &&
+    (ref2.obj_type == "player" && ref2.list_name == "creative")
+  ) {
+    return deny_patch;
+  }
+  
+  if(
+    (ref1.obj_type == "player" && ref1.list_name == "creative") ||
+    (ref2.obj_type == "player" && ref2.list_name == "creative")
+  ) {
+    if(!player->has_priv("creative"))
+      return deny_patch;
+    
+    InvRef creative_ref = ref1;
+    InvRef other_ref = ref2;
+    InvStack creative_stack = orig1;
+    InvStack other_stack = orig2;
+    
+    if(ref2.obj_type == "player" && ref2.list_name == "creative") {
+      creative_ref = ref2;
+      other_ref = ref1;
+      creative_stack = orig2;
+      other_stack = orig1;
+    }
+    
+    if(other_stack.is_nil) {
+      //Put the creative item in the other ref, which is empty
+      InvPatch creative_patch(req_id);
+      creative_patch.diffs.push_back(
+          InvDiff(other_ref, other_stack, creative_stack));
+      return creative_patch;
+    } else if(!creative_stack.is_nil && creative_stack.itemstring == other_stack.itemstring) {
+      //Combine -> other ref
+      InvStack combined_stack(other_stack);
+      ItemDef def = get_item_def(combined_stack.itemstring);
+      combined_stack.count += creative_stack.count;
+      if(combined_stack.count > def.max_stack)
+        combined_stack.count = def.max_stack;
+      
+      InvPatch creative_patch(req_id);
+      creative_patch.diffs.push_back(
+          InvDiff(other_ref, other_stack, combined_stack));
+      return creative_patch;
+    } else {
+      //Destroy the item in the other ref
+      InvPatch creative_patch(req_id);
+      creative_patch.diffs.push_back(
+          InvDiff(other_ref, other_stack, InvStack()));
+      return creative_patch;
+    }
+  }
+  
+  //Craft output.
+  if(
+    (ref1.obj_type == "player" && ref1.list_name == "craftOutput") &&
+    (ref2.obj_type == "player" && ref2.list_name == "craftOutput")
+  ) {
+    return deny_patch;
+  }
+  
+  if(
+    (ref1.obj_type == "player" && ref1.list_name == "craftOutput") ||
+    (ref2.obj_type == "player" && ref2.list_name == "craftOutput")
+  ) {
+    InvRef output_ref = ref1;
+    InvRef other_ref = ref2;
+    InvStack output_stack = orig1;
+    InvStack other_stack = orig2;
+    
+    if(ref2.obj_type == "player" && ref2.list_name == "craftOutput") {
+      output_ref = ref2;
+      other_ref = ref1;
+      output_stack = orig2;
+      other_stack = orig1;
+    }
+    
+    InvList craft_input = player->inv_get("craft");
+    InvStack craft_output = player->inv_get("craftOutput", 0);
+    
+    std::optional<std::pair<InvPatch, InvPatch>> craft_res
+        = craft_calc_result(craft_input, std::pair<int, int>(3, 3));
+    
+    if(!craft_res) {
+      //Deny the patch and instead empty the craft output
+      InvPatch cleanup_patch(req_id);
+      cleanup_patch.diffs.push_back(
+          InvDiff(output_ref, output_stack, InvStack()));
+      cleanup_patch.diffs.push_back(
+          InvDiff(other_ref, other_stack, other_stack));
+      cleanup_patch.make_deny();
+      return cleanup_patch;
+    }
+    
+    InvStack craft_res_stack = (*craft_res).second.diffs[0].current;
+    if(craft_res_stack != output_stack || craft_res_stack != craft_output) {
+      //Deny the patch and instead fix the craft output
+      InvPatch fix_patch(req_id);
+      fix_patch.diffs.push_back(
+          InvDiff(output_ref, output_stack, craft_res_stack));
+      fix_patch.diffs.push_back(
+          InvDiff(other_ref, other_stack, other_stack));
+      fix_patch.make_deny();
+      return fix_patch;
+    }
+    
+    ItemDef craft_res_def = get_item_def(craft_res_stack.itemstring);
+    
+    if(!other_stack.is_nil && other_stack != output_stack)
+      return deny_patch;
+    
+    if(!other_stack.is_nil && (other_stack.count + output_stack.count > craft_res_def.max_stack || !craft_res_def.stackable))
+      return deny_patch;
+    
+    //Make the patch to consume craft input and give the output to the player
+    InvPatch craft_success_patch(req_id);
+    if(other_stack.is_nil) {
+      craft_success_patch.diffs.push_back(
+          InvDiff(other_ref, other_stack, output_stack));
+      craft_success_patch.diffs.push_back(
+          InvDiff(output_ref, output_stack, InvStack()));
+    } else {
+      InvStack combined_stack(other_stack);
+      combined_stack.count += output_stack.count;
+      craft_success_patch.diffs.push_back(
+          InvDiff(other_ref, other_stack, combined_stack));
+      craft_success_patch.diffs.push_back(
+          InvDiff(output_ref, output_stack, InvStack()));
+    }
+    
+    const InvPatch& consume_patch = (*craft_res).first;
+    for(auto diff : consume_patch.diffs) {
+      craft_success_patch.diffs.push_back(diff);
+    }
+    
+    return craft_success_patch;
+  }
+  
+  return std::nullopt;
+}
+
+std::optional<InvPatch> update_craft_if_needed(const InvRef& ref1, const InvRef& ref2, PlayerState *player) {
+  //Craft grid output.
+  if(
+    (ref1.obj_type == "player" && ref1.list_name == "craft") ||
+    (ref2.obj_type == "player" && ref2.list_name == "craft") ||
+    (ref1.obj_type == "player" && ref1.list_name == "craftOutput") ||
+    (ref2.obj_type == "player" && ref2.list_name == "craftOutput")
+  ) {
+    InvList craft_input = player->inv_get("craft");
+    InvStack craft_output = player->inv_get("craftOutput", 0);
+    
+    std::optional<std::pair<InvPatch, InvPatch>> craft_res
+        = craft_calc_result(craft_input, std::pair<int, int>(3, 3));
+    InvStack craft_res_stack;
+    if(craft_res)
+      craft_res_stack = (*craft_res).second.diffs[0].current;
+    
+    if(craft_output != craft_res_stack) {
+      InvRef craft_output_ref("player", "null", "craftOutput", 0);
+      InvPatch out;
+      out.diffs.push_back(
+          InvDiff(craft_output_ref, craft_output, craft_res_stack));
+      return out;
+    }
+  }
+  
+  return std::nullopt;
 }
 
 void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_type::ptr msg) {
@@ -297,14 +481,18 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         return;
       }
       
-      if(!target_def.breakable)
+      if(!target_def.breakable) {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to dig unbreakable node '" + target.itemstring + "' at " + pos.to_string());
         return;
+      }
       
       std::optional<double> break_time_tool = calc_dig_time(target, wield_stack);
       std::optional<double> break_time_hand = calc_dig_time(target, InvStack());
       
-      if(!break_time_tool && !break_time_hand)
+      if(!break_time_tool && !break_time_hand) {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to dig with inadequate tools node '" + target.itemstring + "' at " + pos.to_string());
         return;
+      }
       
       log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' digs '" + target.itemstring + "' at " + pos.to_string());
       
@@ -337,14 +525,19 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       }
       
       //give the dug node to the player
-      InvStack to_give(target.itemstring, 1, std::nullopt, std::nullopt);
+      InvStack to_give;
       if(target_def.drops != "")
         to_give = InvStack(target_def.drops);
+      else if(get_item_def(target.itemstring).itemstring != "nothing")
+        to_give = InvStack(target.itemstring, 1, std::nullopt, std::nullopt);
+      else
+        log(LogSource::SERVER, LogLevel::NOTICE, "node '" + target.itemstring + "' drops nothing");
       
       if(!player->inv_give(to_give)) {
         //TODO
       }
       
+      //FIXME use InvPatches?
       player->send_inv("main");
       if(player->auth) {
         db.update_player_data(player->get_data());
@@ -418,6 +611,23 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       InvStack orig2(pt.get_child("orig2"));
       std::string req_id = pt.get<std::string>("reqID");
       
+      std::optional<InvPatch> override_result
+          = inv_interact_override(ref1, orig1, ref2, orig2, req_id, player);
+      if(override_result) {
+        player_lock_unique.unlock();
+        if((*override_result).is_deny) {
+          player->send((*override_result).as_json("inv_patch_deny"));
+        } else {
+          inv_apply_patch(*override_result, player);
+        }
+          
+        std::optional<InvPatch> craft_patch = update_craft_if_needed(ref1, ref2, player);
+        if(craft_patch)
+          inv_apply_patch(*craft_patch, player);
+        return;
+      }
+      
+      
       //TODO: access control (incl. accessing only own player's inventory)
       
       InvPatch patch(req_id);
@@ -427,8 +637,11 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
           InvDiff(ref2, orig2, orig1));
       
       player_lock_unique.unlock();
-      bool res = inv_apply_patch(patch, player);
-      //TODO craft grid and creative
+      inv_apply_patch(patch, player);
+      
+      std::optional<InvPatch> craft_patch = update_craft_if_needed(ref1, ref2, player);
+      if(craft_patch)
+        inv_apply_patch(*craft_patch, player);
     } else if(type == "inv_distribute") {
       InvRef ref1(pt.get_child("ref1"));
       ref1.obj_id = "null"; //prevent access to other players' inventories (FIXME)
@@ -440,17 +653,46 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       int qty2 = pt.get<int>("qty2");
       std::string req_id = pt.get<std::string>("reqID");
       
+      if(ref1 == ref2) {
+        InvPatch deny_patch(req_id);
+        deny_patch.diffs.push_back(
+            InvDiff(ref1, orig1, orig1));
+        deny_patch.diffs.push_back(
+            InvDiff(ref2, orig2, orig2));
+        deny_patch.make_deny();
+        player_lock_unique.unlock();
+        player->send(deny_patch.as_json("inv_patch_deny"));
+        return;
+      }
+      
+      std::optional<InvPatch> override_result
+          = inv_interact_override(ref1, orig1, ref2, orig2, req_id, player);
+      if(override_result) {
+        player_lock_unique.unlock();
+        if((*override_result).is_deny) {
+          player->send((*override_result).as_json("inv_patch_deny"));
+        } else {
+          inv_apply_patch(*override_result, player);
+        }
+        
+        std::optional<InvPatch> craft_patch = update_craft_if_needed(ref1, ref2, player);
+        if(craft_patch)
+          inv_apply_patch(*craft_patch, player);
+        return;
+      }
+      
+      
       std::optional<std::pair<InvStack, InvStack>> distributed = inv_calc_distribute(orig1, qty1, orig2, qty2);
       
       if(!distributed) {
-        InvPatch patch(req_id);
-        patch.diffs.push_back(
+        InvPatch deny_patch(req_id);
+        deny_patch.diffs.push_back(
             InvDiff(ref1, orig1, orig1));
-        patch.diffs.push_back(
+        deny_patch.diffs.push_back(
             InvDiff(ref2, orig2, orig2));
-        patch.make_deny();
+        deny_patch.make_deny();
         player_lock_unique.unlock();
-        player->send(patch.as_json("inv_patch_deny"));
+        player->send(deny_patch.as_json("inv_patch_deny"));
         return;
       }
       
@@ -462,9 +704,13 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       patch.diffs.push_back(
           InvDiff(ref2, orig2, (*distributed).second));
       
+      
       player_lock_unique.unlock();
-      bool res = inv_apply_patch(patch, player);
-      //TODO craft grid and creative
+      inv_apply_patch(patch, player);
+      
+      std::optional<InvPatch> craft_patch = update_craft_if_needed(ref1, ref2, player);
+      if(craft_patch)
+        inv_apply_patch(*craft_patch, player);
     } else if(type == "inv_pulverize") {
       int wield_index = pt.get<int>("wield");
       InvStack wield_stack = player->inv_get("main", wield_index);

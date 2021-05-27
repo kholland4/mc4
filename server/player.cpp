@@ -160,6 +160,9 @@ bool PlayerState::inv_give(InvStack stack) {
   return list.give(stack);
 }
 
+InvList PlayerState::inv_get(std::string list_name) {
+  return data.inventory.get(list_name);
+}
 InvStack PlayerState::inv_get(std::string list_name, int index) {
   InvList& list = data.inventory.get(list_name);
   if(list.is_nil)

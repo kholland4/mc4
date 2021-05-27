@@ -22,6 +22,8 @@
 #include <ostream>
 #include <map>
 
+#include <boost/property_tree/ptree.hpp>
+
 class Node {
   public:
     Node() {};
@@ -60,7 +62,7 @@ class NodeDef {
     std::map<std::string, int> groups;
 };
 
-void load_node_defs(std::string filename);
+void load_node_defs(boost::property_tree::ptree pt);
 NodeDef get_node_def(std::string itemstring);
 
 #endif

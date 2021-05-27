@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.3-dev1"
+#define VERSION "0.4.4-dev1"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -74,6 +74,7 @@
 #include "mapblock.h"
 #include "node.h"
 #include "item.h"
+#include "craft.h"
 #include "database.h"
 
 #include "player.h"

@@ -131,13 +131,13 @@ InvStack::InvStack(std::string spec) : count(1), wear(std::nullopt), data(std::n
     } catch(std::out_of_range const& e) {
       
     }
+  } else {
+    ItemDef def = get_item_def(itemstring);
+    if(def.is_tool)
+      wear = def.tool_wear;
   }
   
   //TODO use the remaining string as 'data' if present
-  
-  ItemDef def = get_item_def(itemstring);
-  if(def.is_tool)
-    wear = def.tool_wear;
 }
 
 InvStack::InvStack(ItemDef def) : itemstring(def.itemstring), count(1), wear(std::nullopt), data(std::nullopt), is_nil(false) {
@@ -189,6 +189,7 @@ void InvPatch::make_deny() {
   for(auto& it : diffs) {
     it.current = it.prev;
   }
+  is_deny = true;
 }
 
 InvList::InvList(boost::property_tree::ptree pt) : is_nil(false) {
@@ -274,7 +275,7 @@ bool InvList::give(InvStack stack, bool dry_run) {
   return true;
 }
 
-InvStack InvList::get_at(int index) {
+InvStack InvList::get_at(int index) const {
   if(index < 0 || index >= (int)list.size())
     return InvStack();
   
@@ -316,13 +317,16 @@ InvSet::InvSet(boost::property_tree::ptree pt) {
   }
 }
 
-std::string InvSet::as_json() const {
+std::string InvSet::as_json(std::set<std::string> exclude_lists) const {
   std::ostringstream out;
   
   out << "{";
   
   bool first = true;
   for(auto it : inventory) {
+    if(exclude_lists.find(it.first) != exclude_lists.end())
+      continue;
+    
     if(!first)
       out << ",";
     first = false;
@@ -332,6 +336,10 @@ std::string InvSet::as_json() const {
   out << "}";
   
   return out.str();
+}
+
+std::string InvSet::as_json() const {
+  return as_json(std::set<std::string>());
 }
 
 InvList& InvSet::get(std::string list_name) {

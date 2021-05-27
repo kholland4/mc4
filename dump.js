@@ -36,9 +36,22 @@ function dumpAllDefs() {
     };
   }
   
+  var craftDefs = [];
+  
+  for(var craft of allCrafts) {
+    craftDefs.push({
+      res: ItemStack.fromString(craft.res),
+      list: craft.list,
+      shape: craft.shape,
+      type: craft.type,
+      cookTime: craft.cookTime
+    });
+  }
+  
   var out = {
     nodeDefs: nodeDefs,
-    itemDefs: itemDefs
+    itemDefs: itemDefs,
+    craftDefs: craftDefs
   };
   
   var outJSON = JSON.stringify(out);

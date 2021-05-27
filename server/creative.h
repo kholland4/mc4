@@ -16,28 +16,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "player_util.h"
-#include "creative.h"
+#ifndef __CREATIVE_H__
+#define __CREATIVE_H__
 
-#include <regex>
+#include "item.h"
+#include "inventory.h"
 
-void init_player_data(PlayerData &data) {
-  data.pos.set(0, 20, 0, 0, 0, 0);
-  data.vel.set(0, 0, 0, 0, 0, 0);
-  data.rot.set(0, 0, 0, 0);
-  
-  data.inventory.add("main", InvList(32));
-  data.inventory.add("craft", InvList(9));
-  data.inventory.add("craftOutput", InvList(1));
-  data.inventory.add("hand", InvList(1));
-  data.inventory.add("creative", get_creative_inventory());
-}
+InvList get_creative_inventory();
 
-bool validate_player_name(std::string name) {
-  std::regex nick_allow("^[a-zA-Z0-9\\-_]{1,40}$");
-  if(!std::regex_match(name, nick_allow)) {
-    //not ok
-    return false;
-  }
-  return true;
-}
+#endif

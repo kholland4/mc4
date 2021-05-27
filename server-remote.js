@@ -603,6 +603,7 @@ class ServerRemote extends ServerBase {
           
           for(var i = this.invPatches.length - 1; i >= 0; i--) {
             this.invPatches[i].doRevert();
+            this.invPatches.splice(i, 1);
           }
           
           server_patch.doApply();

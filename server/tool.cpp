@@ -63,15 +63,13 @@ std::optional<double> calc_dig_time(Node target, InvStack tool) {
   no_tool_def.is_tool = true;
   no_tool_def.tool_wear = 999;
   no_tool_def.tool_groups["crumbly"] =
-      std::make_pair(std::vector<double>{0, 2}, 1);
-  no_tool_def.tool_groups["cracky"] =
-      std::make_pair(std::vector<double>{0, 2}, 1);
+      std::make_pair(std::vector<double>{0, 1, 2}, 2);
   no_tool_def.tool_groups["choppy"] =
-      std::make_pair(std::vector<double>{0, 2}, 1);
+      std::make_pair(std::vector<double>{0, 2, 4}, 2);
   no_tool_def.tool_groups["snappy"] =
-      std::make_pair(std::vector<double>{0, 2}, 1);
-  no_tool_def.tool_groups["oddly_breakable_by_hand"] =
       std::make_pair(std::vector<double>{0, 1}, 1);
+  no_tool_def.tool_groups["oddly_breakable_by_hand"] =
+      std::make_pair(std::vector<double>{0, 0.2, 0.5}, 2);
   
   return calc_dig_time_actual(target, no_tool_def);
 }

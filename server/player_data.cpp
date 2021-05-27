@@ -21,6 +21,7 @@
 #include "json.h"
 #include "log.h"
 #include "inventory.h"
+#include "creative.h"
 
 #include <sstream>
 
@@ -70,6 +71,8 @@ PlayerData::PlayerData(std::string json, std::string _auth_id) : is_nil(true), a
       inventory.add("hand", InvList(1));
     }
     
+    inventory.add("creative", get_creative_inventory());
+    
     is_nil = false;
   } catch(boost::property_tree::ptree_error const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " json=" + json);
@@ -96,7 +99,7 @@ std::string PlayerData::to_json() {
   
   out << "],";
   
-  out << "\"inventory\":" << inventory.as_json();
+  out << "\"inventory\":" << inventory.as_json(std::set<std::string>{"creative"});
   
   out << "}";
   
