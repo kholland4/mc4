@@ -55,25 +55,34 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
     return false;
   }
   
+  InvPatch deny_patch_new;
+  deny_patch_new.req_id = patch.req_id;
+  
   for(const auto& diff : patch.diffs) {
     InvList list = get_invlist(diff.ref, requesting_player);
     InvStack orig_stack = list.get_at(diff.ref.index);
+    
+    deny_patch_new.diffs.push_back(
+        InvDiff(diff.ref, orig_stack, orig_stack));
+    
     if(orig_stack != diff.prev) {
       ok = false;
       err_message = "patch doesn't match current state at reference: " + diff.ref.as_json() + " (expected " + orig_stack.as_json() + " got " + diff.prev.as_json() + ")";
-      break;
+      //break;
+      //don't break b/c we need to gather other stacks to make deny_patch_new
     }
-    continue;
+    //continue;
   }
+  deny_patch_new.make_deny();
+  
   if(!ok) {
     for(const auto& ref : locked_refs) {
       unlock_invlist(ref, requesting_player);
     }
     
     log(LogSource::SERVER, LogLevel::NOTICE, "inv_apply_patch: " + err_message);
-    patch.make_deny();
     if(requesting_player != NULL)
-      requesting_player->send(patch.as_json("inv_patch_deny"));
+      requesting_player->send(deny_patch_new.as_json("inv_patch_deny"));
     return false;
   }
   
@@ -105,9 +114,8 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
     }
     
     log(LogSource::SERVER, LogLevel::NOTICE, "inv_apply_patch: " + err_message);
-    patch.make_deny();
     if(requesting_player != NULL)
-      requesting_player->send(patch.as_json("inv_patch_deny"));
+      requesting_player->send(deny_patch_new.as_json("inv_patch_deny"));
     return false;
   }
   
