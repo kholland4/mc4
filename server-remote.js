@@ -285,10 +285,6 @@ class ServerRemote extends ServerBase {
     this.socket.onmessage = function(e) {
       if(e.data instanceof ArrayBuffer) {
         //req_mapblock
-        
-        //console.log(btoa(String.fromCharCode.apply(null, new Uint8Array(e.data))));
-        //location.reload();
-        
         var dv = new DataView(e.data);
         var endianness = false;
         var magic = dv.getUint32(0);
@@ -586,8 +582,6 @@ class ServerRemote extends ServerBase {
               current
           );
         }
-        
-        console.log(server_patch);
         
         var didAccept = false;
         if(data.type == "inv_patch_accept" && this.invPatches.length > 0) {

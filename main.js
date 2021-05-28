@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.3.1-dev3";
+var VERSION = "0.3.1-dev4";
 
 var serverListURL = "https://ss1.tausquared.net:8083/serverlist.json";
 
