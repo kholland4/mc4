@@ -190,7 +190,7 @@ std::optional<InvPatch> inv_interact_override(const InvRef& ref1, const InvStack
     
     ItemDef craft_res_def = get_item_def(craft_res_stack.itemstring);
     
-    if(!other_stack.is_nil && other_stack != output_stack)
+    if(!other_stack.is_nil && other_stack.itemstring != output_stack.itemstring)
       return deny_patch;
     
     if(!other_stack.is_nil && (other_stack.count + output_stack.count > craft_res_def.max_stack || !craft_res_def.stackable))
@@ -611,6 +611,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       InvStack orig2(pt.get_child("orig2"));
       std::string req_id = pt.get<std::string>("reqID");
       
+      //TODO: access control (incl. accessing only own player's inventory)
+      
       std::optional<InvPatch> override_result
           = inv_interact_override(ref1, orig1, ref2, orig2, req_id, player);
       if(override_result) {
@@ -628,7 +630,6 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       }
       
       
-      //TODO: access control (incl. accessing only own player's inventory)
       
       InvPatch patch(req_id);
       patch.diffs.push_back(
@@ -652,6 +653,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       int qty1 = pt.get<int>("qty1");
       int qty2 = pt.get<int>("qty2");
       std::string req_id = pt.get<std::string>("reqID");
+      
+      //TODO: access control (incl. accessing only own player's inventory)
       
       if(ref1 == ref2) {
         InvPatch deny_patch(req_id);
@@ -696,7 +699,6 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         return;
       }
       
-      //TODO: access control (incl. accessing only own player's inventory)
       
       InvPatch patch(req_id);
       patch.diffs.push_back(

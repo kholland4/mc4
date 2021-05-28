@@ -587,6 +587,8 @@ class ServerRemote extends ServerBase {
           );
         }
         
+        console.log(server_patch);
+        
         var didAccept = false;
         if(data.type == "inv_patch_accept" && this.invPatches.length > 0) {
           if(this.invPatches[0].reqID == server_patch.reqID) {
@@ -876,10 +878,38 @@ class ServerRemote extends ServerBase {
     if(origStack2 != null)
       origStack2 = new ItemStack(origStack2.itemstring, origStack2.count, origStack2.wear, origStack2.data);
     
+    //try override
+    var overrideResult = this.invTryOverride(first, second);
+    if(overrideResult === false)
+      return false;
+    if(overrideResult instanceof InvPatch) {
+      this.socket.send(JSON.stringify({
+        type: "inv_swap",
+        ref1: first,
+        ref2: second,
+        orig1: origStack1,
+        orig2: origStack2,
+        reqID: overrideResult.reqID
+      }));
+      
+      overrideResult.doApply();
+      this.invPatches.push(overrideResult);
+      
+      //TODO this won't be matched to the associated patch from the server
+      var craftPatch = this.updateCraftIfNeeded(first, second);
+      if(craftPatch != null) {
+        craftPatch.doApply();
+        this.invPatches.push(craftPatch);
+      }
+      
+      return true;
+    }
+    //---
+    
     var newStack1 = origStack2;
     var newStack2 = origStack1;
     
-    var patch = new InvPatch(server, hopefullyPassableUUIDv4Generator());
+    var patch = new InvPatch(this, hopefullyPassableUUIDv4Generator());
     patch.add(first, origStack1, newStack1);
     patch.add(second, origStack2, newStack2);
     
@@ -895,13 +925,20 @@ class ServerRemote extends ServerBase {
     patch.doApply();
     this.invPatches.push(patch);
     
+    //TODO this won't be matched to the associated patch from the server
+    var craftPatch = this.updateCraftIfNeeded(first, second);
+    if(craftPatch != null) {
+      craftPatch.doApply();
+      this.invPatches.push(craftPatch);
+    }
+    
     return true;
   }
   invDistribute(first, qty1, second, qty2) {
     if(!this._socketReady)
       return false;
     
-    //do the swap locally to display to the player
+    //do the distribute locally to display to the player
     
     var stack1 = this.invGetStack(first);
     if(stack1 != null)
@@ -910,6 +947,35 @@ class ServerRemote extends ServerBase {
     if(stack2 != null)
       stack2 = new ItemStack(stack2.itemstring, stack2.count, stack2.wear, stack2.data);
     
+    //try override
+    var overrideResult = this.invTryOverride(first, second);
+    if(overrideResult === false)
+      return false;
+    if(overrideResult instanceof InvPatch) {
+      this.socket.send(JSON.stringify({
+        type: "inv_distribute",
+        ref1: first,
+        orig1: stack1,
+        qty1: qty1,
+        ref2: second,
+        orig2: stack2,
+        qty2: qty2,
+        reqID: overrideResult.reqID
+      }));
+      
+      overrideResult.doApply();
+      this.invPatches.push(overrideResult);
+      
+      //TODO this won't be matched to the associated patch from the server
+      var craftPatch = this.updateCraftIfNeeded(first, second);
+      if(craftPatch != null) {
+        craftPatch.doApply();
+        this.invPatches.push(craftPatch);
+      }
+      
+      return true;
+    }
+    //---
     
     if(stack1 == null && stack2 == null) {
       throw new Error("nothing to distribute");
@@ -971,7 +1037,7 @@ class ServerRemote extends ServerBase {
     }
     
     
-    var patch = new InvPatch(server, hopefullyPassableUUIDv4Generator());
+    var patch = new InvPatch(this, hopefullyPassableUUIDv4Generator());
     patch.add(first, stack1, newStack1);
     patch.add(second, stack2, newStack2);
     
@@ -989,9 +1055,173 @@ class ServerRemote extends ServerBase {
     patch.doApply();
     this.invPatches.push(patch);
     
+    //TODO this won't be matched to the associated patch from the server
+    var craftPatch = this.updateCraftIfNeeded(first, second);
+    if(craftPatch != null) {
+      craftPatch.doApply();
+      this.invPatches.push(craftPatch);
+    }
+    
     return true;
   }
   invAutomerge(ref, qty, target) {
     
+  }
+  
+  //false = do nothing
+  //null = proceed as normal
+  //InvPatch = successful override, do this patch
+  invTryOverride(first, second) {
+    if(first.equals(second))
+      return false;
+    
+    //Creative inventory.
+    if(
+      (first.objType == "player" && first.listName == "creative") &&
+      (second.objType == "player" && second.listName == "creative")
+    ) {
+      return false;
+    }
+    
+    if(
+      (first.objType == "player" && first.listName == "creative") ||
+      (second.objType == "player" && second.listName == "creative")
+    ) {
+      //TODO: check creative priv? not neccessary though.
+      
+      var creative_ref = first;
+      var other_ref = second;
+      
+      if(second.objType == "player" && second.listName == "creative") {
+        creative_ref = second;
+        other_ref = first;
+      }
+      
+      var creative_stack = this.invGetStack(creative_ref);
+      if(creative_stack != null)
+        creative_stack = new ItemStack(creative_stack.itemstring, creative_stack.count, creative_stack.wear, creative_stack.data);
+      var other_stack = this.invGetStack(other_ref);
+      if(other_stack != null)
+        other_stack = new ItemStack(other_stack.itemstring, other_stack.count, other_stack.wear, other_stack.data);
+      
+      if(other_stack == null) {
+        //Put the creative item in the other ref, which is empty
+        var creative_patch = new InvPatch(this, hopefullyPassableUUIDv4Generator());
+        creative_patch.add(other_ref, other_stack, creative_stack);
+        return creative_patch;
+      } else if(creative_stack != null && creative_stack.itemstring == other_stack.itemstring) {
+        //Combine -> other ref
+        var combined_stack = new ItemStack(other_stack.itemstring, other_stack.count, other_stack.wear, other_stack.data);
+        var def = combined_stack.getDef();
+        combined_stack.count += creative_stack.count;
+        if(combined_stack.count > def.max_stack)
+          combined_stack.count = def.max_stack;
+        
+        var creative_patch = new InvPatch(this, hopefullyPassableUUIDv4Generator());
+        creative_patch.add(other_ref, other_stack, combined_stack);
+        return creative_patch;
+      } else {
+        //Destroy the item in the other ref
+        var creative_patch = new InvPatch(this, hopefullyPassableUUIDv4Generator());
+        creative_patch.add(other_ref, other_stack, null);
+        return creative_patch;
+      }
+    }
+    
+    //Craft output.
+    if(
+      (first.objType == "player" && first.listName == "craftOutput") &&
+      (second.objType == "player" && second.listName == "craftOutput")
+    ) {
+      return false;
+    }
+    
+    if(
+      (first.objType == "player" && first.listName == "craftOutput") ||
+      (second.objType == "player" && second.listName == "craftOutput")
+    ) {
+      var output_ref = first;
+      var other_ref = second;
+      
+      if(second.objType == "player" && second.listName == "craftOutput") {
+        output_ref = second;
+        other_ref = first;
+      }
+      
+      var output_stack = this.invGetStack(output_ref);
+      if(output_stack != null)
+        output_stack = new ItemStack(output_stack.itemstring, output_stack.count, output_stack.wear, output_stack.data);
+      var other_stack = this.invGetStack(other_ref);
+      if(other_stack != null)
+        other_stack = new ItemStack(other_stack.itemstring, other_stack.count, other_stack.wear, other_stack.data);
+      
+      var craft_ref = new InvRef("player", null, "craft", null);
+      var craft_list = this.invGetList(craft_ref);
+      var craft_res = getCraftRes(craft_list, {x: 3, y: 3});
+      
+      if(craft_res == null)
+        return false;
+      
+      if(output_stack == null)
+        return false;
+      
+      var combined_stack;
+      if(other_stack != null) {
+        if(!other_stack.typeMatch(output_stack))
+          return false;
+        var def = output_stack.getDef();
+        if(!def.stackable)
+          return false;
+        if(output_stack.count + other_stack.count > def.maxStack)
+          return false;
+        
+        combined_stack = new ItemStack(other_stack.itemstring, other_stack.count, other_stack.wear, other_stack.data);
+        combined_stack.count += output_stack.count;
+      } else {
+        combined_stack = new ItemStack(output_stack.itemstring, output_stack.count, output_stack.wear, output_stack.data);
+      }
+      
+      var craft_success_patch = new InvPatch(this, hopefullyPassableUUIDv4Generator());
+      craft_success_patch.add(other_ref, other_stack, combined_stack);
+      craft_success_patch.add(output_ref, output_stack, null);
+      
+      //TODO craftConsumeEntry should extend the patch
+      
+      return craft_success_patch;
+    }
+    
+    return null;
+  }
+  
+  updateCraftIfNeeded(first, second) {
+    if(
+      (first.objType == "player" && first.listName == "craft") ||
+      (second.objType == "player" && second.listName == "craft") ||
+      (first.objType == "player" && first.listName == "craftOutput") ||
+      (second.objType == "player" && second.listName == "craftOutput")
+    ) {
+      var craft_input = this.invGetList(
+          new InvRef("player", null, "craft", null));
+      var craft_output_ref = new InvRef("player", null, "craftOutput", 0)
+      var craft_output = this.invGetStack(craft_output_ref);
+      
+      var r = getCraftRes(craft_input, {x: 3, y: 3});
+      var craft_res_stack = null;
+      if(r != null)
+        craft_res_stack = r.getRes();
+      
+      if(craft_res_stack == null && craft_output == null)
+        return null;
+      if(craft_res_stack != null && craft_output != null) {
+        if(craft_res_stack.equals(craft_output))
+          return null;
+      }
+      
+      var out = new InvPatch(this, hopefullyPassableUUIDv4Generator());
+      out.add(craft_output_ref, craft_output, craft_res_stack);
+      return out;
+    }
+    
+    return null;
   }
 }
