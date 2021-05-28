@@ -790,6 +790,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         cmd_privs(player, tokens);
       } else if(tokens[0] == "/giveme") {
         cmd_giveme(player, tokens);
+      } else if(tokens[0] == "/clearinv") {
+        cmd_clearinv(player, tokens);
       } else {
         chat_send_player(player, "server", "unknown command");
         return;

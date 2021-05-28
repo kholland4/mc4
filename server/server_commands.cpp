@@ -326,5 +326,35 @@ void Server::cmd_giveme(PlayerState *player, std::vector<std::string> args) {
   
   player_lock_unique.unlock();
   chat_send_player(player, "server", "unable to add '" + to_give.spec() + "' to inventory");
-  return;
+}
+
+void Server::cmd_clearinv(PlayerState *player, std::vector<std::string> args) {
+  //Clear own player's inventory (main, craft, craftOutput, hand)
+  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
+  
+  std::vector<std::string> to_clear {
+    "main", "craft", "craftOutput", "hand"
+  };
+  
+  InvPatch clear_patch;
+  
+  for(const auto& list_name : to_clear) {
+    InvList clear_list = player->inv_get(list_name);
+    for(size_t i = 0; i < clear_list.list.size(); i++) {
+      clear_patch.diffs.push_back(InvDiff(
+          InvRef("player", "null", list_name, i),
+          clear_list.list[i],
+          InvStack()
+      ));
+    }
+  }
+  
+  player_lock_unique.unlock();
+  
+  bool res = inv_apply_patch(clear_patch, player);
+  
+  if(res)
+    chat_send_player(player, "server", "successfully cleared inventory");
+  else
+    chat_send_player(player, "server", "error when attempting to clear inventory");
 }
