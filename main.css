@@ -176,3 +176,27 @@ td.serverListEntry, td.serverListEntry_header {
   font-family: sans-serif;
   font-size: 14px;
 }
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: black;
+  }
+  #infoBlurb {
+    background-color: black;
+    color: white;
+  }
+  table.serverListContainer {
+    background-color: black;
+  }
+  tr.serverListEntry, tr.serverListEntry_header {
+    background-color: black;
+    color: white;
+  }
+  tr.serverListEntry:hover {
+    background-color: #444;
+  }
+  .serverDescBox {
+    background-color: black;
+    color: white;
+  }
+}

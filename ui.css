@@ -1,6 +1,6 @@
 /*
     mc4, a web voxel building game
-    Copyright (C) 2019 kholland4
+    Copyright (C) 2019-2021 kholland4
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -181,4 +181,30 @@
 }
 .uiEl_tab_content.active {
   display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  .uiWindow {
+    border: 2px solid #888;
+    background-color: #222;
+  }
+  .uiEl_text {
+    color: white;
+  }
+  .uiEl_button, .uiEl_select, .uiEl_input_text {
+    background-color: #444;
+    color: white;
+  }
+  .uiEl_input_text {
+    background-color: black;
+    color: white;
+  }
+  .uiEl_tab {
+    color: white;
+    border: 1px solid #555;
+  }
+  .uiEl_tab.active {
+    background-color: #555;
+    border: 1px solid #555;
+  }
 }
