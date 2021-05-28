@@ -1107,6 +1107,10 @@ class ServerRemote extends ServerBase {
         //Combine -> other ref
         var combined_stack = new ItemStack(other_stack.itemstring, other_stack.count, other_stack.wear, other_stack.data);
         var def = combined_stack.getDef();
+        if(!def.stackable) {
+          //Do nothing
+          return false;
+        }
         combined_stack.count += creative_stack.count;
         if(combined_stack.count > def.max_stack)
           combined_stack.count = def.max_stack;
