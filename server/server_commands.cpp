@@ -22,7 +22,7 @@
 
 #include <regex>
 
-std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime", "give", "creative"};
+std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime", "give", "creative", "grant"};
 
 
 void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
@@ -233,6 +233,63 @@ void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args)
   }
 }
 
+void Server::cmd_grant(PlayerState *player, std::vector<std::string> args) {
+  std::shared_lock<std::shared_mutex> self_lock(player->lock);
+  std::string self_name = player->get_name();
+  self_lock.unlock();
+  
+  if(args.size() != 3) {
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/grant <player> <priv>'");
+    return;
+  }
+  
+  std::string player_name = args[1];
+  std::string new_priv = args[2];
+  
+  if(allowed_privs.find(new_priv) == allowed_privs.end()) {
+    chat_send_player(player, "server", "invalid privilege '" + new_priv + "'");
+    return;
+  }
+  
+  //Find the requested player.
+  PlayerState *player_found = NULL;
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  for(auto it : m_players) {
+    PlayerState *player_check = it.second;
+    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+    if(player_check->get_name() == player_name) {
+      player_found = player_check;
+      break;
+    }
+  }
+  
+  //TODO offline players
+  
+  if(player_found == NULL) {
+    chat_send_player(player, "server", "unknown or offline player '" + player_name + "'");
+    return;
+  }
+  
+  std::unique_lock<std::shared_mutex> player_lock_unique(player_found->lock);
+  
+  if(player_found->has_priv(new_priv)) {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "player '" + player_name + "' already has '" + new_priv + "'");
+    return;
+  }
+  
+  player_found->data.privs.insert(new_priv);
+  player_found->send_privs(m_server);
+  
+  if(player_found->auth) {
+    db.update_player_data(player_found->get_data());
+  }
+  
+  player_lock_unique.unlock();
+  chat_send_player(player, "server", "granted '" + new_priv + "' to '" + player_name + "'");
+  chat_send_player(player_found, "server", self_name + " granted you '" + new_priv + "'");
+}
+
 void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
@@ -246,7 +303,7 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
   
   if(allowed_privs.find(new_priv) == allowed_privs.end()) {
     player_lock_unique.unlock();
-    chat_send_player(player, "server", "invalid privilege");
+    chat_send_player(player, "server", "invalid privilege '" + new_priv + "'");
     return;
   }
   
@@ -267,14 +324,106 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
   chat_send_player(player, "server", "granted '" + new_priv + "'");
 }
 
+void Server::cmd_revoke(PlayerState *player, std::vector<std::string> args) {
+  std::shared_lock<std::shared_mutex> self_lock(player->lock);
+  std::string self_name = player->get_name();
+  self_lock.unlock();
+  
+  if(args.size() != 3) {
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/revoke <player> <priv>'");
+    return;
+  }
+  
+  std::string player_name = args[1];
+  std::string new_priv = args[2];
+  
+  //Find the requested player.
+  PlayerState *player_found = NULL;
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  for(auto it : m_players) {
+    PlayerState *player_check = it.second;
+    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+    if(player_check->get_name() == player_name) {
+      player_found = player_check;
+      break;
+    }
+  }
+  
+  //TODO offline players
+  
+  if(player_found == NULL) {
+    chat_send_player(player, "server", "unknown or offline player '" + player_name + "'");
+    return;
+  }
+  
+  std::unique_lock<std::shared_mutex> player_lock_unique(player_found->lock);
+  
+  auto search = player_found->data.privs.find(new_priv);
+  if(search == player_found->data.privs.end()) {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "player '" + player_name + "' does not have '" + new_priv + "'");
+    return;
+  }
+  
+  player_found->data.privs.erase(search);
+  player_found->send_privs(m_server);
+  
+  if(player_found->auth) {
+    db.update_player_data(player_found->get_data());
+  }
+  
+  player_lock_unique.unlock();
+  chat_send_player(player, "server", "revoked '" + new_priv + "' from '" + player_name + "'");
+  chat_send_player(player_found, "server", self_name + " revoked your privelege '" + new_priv + "'");
+}
+
 void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {
   //TODO: /privs <any player nick or login name>
   
-  std::shared_lock<std::shared_mutex> player_lock(player->lock);
+  if(args.size() == 1) {
+    std::shared_lock<std::shared_mutex> player_lock(player->lock);
+    
+    std::ostringstream ss;
+    ss << "privileges of " << player->get_name() << ":";
+    for(auto p : player->data.privs) {
+      ss << " " << p;
+    }
+    
+    chat_send_player(player, "server", ss.str());
+    return;
+  }
+  
+  if(args.size() != 2) {
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/privs' or '/privs <player>'");
+    return;
+  }
+  
+  std::string player_name = args[1];
+  
+  //Find the requested player.
+  PlayerState *player_found = NULL;
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  for(auto it : m_players) {
+    PlayerState *player_check = it.second;
+    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+    if(player_check->get_name() == player_name) {
+      player_found = player_check;
+      break;
+    }
+  }
+  
+  //TODO offline players
+  
+  if(player_found == NULL) {
+    chat_send_player(player, "server", "unknown or offline player '" + player_name + "'");
+    return;
+  }
+  
+  std::shared_lock<std::shared_mutex> player_lock_unique(player_found->lock);
   
   std::ostringstream ss;
-  ss << "privileges of " << player->get_name() << ":";
-  for(auto p : player->data.privs) {
+  ss << "privileges of " << player_found->get_name() << ":";
+  for(auto p : player_found->data.privs) {
     ss << " " << p;
   }
   

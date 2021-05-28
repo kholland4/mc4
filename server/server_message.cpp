@@ -784,8 +784,12 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         cmd_tp_world(player, tokens);
       } else if(tokens[0] == "/universe") {
         cmd_tp_universe(player, tokens);
+      } else if(tokens[0] == "/grant") {
+        cmd_grant(player, tokens);
       } else if(tokens[0] == "/grantme") {
         cmd_grantme(player, tokens);
+      } else if(tokens[0] == "/revoke") {
+        cmd_revoke(player, tokens);
       } else if(tokens[0] == "/privs") {
         cmd_privs(player, tokens);
       } else if(tokens[0] == "/giveme") {
