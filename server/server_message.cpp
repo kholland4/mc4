@@ -610,6 +610,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       InvStack orig1(pt.get_child("orig1"));
       InvStack orig2(pt.get_child("orig2"));
       std::string req_id = pt.get<std::string>("reqID");
+      std::string craft_patch_id = pt.get<std::string>("craftPatchID");
       
       //TODO: access control (incl. accessing only own player's inventory)
       
@@ -624,8 +625,10 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         }
           
         std::optional<InvPatch> craft_patch = update_craft_if_needed(ref1, ref2, player);
-        if(craft_patch)
+        if(craft_patch) {
+          (*craft_patch).req_id = craft_patch_id;
           inv_apply_patch(*craft_patch, player);
+        }
         return;
       }
       
@@ -641,8 +644,10 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       inv_apply_patch(patch, player);
       
       std::optional<InvPatch> craft_patch = update_craft_if_needed(ref1, ref2, player);
-      if(craft_patch)
+      if(craft_patch) {
+        (*craft_patch).req_id = craft_patch_id;
         inv_apply_patch(*craft_patch, player);
+      }
     } else if(type == "inv_distribute") {
       InvRef ref1(pt.get_child("ref1"));
       ref1.obj_id = "null"; //prevent access to other players' inventories (FIXME)
@@ -653,6 +658,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       int qty1 = pt.get<int>("qty1");
       int qty2 = pt.get<int>("qty2");
       std::string req_id = pt.get<std::string>("reqID");
+      std::string craft_patch_id = pt.get<std::string>("craftPatchID");
       
       //TODO: access control (incl. accessing only own player's inventory)
       
@@ -679,8 +685,10 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         }
         
         std::optional<InvPatch> craft_patch = update_craft_if_needed(ref1, ref2, player);
-        if(craft_patch)
+        if(craft_patch) {
+          (*craft_patch).req_id = craft_patch_id;
           inv_apply_patch(*craft_patch, player);
+        }
         return;
       }
       
@@ -711,8 +719,10 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       inv_apply_patch(patch, player);
       
       std::optional<InvPatch> craft_patch = update_craft_if_needed(ref1, ref2, player);
-      if(craft_patch)
+      if(craft_patch) {
+        (*craft_patch).req_id = craft_patch_id;
         inv_apply_patch(*craft_patch, player);
+      }
     } else if(type == "inv_pulverize") {
       int wield_index = pt.get<int>("wield");
       InvStack wield_stack = player->inv_get("main", wield_index);

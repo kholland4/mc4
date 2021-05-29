@@ -863,6 +863,8 @@ class ServerRemote extends ServerBase {
     if(!this._socketReady)
       return false;
     
+    var craftPatchID = hopefullyPassableUUIDv4Generator();
+    
     //do the swap locally to display to the player
     
     var origStack1 = this.invGetStack(first);
@@ -883,15 +885,17 @@ class ServerRemote extends ServerBase {
         ref2: second,
         orig1: origStack1,
         orig2: origStack2,
-        reqID: overrideResult.reqID
+        reqID: overrideResult.reqID,
+        craftPatchID: craftPatchID
       }));
       
       overrideResult.doApply();
       this.invPatches.push(overrideResult);
       
-      //TODO this won't be matched to the associated patch from the server
+      //Update craft grid if needed
       var craftPatch = this.updateCraftIfNeeded(first, second);
       if(craftPatch != null) {
+        craftPatch.reqID = craftPatchID;
         craftPatch.doApply();
         this.invPatches.push(craftPatch);
       }
@@ -913,15 +917,17 @@ class ServerRemote extends ServerBase {
       ref2: second,
       orig1: origStack1,
       orig2: origStack2,
-      reqID: patch.reqID
+      reqID: patch.reqID,
+      craftPatchID: craftPatchID
     }));
     
     patch.doApply();
     this.invPatches.push(patch);
     
-    //TODO this won't be matched to the associated patch from the server
+    //Update craft grid if needed
     var craftPatch = this.updateCraftIfNeeded(first, second);
     if(craftPatch != null) {
+      craftPatch.reqID = craftPatchID;
       craftPatch.doApply();
       this.invPatches.push(craftPatch);
     }
@@ -931,6 +937,8 @@ class ServerRemote extends ServerBase {
   invDistribute(first, qty1, second, qty2) {
     if(!this._socketReady)
       return false;
+    
+    var craftPatchID = hopefullyPassableUUIDv4Generator();
     
     //do the distribute locally to display to the player
     
@@ -954,15 +962,17 @@ class ServerRemote extends ServerBase {
         ref2: second,
         orig2: stack2,
         qty2: qty2,
-        reqID: overrideResult.reqID
+        reqID: overrideResult.reqID,
+        craftPatchID: craftPatchID
       }));
       
       overrideResult.doApply();
       this.invPatches.push(overrideResult);
       
-      //TODO this won't be matched to the associated patch from the server
+      //Update craft grid if needed
       var craftPatch = this.updateCraftIfNeeded(first, second);
       if(craftPatch != null) {
+        craftPatch.reqID = craftPatchID;
         craftPatch.doApply();
         this.invPatches.push(craftPatch);
       }
@@ -1043,15 +1053,17 @@ class ServerRemote extends ServerBase {
       ref2: second,
       orig2: stack2,
       qty2: qty2,
-      reqID: patch.reqID
+      reqID: patch.reqID,
+      craftPatchID: craftPatchID
     }));
     
     patch.doApply();
     this.invPatches.push(patch);
     
-    //TODO this won't be matched to the associated patch from the server
+    //Update craft grid if needed
     var craftPatch = this.updateCraftIfNeeded(first, second);
     if(craftPatch != null) {
+      craftPatch.reqID = craftPatchID;
       craftPatch.doApply();
       this.invPatches.push(craftPatch);
     }
@@ -1183,7 +1195,13 @@ class ServerRemote extends ServerBase {
       craft_success_patch.add(other_ref, other_stack, combined_stack);
       craft_success_patch.add(output_ref, output_stack, null);
       
-      //TODO craftConsumeEntry should extend the patch
+      //Use craftConsumeEntry to extend the patch
+      var consume_patch = craftConsumeEntry(craft_res, craft_list, {x: 3, y: 3}, true);
+      if(consume_patch != null) {
+        for(var diff of consume_patch.diffs) {
+          craft_success_patch.diffs.push(diff);
+        }
+      }
       
       return craft_success_patch;
     }

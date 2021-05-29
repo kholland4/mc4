@@ -39,25 +39,18 @@ function getCraftRes(list, listShape) {
   return null;
 }
 
-function craftConsumeEntry(entry, list, listShape) {
-  if(!entry.match(list, listShape)) { return false; }
+function craftConsumeEntry(entry, list, listShape, usePatch=false) {
+  if(!entry.match(list, listShape)) { return usePatch ? null : false; }
   
   //TODO
   if(entry.shape != null && listShape != null) {
-    if(entry.shape.x == listShape.x && entry.shape.y == listShape.y) {
-      for(var i = 0; i < entry.shape.x * entry.shape.y; i++) {
-        if(entry.list[i] != null) {
-          list[i].count -= entry.list[i].count;
-          if(list[i].count <= 0) {
-            list[i] = null;
-          }
-        }
-      }
-    } else if(entry.shape.x <= listShape.x && entry.shape.y <= listShape.y) {
+    if(entry.shape.x <= listShape.x && entry.shape.y <= listShape.y) {
       var done = false;
       for(var xoff = 0; xoff <= (listShape.x - entry.shape.x); xoff++) {
         for(var yoff = 0; yoff <= (listShape.y - entry.shape.y); yoff++) {
           var fit = true;
+          var outPatch = new InvPatch();
+          
           for(var x = 0; x < listShape.x; x++) {
             for(var y = 0; y < listShape.y; y++) {
               if(x < xoff || y < yoff || x >= (xoff + entry.shape.x) || y >= (yoff + entry.shape.y)) {
@@ -85,9 +78,22 @@ function craftConsumeEntry(entry, list, listShape) {
                 var listStack = list[(y + yoff) * listShape.x + x + xoff];
                 
                 if(recipieStack != null) {
-                  listStack.count -= recipieStack.count;
-                  if(listStack.count <= 0) {
-                    list[(y + yoff) * listShape.y + x + xoff] = null;
+                  if(usePatch) {
+                    var consumedStack = new ItemStack(listStack.itemstring, listStack.count, listStack.wear, listStack.data);
+                    consumedStack.count -= recipieStack.count;
+                    if(consumedStack.count <= 0)
+                      consumedStack = null;
+                    
+                    outPatch.add(
+                      new InvRef("player", null, "craft", (y + yoff) * listShape.y + x + xoff),
+                      listStack,
+                      consumedStack
+                    );
+                  } else {
+                    listStack.count -= recipieStack.count;
+                    if(listStack.count <= 0) {
+                      list[(y + yoff) * listShape.y + x + xoff] = null;
+                    }
                   }
                 }
               }
@@ -102,10 +108,14 @@ function craftConsumeEntry(entry, list, listShape) {
       if(!done) {
         throw new Error("craft recipie fit not found, even though it should've been");
       }
+      if(usePatch)
+        return outPatch;
     }
   }
     
   if(entry.shape == null) {
+    var outPatch = new InvPatch();
+    
     for(var i = 0; i < entry.list.length; i++) {
       var needed = entry.list[i];
       if(needed == null) { continue; }
@@ -115,15 +125,31 @@ function craftConsumeEntry(entry, list, listShape) {
         
         if(list[n].softTypeMatch(needed) && list[n].count >= needed.count) {
           found = true;
-          list[n].count -= needed.count;
-          if(list[n].count <= 0) { list[n] = null; }
+          if(usePatch) {
+            var consumedStack = new ItemStack(list[n].itemstring, list[n].count, list[n].wear, list[n].data);
+            consumedStack.count -= needed.count;
+            if(consumedStack.count <= 0)
+              consumedStack = null;
+            
+            outPatch.add(
+              new InvRef("player", null, "craft", n),
+              list[n],
+              consumedStack
+            );
+          } else {
+            list[n].count -= needed.count;
+            if(list[n].count <= 0) { list[n] = null; }
+          }
           break;
         }
       }
     }
+    
+    if(usePatch)
+      return outPatch;
   }
   
-  return true;
+  return usePatch ? null : true;
 }
 
 class CraftEntry {
