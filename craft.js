@@ -31,90 +31,71 @@ function getCraftDef(itemstring) {
 
 function getCraftRes(list, listShape) {
   for(var i = 0; i < allCrafts.length; i++) {
-    if(allCrafts[i].match(list, listShape)) {
-      return allCrafts[i];
-    }
+    var res = craftCalcResult(allCrafts[i], list, listShape);
+    if(res != null)
+      return res;
   }
   
   return null;
 }
 
-function craftConsumeEntry(entry, list, listShape, usePatch=false) {
-  if(!entry.match(list, listShape)) { return usePatch ? null : false; }
+function craftCalcResult(entry, list, listShape) {
+  var result = entry.getRes();
   
-  //TODO
-  if(entry.shape != null && listShape != null) {
-    if(entry.shape.x <= listShape.x && entry.shape.y <= listShape.y) {
-      var done = false;
-      for(var xoff = 0; xoff <= (listShape.x - entry.shape.x); xoff++) {
-        for(var yoff = 0; yoff <= (listShape.y - entry.shape.y); yoff++) {
-          var fit = true;
-          var outPatch = new InvPatch();
-          
-          for(var x = 0; x < listShape.x; x++) {
-            for(var y = 0; y < listShape.y; y++) {
-              if(x < xoff || y < yoff || x >= (xoff + entry.shape.x) || y >= (yoff + entry.shape.y)) {
-                //out of bounds of area being checked
-                if(list[y * listShape.x + x] != null) {
-                  fit = false;
-                  break;
-                }
+  if(entry.shape != null) {
+    if(entry.shape.x > listShape.x || entry.shape.y > listShape.y)
+      return null;
+    
+    for(var xoff = 0; xoff <= (listShape.x - entry.shape.x); xoff++) {
+      for(var yoff = 0; yoff <= (listShape.y - entry.shape.y); yoff++) {
+        var fit = true;
+        var outPatch = new InvPatch();
+        
+        for(var x = 0; x < listShape.x; x++) {
+          for(var y = 0; y < listShape.y; y++) {
+            if(x < xoff || y < yoff || x >= (xoff + entry.shape.x) || y >= (yoff + entry.shape.y)) {
+              //out of bounds of area being checked
+              if(list[y * listShape.x + x] == null)
                 continue;
-              }
-              var recipieStack = entry.list[(y - yoff) * entry.shape.x + (x - xoff)];
-              var listStack = list[y * listShape.x + x];
-              
-              if(recipieStack == null && listStack == null) { continue; }
-              if(recipieStack == null || listStack == null) { fit = false; break; }
-              if(!listStack.softTypeMatch(recipieStack)) { fit = false; break; }
-              if(listStack.count < recipieStack.count) { fit = false; break; }
-            }
-          }
-          
-          if(fit) {
-            for(var x = 0; x < entry.shape.x; x++) {
-              for(var y = 0; y < entry.shape.y; y++) {
-                var recipieStack = entry.list[y * entry.shape.x + x];
-                var listStack = list[(y + yoff) * listShape.x + x + xoff];
-                
-                if(recipieStack != null) {
-                  if(usePatch) {
-                    var consumedStack = new ItemStack(listStack.itemstring, listStack.count, listStack.wear, listStack.data);
-                    consumedStack.count -= recipieStack.count;
-                    if(consumedStack.count <= 0)
-                      consumedStack = null;
-                    
-                    outPatch.add(
-                      new InvRef("player", null, "craft", (y + yoff) * listShape.y + x + xoff),
-                      listStack,
-                      consumedStack
-                    );
-                  } else {
-                    listStack.count -= recipieStack.count;
-                    if(listStack.count <= 0) {
-                      list[(y + yoff) * listShape.y + x + xoff] = null;
-                    }
-                  }
-                }
-              }
+              fit = false;
+              break;
             }
             
-            done = true;
-            break;
+            var recipieStack = entry.list[(y - yoff) * entry.shape.x + (x - xoff)];
+            var listStack = list[y * listShape.x + x];
+            
+            if(recipieStack == null && listStack == null) { continue; }
+            if(recipieStack == null || listStack == null) { fit = false; break; }
+            if(!listStack.softTypeMatch(recipieStack)) { fit = false; break; }
+            if(listStack.count < recipieStack.count) { fit = false; break; }
+            
+            var consumedStack = new ItemStack(listStack.itemstring, listStack.count, listStack.wear, listStack.data);
+            consumedStack.count -= recipieStack.count;
+            if(consumedStack.count <= 0)
+              consumedStack = null;
+            
+            outPatch.add(
+              new InvRef("player", null, "craft", (y + yoff) * listShape.y + x + xoff),
+              listStack,
+              consumedStack
+            );
           }
+          if(!fit)
+            break;
         }
-        if(done) { break; }
+        
+        if(fit)
+          return {craft: entry, consume: outPatch, result: result};
       }
-      if(!done) {
-        throw new Error("craft recipie fit not found, even though it should've been");
-      }
-      if(usePatch)
-        return outPatch;
     }
-  }
     
-  if(entry.shape == null) {
+    return null;
+  } else {
+    //shapeless recipie
     var outPatch = new InvPatch();
+    
+    var used = [];
+    for(var i = 0; i < list.length; i++) { used.push(false); }
     
     for(var i = 0; i < entry.list.length; i++) {
       var needed = entry.list[i];
@@ -122,34 +103,37 @@ function craftConsumeEntry(entry, list, listShape, usePatch=false) {
       var found = false;
       for(var n = 0; n < list.length; n++) {
         if(list[n] == null) { continue; }
+        if(used[n]) { continue; }
         
         if(list[n].softTypeMatch(needed) && list[n].count >= needed.count) {
           found = true;
-          if(usePatch) {
-            var consumedStack = new ItemStack(list[n].itemstring, list[n].count, list[n].wear, list[n].data);
-            consumedStack.count -= needed.count;
-            if(consumedStack.count <= 0)
-              consumedStack = null;
-            
-            outPatch.add(
-              new InvRef("player", null, "craft", n),
-              list[n],
-              consumedStack
-            );
-          } else {
-            list[n].count -= needed.count;
-            if(list[n].count <= 0) { list[n] = null; }
-          }
+          used[n] = true;
+          
+          var consumedStack = new ItemStack(list[n].itemstring, list[n].count, list[n].wear, list[n].data);
+          consumedStack.count -= needed.count;
+          if(consumedStack.count <= 0)
+            consumedStack = null;
+          
+          outPatch.add(
+            new InvRef("player", null, "craft", n),
+            list[n],
+            consumedStack
+          );
           break;
         }
       }
+      if(!found)
+        return null;
     }
     
-    if(usePatch)
-      return outPatch;
+    //check for extra items
+    for(var i = 0; i < list.length; i++) {
+      if(used[i] == false && list[i] != null)
+        return null;
+    }
+    
+    return {craft: entry, consume: outPatch, result: result};
   }
-  
-  return usePatch ? null : true;
 }
 
 class CraftEntry {
@@ -169,85 +153,6 @@ class CraftEntry {
     this.cookTime = null;
     
     Object.assign(this, props);
-  }
-  
-  match(list, listShape) {
-    if(this.shape != null && listShape != null) {
-      if(this.shape.x == listShape.x && this.shape.y == listShape.y) {
-        for(var i = 0; i < this.shape.x * this.shape.y; i++) {
-          if(this.list[i] == null && list[i] == null) { continue; }
-          if(this.list[i] == null || list[i] == null) { return false; }
-          if(!list[i].softTypeMatch(this.list[i])) { return false; }
-          if(list[i].count < this.list[i].count) { return false; }
-        }
-        
-        return true;
-      } else if(this.shape.x <= listShape.x && this.shape.y <= listShape.y) {
-        for(var xoff = 0; xoff <= (listShape.x - this.shape.x); xoff++) {
-          for(var yoff = 0; yoff <= (listShape.y - this.shape.y); yoff++) {
-            var fit = true;
-            for(var x = 0; x < listShape.x; x++) {
-              for(var y = 0; y < listShape.y; y++) {
-                if(x < xoff || y < yoff || x >= (xoff + this.shape.x) || y >= (yoff + this.shape.y)) {
-                  //out of bounds of area being checked
-                  if(list[y * listShape.x + x] != null) {
-                    fit = false;
-                    break;
-                  }
-                  continue;
-                }
-                var recipieStack = this.list[(y - yoff) * this.shape.x + (x - xoff)];
-                var listStack = list[y * listShape.x + x];
-                
-                if(recipieStack == null && listStack == null) { continue; }
-                if(recipieStack == null || listStack == null) { fit = false; break; }
-                if(!listStack.softTypeMatch(recipieStack)) { fit = false; break; }
-                if(listStack.count < recipieStack.count) { fit = false; break; }
-              }
-              if(!fit) { break; }
-            }
-            
-            if(fit) {
-              return true;
-            }
-          }
-        }
-        return false;
-      }
-    }
-    
-    if(this.shape == null) {
-      var used = [];
-      for(var i = 0; i < list.length; i++) { used.push(false); }
-      
-      for(var i = 0; i < this.list.length; i++) {
-        var needed = this.list[i];
-        if(needed == null) { continue; }
-        var found = false;
-        for(var n = 0; n < list.length; n++) {
-          if(list[n] == null) { continue; }
-          if(used[n]) { continue; }
-          
-          if(list[n].softTypeMatch(needed) && list[n].count >= needed.count) {
-            found = true;
-            used[n] = true;
-            break;
-          }
-        }
-        if(!found) { return false; }
-      }
-      
-      //check for extra items
-      for(var i = 0; i < list.length; i++) {
-        if(used[i] == false && list[i] != null) {
-          return false;
-        }
-      }
-      
-      return true;
-    }
-    
-    return false;
   }
   
   getRes() {
