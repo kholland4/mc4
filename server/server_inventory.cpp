@@ -18,6 +18,8 @@
 
 #include "server.h"
 
+#include <stdexcept>
+
 //Apply an inventory patch, provided its "prev" state matches reality
 //Save changes to database as needed and broadcast updates to interested players
 bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
@@ -136,10 +138,11 @@ bool Server::lock_unlock_invlist(InvRef ref, bool do_lock, PlayerState *player_h
   if(ref.obj_type == "player") {
     PlayerState *player = player_hint;
     
+    std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+    
     if(player == NULL) {
       std::string player_id = ref.obj_id;
       
-      std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
       for(auto it : m_players) {
         PlayerState *check = it.second;
         std::shared_lock<std::shared_mutex> player_lock(check->lock);
@@ -159,26 +162,42 @@ bool Server::lock_unlock_invlist(InvRef ref, bool do_lock, PlayerState *player_h
     if(list.is_nil)
       return false;
     
-    //will be automatically created if not present
-    
     auto search = player->inventory_lock.find(ref.list_name);
     if(search == player->inventory_lock.end()) {
+      if(!do_lock)
+        throw std::out_of_range("can't unlock player inventory list that was not previously locked");
+      
       player_lock.unlock();
       std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
       
-      std::shared_mutex* lock = new std::shared_mutex();
-      player->inventory_lock[ref.list_name] = lock;
-      
-      if(do_lock) {
-        lock->lock();
+      auto new_search = player->inventory_lock.find(ref.list_name);
+      if(new_search == player->inventory_lock.end()) {
+        std::shared_mutex *m1 = new std::shared_mutex();
+        std::shared_mutex *m2 = new std::shared_mutex();
+        auto [it, success] = player->inventory_lock.insert(std::make_pair(ref.list_name, std::make_pair(m1, m2)));
+        std::shared_lock<std::shared_mutex> entry_lock(*it->second.first);
+        player_lock_unique.unlock();
+        if(do_lock) {
+          it->second.second->lock();
+        } else {
+          it->second.second->unlock();
+        }
       } else {
-        lock->unlock();
+        std::shared_lock<std::shared_mutex> entry_lock(*new_search->second.first);
+        player_lock_unique.unlock();
+        if(do_lock) {
+          new_search->second.second->lock();
+        } else {
+          new_search->second.second->unlock();
+        }
       }
     } else {
+      std::shared_lock<std::shared_mutex> entry_lock(*search->second.first);
+      player_lock.unlock();
       if(do_lock) {
-        search->second->lock();
+        search->second.second->lock();
       } else {
-        search->second->unlock();
+        search->second.second->unlock();
       }
     }
     return true;
