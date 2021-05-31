@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.3.2-dev2";
+var VERSION = "0.3.2-dev3";
 
 var serverListURL = "https://ss1.tausquared.net:8083/serverlist.json";
 
@@ -245,6 +245,11 @@ function loadServerList() {
     
     var list = JSON.parse(this.responseText);
     
+    //Only auto-select a default server when not running locally
+    //from the filesystem
+    var autoDefaultServer = location.host != "";
+    var bestAvailSlots = 0;
+    
     while(serverListContainer.firstChild) {
       serverListContainer.removeChild(serverListContainer.firstChild);
     }
@@ -290,10 +295,18 @@ function loadServerList() {
       var itemInner2 = document.createElement("td");
       itemInner2.className = "serverListEntry";
       if(online) {
+        var availSlots = Infinity;
         if(player_limit > 0) {
           itemInner2.innerText = players + " / " + player_limit;
+          availSlots = player_limit - players;
         } else {
           itemInner2.innerText = players;
+        }
+        
+        if(availSlots > bestAvailSlots && autoDefaultServer) {
+          bestAvailSlots = availSlots;
+          //Use this as the default server.
+          item.click();
         }
       } else {
         itemInner2.innerText = "[offline]";
