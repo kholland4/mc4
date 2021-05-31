@@ -75,7 +75,7 @@ function craftCalcResult(entry, list, listShape) {
               consumedStack = null;
             
             outPatch.add(
-              new InvRef("player", null, "craft", (y + yoff) * listShape.y + x + xoff),
+              new InvRef("player", null, "craft", y * listShape.x + x),
               listStack,
               consumedStack
             );
