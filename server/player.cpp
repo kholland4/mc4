@@ -96,14 +96,6 @@ void PlayerState::uninterest_inventory(InvRef ref) {
   known_inventories.erase(search);
 }
 
-bool PlayerState::inv_give(InvStack stack) {
-  InvList& list = data.inventory.get("main");
-  if(list.is_nil)
-    return false;
-  
-  return list.give(stack);
-}
-
 InvList PlayerState::inv_get(std::string list_name) {
   return data.inventory.get(list_name);
 }
@@ -114,21 +106,13 @@ InvStack PlayerState::inv_get(std::string list_name, int index) {
   
   return list.get_at(index);
 }
-bool PlayerState::inv_set(std::string list_name, int index, InvStack stack) {
+/*bool PlayerState::inv_set(std::string list_name, int index, InvStack stack) {
   InvList& list = data.inventory.get(list_name);
   if(list.is_nil)
     return false;
   
   return list.set_at(index, stack);
-}
-
-bool PlayerState::inv_take_at(std::string list_name, int index, InvStack to_take) {
-  InvList& list = data.inventory.get(list_name);
-  if(list.is_nil)
-    return false;
-  
-  return list.take_at(index, to_take);
-}
+}*/
 
 bool PlayerState::needs_mapblock_update(MapblockUpdateInfo info) {
   auto search = known_mapblocks.find(info.pos);

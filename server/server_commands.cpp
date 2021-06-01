@@ -461,21 +461,26 @@ void Server::cmd_giveme(PlayerState *player, std::vector<std::string> args) {
   }
   
   InvStack to_give = InvStack(spec.str());
-  bool res = player->inv_give(to_give);
   
-  if(res) {
-    if(player->auth) {
-      db.update_player_data(player->get_data());
-    }
-    player_lock_unique.unlock();
-    //TODO use patch
-    send_inv(player, InvRef("player", "null", "main", -1));
-    chat_send_player(player, "server", "'" + to_give.spec() + "' added to inventory.");
+  std::optional<InvPatch> give_patch = inv_calc_give(
+          InvRef("player", "null", "main", -1),
+          player->inv_get("main"),
+          to_give);
+  
+  player_lock_unique.unlock();
+  
+  if(!give_patch) {
+    chat_send_player(player, "server", "unable to add '" + to_give.spec() + "' to inventory");
+    return;
+  }
+  bool res = inv_apply_patch(*give_patch, player);
+  
+  if(!res) {
+    chat_send_player(player, "server", "unable to add '" + to_give.spec() + "' to inventory");
     return;
   }
   
-  player_lock_unique.unlock();
-  chat_send_player(player, "server", "unable to add '" + to_give.spec() + "' to inventory");
+  chat_send_player(player, "server", "'" + to_give.spec() + "' added to inventory.");
 }
 
 void Server::cmd_clearinv(PlayerState *player, std::vector<std::string> args) {

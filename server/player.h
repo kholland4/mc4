@@ -94,11 +94,9 @@ class PlayerState {
     void interest_inventory(InvRef ref);
     void uninterest_inventory(InvRef ref);
     
-    bool inv_give(InvStack stack);
     InvList inv_get(std::string list_name);
     InvStack inv_get(std::string list_name, int index);
-    bool inv_set(std::string list_name, int index, InvStack stack);
-    bool inv_take_at(std::string list_name, int index, InvStack to_take);
+    //bool inv_set(std::string list_name, int index, InvStack stack);
     
     bool needs_mapblock_update(MapblockUpdateInfo info);
     unsigned int send_mapblock_compressed(MapblockCompressed *mbc, WsServer& sender);

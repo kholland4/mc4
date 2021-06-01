@@ -89,6 +89,8 @@ class InvPatch {
     InvPatch(std::optional<std::string> _req_id)
         : req_id(_req_id), is_deny(false) {};
     
+    InvPatch operator+(const InvPatch& other) const;
+    
     std::string as_json(std::string type) const;
     void make_deny();
     
@@ -104,18 +106,13 @@ class InvList {
     InvList(boost::property_tree::ptree pt);
     std::string as_json() const;
     
-    bool give(InvStack stack);
     InvStack get_at(int index) const;
     bool set_at(int index, InvStack stack);
-    bool take_at(int index, InvStack to_take);
     
     bool is_empty();
     
     std::vector<InvStack> list;
     bool is_nil;
-  
-  private:
-    bool give(InvStack stack, bool dry_run);
 };
 
 class InvSet {
@@ -137,5 +134,8 @@ class InvSet {
     std::map<std::string, InvList> inventory;
     InvList nil_list;
 };
+
+std::optional<InvPatch> inv_calc_give(const InvRef& list_ref, const InvList& list, InvStack stack);
+std::optional<InvPatch> inv_calc_take_at(const InvRef& stack_ref, const InvList& list, InvStack to_take);
 
 #endif

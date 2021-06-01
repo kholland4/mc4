@@ -32,7 +32,8 @@ std::map<LogSource, std::string> log_source_messages = {
   {LogSource::PLAYER, "player"},
   {LogSource::CONFIG, "config"},
   {LogSource::INIT, "init"},
-  {LogSource::VECTOR, "vector"}
+  {LogSource::VECTOR, "vector"},
+  {LogSource::INVENTORY, "inventory"}
 };
 
 std::map<LogLevel, std::string> log_level_messages = {

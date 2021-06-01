@@ -518,6 +518,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
 #endif
       
       //consume tool
+      InvPatch use_tool_patch;
+      
       if(break_time_tool) {
         bool do_consume = true;
         if(break_time_hand) {
@@ -525,10 +527,15 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
             do_consume = false;
         }
         if(do_consume && wield_stack.wear) {
-          wield_stack.wear = *wield_stack.wear - 1;
-          if(*wield_stack.wear <= 0)
-            wield_stack = InvStack();
-          player->inv_set("main", wield_index, wield_stack);
+          InvStack new_wield_stack(wield_stack);
+          new_wield_stack.wear = *new_wield_stack.wear - 1;
+          if(new_wield_stack.wear <= 0)
+            new_wield_stack = InvStack();
+          
+          use_tool_patch.diffs.push_back(InvDiff(
+              InvRef("player", "null", "main", wield_index),
+              wield_stack,
+              new_wield_stack));
         }
       }
       
@@ -541,17 +548,24 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       //else
       //  log(LogSource::SERVER, LogLevel::NOTICE, "node '" + target.itemstring + "' drops nothing");
       
-      if(!player->inv_give(to_give)) {
+      std::optional<InvPatch> give_patch = inv_calc_give(
+          InvRef("player", "null", "main", -1),
+          player->inv_get("main"),
+          to_give);
+      
+      if(!give_patch) {
+        //couldn't give
         //TODO
+        return;
       }
       
-      if(player->auth) {
-        db.update_player_data(player->get_data());
-      }
+      InvPatch combined_patch = *give_patch + use_tool_patch;
       
       player_lock_unique.unlock();
-      //TODO use patch
-      send_inv(player, InvRef("player", "null", "main", -1));
+      bool res = inv_apply_patch(combined_patch, player);
+      if(!res) {
+        //TODO
+      }
     } else if(type == "place_node") {
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       int wield_index = pt.get<int>("wield");
@@ -597,17 +611,17 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       //take the dug node from the player
       InvStack to_take(to_place.itemstring, 1, std::nullopt, std::nullopt);
-      if(player->inv_take_at("main", wield_index, to_take)) {
-        
-      } else {
+      
+      std::optional<InvPatch> take_patch = inv_calc_take_at(
+          InvRef("player", "null", "main", wield_index),
+          player->inv_get("main"),
+          to_take);
+      
+      if(!take_patch) {
         log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to place '" + to_place.itemstring + " but they don't have any in inventory");
         return;
       }
-      if(player->auth) {
-        db.update_player_data(player->get_data());
-      }
       
-      //FIXME FIXME if this fails, give the player back their item
       //Does extra stuff, like manage metadata.
       //true = must go through with the place
       //false = abort
@@ -631,8 +645,10 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
 #endif
       
       player_lock_unique.unlock();
-      //TODO use patch
-      send_inv(player, InvRef("player", "null", "main", -1));
+      bool res = inv_apply_patch(*take_patch, player);
+      if(!res) {
+        //TODO
+      }
     } else if(type == "inv_swap") {
       InvRef ref1(pt.get_child("ref1"));
       InvRef ref2(pt.get_child("ref2"));
@@ -768,21 +784,20 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         return;
       }
       
-      //take the dug node from the player
-      if(player->inv_take_at("main", wield_index, wield_stack)) {
-        if(player->auth) {
-          db.update_player_data(player->get_data());
-        }
-        
-        player_lock_unique.unlock();
-        //TODO use patch
-        send_inv(player, InvRef("player", "null", "main", -1));
-        chat_send_player(player, "server", "pulverized '" + wield_stack.spec() + "'");
-        return;
-      }
+      InvPatch pulverize_patch;
+      pulverize_patch.diffs.push_back(InvDiff(
+          InvRef("player", "null", "main", wield_index),
+          wield_stack,
+          InvStack()));
       
       player_lock_unique.unlock();
-      chat_send_player(player, "server", "failed to pulverize '" + wield_stack.spec() + "'!");
+      
+      bool res = inv_apply_patch(pulverize_patch);
+      if(!res) {
+        chat_send_player(player, "server", "failed to pulverize '" + wield_stack.spec() + "'!");
+      }
+      
+      chat_send_player(player, "server", "pulverized '" + wield_stack.spec() + "'");
     } else if(type == "send_chat") {
       std::string from = player->get_name();
       std::string channel = pt.get<std::string>("channel");

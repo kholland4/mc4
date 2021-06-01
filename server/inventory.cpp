@@ -18,6 +18,7 @@
 
 #include "inventory.h"
 #include "json.h"
+#include "log.h"
 #include <sstream>
 
 bool InvRef::operator<(const InvRef& other) const {
@@ -192,6 +193,14 @@ void InvPatch::make_deny() {
   is_deny = true;
 }
 
+InvPatch InvPatch::operator+(const InvPatch& other) const {
+  InvPatch result(*this);
+  for(const auto& diff : other.diffs) {
+    result.diffs.push_back(diff);
+  }
+  return result;
+}
+
 InvList::InvList(boost::property_tree::ptree pt) : is_nil(false) {
   for(auto it : pt) {
     list.push_back(InvStack(it.second));
@@ -227,54 +236,6 @@ std::string InvStack::spec() {
   return out.str();
 }
 
-bool InvList::give(InvStack stack) {
-  if(!give(stack, true))
-    return false;
-  return give(stack, false);
-}
-bool InvList::give(InvStack stack, bool dry_run) {
-  if(stack.is_nil)
-    return true;
-  
-  //FIXME use actual max_stack value
-  int max_stack = 64;
-  int needed = stack.count;
-  for(InvStack& s : list) {
-    if(s.is_nil)
-      continue;
-    if(s.itemstring != stack.itemstring)
-      continue;
-    int avail = max_stack - s.count;
-    if(avail <= 0)
-      continue;
-    
-    if(!dry_run)
-      s.count += std::min(avail, needed);
-    needed -= std::min(avail, needed);
-    
-    if(needed <= 0)
-      break;
-  }
-  
-  if(needed > 0) {
-    stack.count = needed;
-    
-    for(InvStack& s : list) {
-      if(!s.is_nil)
-        continue;
-      if(!dry_run)
-        s = stack;
-      needed -= stack.count;
-      break;
-    }
-  }
-  
-  if(needed > 0)
-    return false;
-  
-  return true;
-}
-
 InvStack InvList::get_at(int index) const {
   if(index < 0 || index >= (int)list.size())
     return InvStack();
@@ -286,27 +247,6 @@ bool InvList::set_at(int index, InvStack stack) {
     return false;
   
   list[index] = stack;
-  return true;
-}
-
-bool InvList::take_at(int index, InvStack to_take) {
-  if(to_take.is_nil)
-    return true;
-  
-  if(index < 0 || index >= (int)list.size())
-    return false;
-  
-  InvStack& s = list[index];
-  if(s.is_nil)
-    return false;
-  if(s.itemstring != to_take.itemstring)
-    return false;
-  if(to_take.count > s.count)
-    return false;
-  s.count -= to_take.count;
-  if(s.count <= 0)
-    s = InvStack();
-  
   return true;
 }
 
@@ -395,4 +335,95 @@ bool InvSet::is_empty() {
       return false;
   }
   return true;
+}
+
+
+
+std::optional<InvPatch> inv_calc_give(const InvRef& list_ref, const InvList& list, InvStack stack) {
+  InvPatch result_patch;
+  
+  if(stack.is_nil)
+    return result_patch;
+  
+  ItemDef def = get_item_def(stack.itemstring);
+  if(def.itemstring == "nothing") {
+    log(LogSource::INVENTORY, LogLevel::WARNING, "cannot calculate give for '" + stack.itemstring + "': item does not exist");
+    return std::nullopt;
+  }
+  
+  int max_stack = def.max_stack;
+  int needed = stack.count;
+  for(size_t i = 0; i < list.list.size(); i++) {
+    const InvStack& s = list.list[i];
+    
+    if(s.is_nil)
+      continue;
+    if(s.itemstring != stack.itemstring)
+      continue;
+    int avail = max_stack - s.count;
+    if(avail <= 0)
+      continue;
+    
+    InvStack new_stack(s);
+    new_stack.count += std::min(avail, needed);
+    needed -= std::min(avail, needed);
+    
+    InvRef stack_ref(list_ref);
+    stack_ref.index = i;
+    result_patch.diffs.push_back(
+        InvDiff(stack_ref, s, new_stack));
+    
+    if(needed <= 0)
+      break;
+  }
+  
+  if(needed > 0) {
+    stack.count = needed;
+    
+    for(size_t i = 0; i < list.list.size(); i++) {
+      const InvStack& s = list.list[i];
+      if(!s.is_nil)
+        continue;
+      
+      //put stack in empty slot
+      needed -= stack.count;
+      
+      InvRef stack_ref(list_ref);
+      stack_ref.index = i;
+      result_patch.diffs.push_back(
+          InvDiff(stack_ref, s, stack));
+      
+      break;
+    }
+  }
+  
+  if(needed > 0)
+    return std::nullopt;
+  
+  return result_patch;
+}
+
+std::optional<InvPatch> inv_calc_take_at(const InvRef& stack_ref, const InvList& list, InvStack to_take) {
+  InvPatch result_patch;
+  
+  if(to_take.is_nil)
+    return result_patch;
+  
+  const InvStack& orig_stack = list.get_at(stack_ref.index);
+  if(orig_stack.is_nil)
+    return std::nullopt;
+  if(orig_stack.itemstring != to_take.itemstring)
+    return std::nullopt;
+  if(to_take.count > orig_stack.count)
+    return std::nullopt;
+  
+  InvStack new_stack(orig_stack);
+  new_stack.count -= to_take.count;
+  if(new_stack.count <= 0)
+    new_stack = InvStack();
+  
+  result_patch.diffs.push_back(
+      InvDiff(stack_ref, orig_stack, new_stack));
+  
+  return result_patch;
 }

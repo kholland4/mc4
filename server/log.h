@@ -32,7 +32,8 @@ enum class LogSource {
   PLAYER,
   CONFIG,
   INIT,
-  VECTOR
+  VECTOR,
+  INVENTORY
 };
 
 //Based on https://en.wikipedia.org/wiki/Syslog#Severity_level
