@@ -890,6 +890,29 @@
   });
   
   
+  //---Chest---
+  registerNodeHelper("default:chest", {
+    desc: "Chest",
+    tex: {
+      texTop: "default_chest_top.png",
+      texBottom: "default_chest_top.png",
+      texSides: "default_chest_side.png",
+      texFront: "default_chest_front.png",
+    },
+    icon: "default_chest.png",
+    node: {
+      groups: {choppy: 1},
+      allowInteract: true,
+      setRotOnPlace: true
+    }
+  });
+  api.registerCraft(new api.CraftEntry("default:chest", [
+    "group:wood", "group:wood", "group:wood",
+    "group:wood", null, "group:wood",
+    "group:wood", "group:wood", "group:wood"
+  ], {shape: {x: 3, y: 3}}));
+  
+  
   //---EXTRA KEYS---
   //FIXME
   mods.default._fast = false;

@@ -80,6 +80,11 @@ class NodeBase {
     
     this.groups = {};
     
+    this.allowInteract = false;
+    //function(pos, server)
+    //by default, send a message to the server requesting interact
+    this.interactFunc = null;
+    
     Object.assign(this, props);
     
     if(props.isFluid) {

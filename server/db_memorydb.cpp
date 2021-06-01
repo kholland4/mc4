@@ -85,3 +85,25 @@ void MemoryDB::set_mapblock_if_not_exists(MapPos<int> pos, Mapblock *mb) {
 void MemoryDB::clean_cache() {
   //TODO purge non-dirty mapblocks using similar algorithm to SQLiteDB
 }
+
+
+
+NodeMeta* MemoryDB::get_node_meta(MapPos<int> pos) {
+  std::shared_lock<std::shared_mutex> d_lock(node_meta_datastore_lock);
+  
+  auto search = node_meta_datastore.find(pos);
+  if(search != node_meta_datastore.end()) {
+    return new NodeMeta(*(search->second));
+  }
+  return new NodeMeta(pos);
+}
+void MemoryDB::set_node_meta(MapPos<int> pos, NodeMeta *meta) {
+  std::unique_lock<std::shared_mutex> d_lock(node_meta_datastore_lock);
+  
+  auto search = node_meta_datastore.find(pos);
+  if(search != node_meta_datastore.end()) {
+    delete search->second;
+  }
+  NodeMeta *meta_store = new NodeMeta(*meta);
+  node_meta_datastore[pos] = meta_store;
+}

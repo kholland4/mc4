@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.4-dev7"
+#define VERSION "0.4.5-dev1"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -115,6 +115,8 @@ class Server {
       return inv_apply_patch(patch, NULL);
     };
     
+    void send_inv(PlayerState *player);
+    void send_inv(PlayerState *player, InvRef ref);
     //void update_known_inventories(PlayerState *player);
     
     void set_motd(std::string new_motd);
@@ -150,6 +152,9 @@ class Server {
     void slow_tick();
     
     bool lock_unlock_invlist(InvRef ref, bool do_lock, PlayerState *player_hint);
+    
+    bool on_place_node(Node node, MapPos<int> pos);
+    bool on_dig_node(Node node, MapPos<int> pos);
     
     typedef std::map<connection_hdl, PlayerState*, std::owner_less<connection_hdl>> player_list;
     

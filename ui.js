@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+var uiCurrentWindow = null;
+
 function initUI() {
   controls.addEventListener("lock", function() {
     uiHideWindow();
@@ -33,6 +35,7 @@ class UIWindow {
   constructor() {
     this.dom = document.createElement("div");
     this.dom.className = "uiWindow";
+    this.onClose = function() {};
   }
   
   add(el) {
@@ -50,6 +53,7 @@ function uiShowWindow(win) {
   el.appendChild(win.dom);
   el.style.display = "block";
   uiWindowOpen = true;
+  uiCurrentWindow = win;
   
   if(doUnlock && controls) { controls.unlock(); }
 }
@@ -60,6 +64,10 @@ function uiHideWindow(doLock=true) {
     while(el.firstChild) { el.removeChild(el.firstChild); }
     uiHideHand();
     uiWindowOpen = false;
+    if(uiCurrentWindow instanceof UIWindow) {
+      uiCurrentWindow.onClose();
+      uiCurrentWindow = null;
+    }
     
     if(doLock && controls) { controls.lock(); }
   }

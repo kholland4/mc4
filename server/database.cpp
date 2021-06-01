@@ -141,3 +141,66 @@ void Database::unlock_mapblock_unique(MapPos<int> pos) {
     throw std::out_of_range("can't unlock mapblock that was not previously locked");
   }
 }
+
+
+
+void Database::lock_node_meta(MapPos<int> pos) {
+  std::shared_lock<std::shared_mutex> table_lock_shared(node_meta_locks_lock);
+  
+  auto search = node_meta_locks.find(pos);
+  if(search != node_meta_locks.end()) {
+    std::shared_lock<std::shared_mutex> entry_lock(*search->second.first);
+    table_lock_shared.unlock();
+    search->second.second->lock();
+  } else {
+    table_lock_shared.unlock();
+    std::unique_lock<std::shared_mutex> table_lock_unique(node_meta_locks_lock);
+    
+    auto new_search = node_meta_locks.find(pos);
+    if(new_search != node_meta_locks.end()) {
+      std::shared_lock<std::shared_mutex> entry_lock(*new_search->second.first);
+      table_lock_unique.unlock();
+      new_search->second.second->lock();
+    } else {
+      std::shared_mutex *m1 = new std::shared_mutex();
+      std::shared_mutex *m2 = new std::shared_mutex();
+      auto [it, success] = node_meta_locks.insert(std::make_pair(pos, std::make_pair(m1, m2)));
+      std::shared_lock<std::shared_mutex> entry_lock(*it->second.first);
+      table_lock_unique.unlock();
+      it->second.second->lock();
+    }
+  }
+}
+
+void Database::unlock_node_meta(MapPos<int> pos) {
+  std::shared_lock<std::shared_mutex> table_lock_shared(node_meta_locks_lock);
+  
+  auto search = node_meta_locks.find(pos);
+  if(search != node_meta_locks.end()) {
+    search->second.second->unlock();
+    
+    table_lock_shared.unlock();
+    std::unique_lock<std::shared_mutex> table_lock_unique(node_meta_locks_lock);
+    
+    auto new_search = node_meta_locks.find(pos);
+    if(new_search != node_meta_locks.end()) {
+      bool is_free = new_search->second.first->try_lock();
+      if(is_free) {
+        bool is_free2 = new_search->second.second->try_lock();
+        if(is_free2) {
+          std::shared_mutex *m1 = new_search->second.first;
+          std::shared_mutex *m2 = new_search->second.second;
+          node_meta_locks.erase(new_search);
+          m1->unlock();
+          m2->unlock();
+          delete m1;
+          delete m2;
+        } else {
+          new_search->second.first->unlock();
+        }
+      }
+    }
+  } else {
+    throw std::out_of_range("can't unlock node metadata that was not previously locked");
+  }
+}

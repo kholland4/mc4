@@ -63,6 +63,25 @@ class InvPatch {
   
   doApply(server, use_current=true) {
     for(var diff of this.diffs) {
+      if(server.isRemote()) {
+        var key = diff.ref.objType + "/" + diff.ref.objID + "/" + diff.ref.listName;
+        if(!(key in server.invCache))
+          throw new Error("invalid inventory list: " + key);
+        
+        var list = server.invCache[key];
+        
+        if(diff.ref.index >= list.length)
+          throw new Error("out of bounds inventory reference: " + key + "/" + diff.ref.index);
+        
+        if(use_current)
+          list[diff.ref.index] = diff.current;
+        else
+          list[diff.ref.index] = diff.prev;
+        server.updateInvDisplay(diff.ref);
+        
+        continue;
+      }
+      
       if(diff.ref.objType == "player") {
         if(!(diff.ref.listName in server.playerInventory))
           throw new Error("invalid inventory list: player/" + diff.ref.listName);
@@ -316,6 +335,14 @@ class ServerBase {
   }
   
   invGetList(ref) {
+    if(this.isRemote()) {
+      var key = ref.objType + "/" + ref.objID + "/" + ref.listName;
+      if(key in this.invCache) {
+        return this.invCache[key];
+      }
+      throw new Error("no such inventory list: " + key);
+    }
+    
     if(ref.objType == "player") {
       if(ref.listName in this.playerInventory) {
         return this.playerInventory[ref.listName];
@@ -327,6 +354,19 @@ class ServerBase {
     throw new Error("unsupported inventory object type: " + ref.objType);
   }
   invGetStack(ref) {
+    if(this.isRemote()) {
+      var key = ref.objType + "/" + ref.objID + "/" + ref.listName;
+      if(key in this.invCache) {
+        var list = this.invCache[key];
+        if(ref.index < list.length) {
+          return list[ref.index];
+        }
+        
+        throw new Error("out of bounds inventory access: " + key + "/" + ref.index);
+      }
+      throw new Error("no such inventory list: " + key);
+    }
+    
     if(ref.objType == "player") {
       if(ref.listName in this.playerInventory) {
         var list = this.playerInventory[ref.listName];

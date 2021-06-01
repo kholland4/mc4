@@ -87,9 +87,12 @@ class PlayerState {
     
     void send_pos(WsServer& sender);
     void send_privs(WsServer& sender);
-    void send_inv(WsServer& sender);
-    void send_inv(std::string list_name);
+    //void send_inv(WsServer& sender);
+    //void send_inv(std::string list_name);
     //void send_inv(InvRef ref);
+    
+    void interest_inventory(InvRef ref);
+    void uninterest_inventory(InvRef ref);
     
     bool inv_give(InvStack stack);
     InvList inv_get(std::string list_name);
@@ -158,7 +161,7 @@ class PlayerState {
     std::map<MapPos<int>, MapblockUpdateInfo> known_mapblocks;
     std::set<std::string> known_player_tags;
     
-    std::map<InvRef, InvList> known_inventories;
+    std::set<InvRef> known_inventories;
     std::map<std::string, std::pair<std::shared_mutex*, std::shared_mutex*>> inventory_lock;
     
     PlayerAuthenticator auth_state;

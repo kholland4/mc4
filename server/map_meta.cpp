@@ -16,37 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __LOG_H__
-#define __LOG_H__
+#include "map.h"
 
-#include <string>
 
-enum class LogSource {
-  SERVER,
-  SQLITEDB,
-  MEMORYDB,
-  LOADER,
-  MAP,
-  MAPGEN,
-  AUTH,
-  PLAYER,
-  CONFIG,
-  INIT,
-  VECTOR
-};
-
-//Based on https://en.wikipedia.org/wiki/Syslog#Severity_level
-enum class LogLevel {
-  EMERG,
-  ALERT,
-  ERR,
-  WARNING,
-  NOTICE,
-  INFO,
-  EXTRA,
-  DEBUG
-};
-
-void log(LogSource src, LogLevel lvl, std::string message);
-
-#endif

@@ -121,7 +121,7 @@ class ServerRemote extends ServerBase {
   constructor(url) {
     super();
     
-    this.playerInventory = {};
+    this.invCache = {};
     
     this.cache = {};
     this.saved = {};
@@ -467,12 +467,9 @@ class ServerRemote extends ServerBase {
             continue;
           list[i] = new ItemStack(list[i].itemstring, list[i].count, list[i].wear, list[i].data);
         }
-        if(ref.objType == "player") {
-          this.playerInventory[ref.listName] = list;
-          this.updateInvDisplay(ref);
-        } else {
-          throw new Error("unsupported inventory object type: " + ref.objType);
-        }
+        var key = ref.objType + "/" + ref.objID + "/" + ref.listName;
+        this.invCache[key] = list;
+        this.updateInvDisplay(ref);
       } else if(data.type == "inv_ready") {
         this._invReady = true;
       } else if(data.type == "inv_patch_deny" || data.type == "inv_patch_accept" || data.type == "inv_patch") {
@@ -516,6 +513,32 @@ class ServerRemote extends ServerBase {
           
           server_patch.doApply(this);
         }
+      } else if(data.type == "ui_open") {
+        var ui = data.ui;
+        var win = new api.UIWindow();
+        if("on_close" in data) {
+          var closeMessage = JSON.stringify(data.on_close);
+          win.onClose = function() {
+            if(!this._socketReady) { return; }
+            
+            console.log(closeMessage);
+            this.socket.send(closeMessage);
+          }.bind(this, closeMessage);
+        }
+        
+        for(var element of ui) {
+          if(element.type == "inv_list") {
+            var ref = new InvRef(element.ref.objType, element.ref.objID, element.ref.listName, element.ref.index);
+            win.add(api.uiRenderInventoryList(ref, {width: 8, interactive: true}));
+          } else if(element.type == "spacer") {
+            win.add(api.uiElement("spacer"));
+          }
+        }
+        
+        api.uiShowWindow(win);
+        api.uiShowHand(new InvRef("player", null, "hand", 0));
+      } else if(data.type == "ui_close") {
+        //TODO
       } else if(data.type == "auth_step") {
         if(data.message == "auth_ok") {
           this._authReady = true;

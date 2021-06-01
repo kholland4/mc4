@@ -109,6 +109,8 @@ class InvList {
     bool set_at(int index, InvStack stack);
     bool take_at(int index, InvStack to_take);
     
+    bool is_empty();
+    
     std::vector<InvStack> list;
     bool is_nil;
   
@@ -129,6 +131,8 @@ class InvSet {
     bool has_list(std::string list_name);
     InvStack get_at(InvRef ref);
     bool set_at(InvRef ref, InvStack stack);
+    
+    bool is_empty();
     
     std::map<std::string, InvList> inventory;
     InvList nil_list;

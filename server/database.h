@@ -29,6 +29,7 @@
 #include "vector.h"
 #include "mapblock.h"
 #include "player_data.h"
+#include "node_meta.h"
 
 class Database {
   public:
@@ -39,6 +40,9 @@ class Database {
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb) = 0;
     virtual void set_mapblock_if_not_exists(MapPos<int> pos, Mapblock *mb) = 0;
     virtual void clean_cache() = 0;
+    
+    virtual NodeMeta* get_node_meta(MapPos<int> pos) = 0;
+    virtual void set_node_meta(MapPos<int> pos, NodeMeta *meta) = 0;
     
     virtual void store_pw_info(PlayerAuthInfo& info) = 0;
     virtual std::vector<PlayerAuthInfo> fetch_pw_info(std::string login_name, std::string type) = 0;
@@ -57,10 +61,16 @@ class Database {
     void lock_mapblock_unique(MapPos<int> pos);
     void unlock_mapblock_unique(MapPos<int> pos);
     
+    void lock_node_meta(MapPos<int> pos);
+    void unlock_node_meta(MapPos<int> pos);
+    
   private:
     //first mutex locks the map entry, second locks the mapblock
     std::map<MapPos<int>, std::pair<std::shared_mutex*, std::shared_mutex*>> mapblock_locks;
     std::shared_mutex mapblock_locks_lock;
+    
+    std::map<MapPos<int>, std::pair<std::shared_mutex*, std::shared_mutex*>> node_meta_locks;
+    std::shared_mutex node_meta_locks_lock;
 };
 
 class MemoryDB : public Database {
@@ -72,6 +82,9 @@ class MemoryDB : public Database {
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
     virtual void set_mapblock_if_not_exists(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
+    
+    virtual NodeMeta* get_node_meta(MapPos<int> pos);
+    virtual void set_node_meta(MapPos<int> pos, NodeMeta *meta);
     
     virtual void store_pw_info(PlayerAuthInfo& info);
     virtual std::vector<PlayerAuthInfo> fetch_pw_info(std::string login_name, std::string type);
@@ -88,6 +101,9 @@ class MemoryDB : public Database {
   private:
     std::map<MapPos<int>, Mapblock*> datastore;
     std::shared_mutex datastore_lock;
+    
+    std::map<MapPos<int>, NodeMeta*> node_meta_datastore;
+    std::shared_mutex node_meta_datastore_lock;
     
     std::map<unsigned int, PlayerAuthInfo*> pw_auth_store;
     unsigned int pw_auth_id_counter = 1; //locked by pw_auth_store_lock
@@ -108,6 +124,9 @@ class SQLiteDB: public Database {
     virtual void set_mapblock(MapPos<int> pos, Mapblock *mb);
     virtual void set_mapblock_if_not_exists(MapPos<int> pos, Mapblock *mb);
     virtual void clean_cache();
+    
+    virtual NodeMeta* get_node_meta(MapPos<int> pos);
+    virtual void set_node_meta(MapPos<int> pos, NodeMeta *meta);
     
     virtual void store_pw_info(PlayerAuthInfo& info);
     virtual std::vector<PlayerAuthInfo> fetch_pw_info(std::string login_name, std::string type);

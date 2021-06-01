@@ -129,7 +129,36 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
   if(requesting_player != NULL)
     requesting_player->send(patch.as_json("inv_patch_accept"));
   
-  //TODO: inform interested players (possibly with only partial patches)
+  //Inform interested players (possibly with only partial patches)
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  
+  for(auto it : m_players) {
+    PlayerState *check = it.second;
+    if(check == requesting_player)
+      continue;
+    
+    std::shared_lock<std::shared_mutex> check_lock(check->lock);
+    
+    InvPatch interest_patch;
+    for(const auto& diff : patch.diffs) {
+      bool have_interest = false;
+      for(const auto& ref : check->known_inventories) {
+        if(ref.obj_type == diff.ref.obj_type && ref.obj_id == diff.ref.obj_id && ref.list_name == diff.ref.list_name && diff.ref.obj_type != "player") {
+          have_interest = true;
+          break;
+        }
+      }
+      if(!have_interest)
+        continue;
+      
+      interest_patch.diffs.push_back(diff);
+    }
+    
+    if(interest_patch.diffs.size() == 0)
+      continue;
+    
+    check->send(interest_patch.as_json("inv_patch"));
+  }
   
   return true;
 }
@@ -203,6 +232,41 @@ bool Server::lock_unlock_invlist(InvRef ref, bool do_lock, PlayerState *player_h
     return true;
   }
   
+  if(ref.obj_type == "node") {
+    //Lock/unlock the node's entire metadata
+    //and check for existence of the requested inv list (for lock only)
+    
+    MapPos<int> node_pos;
+    try {
+      node_pos = MapPos<int>(ref.obj_id);
+    } catch(std::invalid_argument const& e) {
+      return false;
+    }
+    
+    if(do_lock) {
+      db.lock_node_meta(node_pos);
+      
+      NodeMeta *meta = db.get_node_meta(node_pos);
+      if(meta->is_nil || meta->db_error || meta->parse_error) {
+        delete meta;
+        db.unlock_node_meta(node_pos);
+        return false;
+      }
+      
+      if(!meta->inventory.has_list(ref.list_name)) {
+        delete meta;
+        db.unlock_node_meta(node_pos);
+        return false;
+      }
+      
+      delete meta;
+    } else {
+      db.unlock_node_meta(node_pos);
+    }
+    
+    return true;
+  }
+  
   return false;
 }
 bool Server::lock_invlist(InvRef ref, PlayerState *player_hint) {
@@ -235,6 +299,20 @@ InvList Server::get_invlist(InvRef ref, PlayerState *player_hint) {
     
     std::shared_lock<std::shared_mutex> player_lock(player->lock);
     return player->data.inventory.get(ref.list_name);
+  }
+  
+  if(ref.obj_type == "node") {
+    MapPos<int> node_pos;
+    try {
+      node_pos = MapPos<int>(ref.obj_id);
+    } catch(std::invalid_argument const& e) {
+      return InvList();
+    }
+    
+    NodeMeta *meta = db.get_node_meta(node_pos);
+    InvList list = meta->inventory.get(ref.list_name);
+    delete meta;
+    return list;
   }
   
   return InvList();
@@ -271,5 +349,55 @@ bool Server::set_invlist(InvRef ref, InvList list, PlayerState *player_hint) {
     return true;
   }
   
+  if(ref.obj_type == "node") {
+    MapPos<int> node_pos;
+    try {
+      node_pos = MapPos<int>(ref.obj_id);
+    } catch(std::invalid_argument const& e) {
+      return false;
+    }
+    
+    NodeMeta *meta = db.get_node_meta(node_pos);
+    meta->inventory.set(ref.list_name, list);
+    db.set_node_meta(node_pos, meta);
+    delete meta;
+    return true;
+  }
+  
   return false;
+}
+
+
+void Server::send_inv(PlayerState *player) {
+  std::shared_lock<std::shared_mutex> player_lock(player->lock);
+  std::vector<InvRef> ref_list;
+  for(auto it : player->data.inventory.inventory) {
+    ref_list.push_back(
+        InvRef("player", "null", it.first, -1));
+  }
+  player_lock.unlock();
+  
+  for(const auto& ref : ref_list) {
+    send_inv(player, ref);
+  }
+  player->send("{\"type\":\"inv_ready\"}");
+}
+void Server::send_inv(PlayerState *player, InvRef ref) {
+  bool lock_success = lock_invlist(ref, player);
+  if(!lock_success) {
+    log(LogSource::SERVER, LogLevel::ERR, "unable to send inventory list " + ref.as_json() + " : not found");
+    return;
+  }
+  
+  InvList list = get_invlist(ref, player);
+  unlock_invlist(ref, player);
+  
+  std::ostringstream out;
+  out << "{\"type\":\"inv_list\","
+      << "\"ref\":" << ref.as_json() << ","
+      << "\"list\":" << list.as_json() << "}";
+  
+  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
+  player->interest_inventory(ref);
+  player->send(out.str());
 }

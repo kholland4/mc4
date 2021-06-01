@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.3.2-dev3";
+var VERSION = "0.3.3-dev1";
 
 var serverListURL = "https://ss1.tausquared.net:8083/serverlist.json";
 
@@ -677,38 +677,59 @@ function animate() {
   if(isPlacing) {
     placeTimer -= frameTime;
     if(placeTimer <= 0) {
-      if(placeSel != null) {
-        var nodeData = server.nodeToPlace(player);
-        if(nodeData != null) {
-          var def = getNodeDef(nodeData.itemstring);
-          var ok = true;
-          if(def.walkable) {
-            
-          } else if(def.boundingBox == null) {
-            if(player.collide(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(placeSel.x, placeSel.y, placeSel.z), new THREE.Vector3(1, 1, 1)))) {
-              ok = false;
-            }
+      var didInteract = false;
+      if(destroySel != null) {
+        var pointNode = server.getNode(destroySel);
+        var pointDef = pointNode.getDef();
+        if(pointDef.allowInteract) {
+          didInteract = true;
+          if(pointDef.interactFunc != null) {
+            pointDef.interactFunc(destroySel, server);
           } else {
-            for(var i = 0; i < def.boundingBox.length; i++) {
-              if(player.collide(def.boundingBox[i].clone().translate(new THREE.Vector3(placeSel.x, placeSel.y, placeSel.z)))) {
-                ok = false;
-                break;
-              }
-            }
-          }
-          if(ok) {
-            var existingNode = server.getNode(placeSel);
-            if(existingNode != null) {
-              if(existingNode.getDef().canPlaceInside) {
-                server.placeNode(player, placeSel, destroySel);
-                needsRaycast = true;
-              }
-            }
+            server.socket.send(JSON.stringify({
+              type: "interact",
+              pos: destroySel
+            }));
           }
         }
       }
       
-      placeTimer = PLACE_REPEAT_INTERVAL;
+      if(didInteract) {
+        placeTimer = Infinity;
+      } else {
+        if(placeSel != null) {
+          var nodeData = server.nodeToPlace(player);
+          if(nodeData != null) {
+            var def = getNodeDef(nodeData.itemstring);
+            var ok = true;
+            if(def.walkable) {
+              
+            } else if(def.boundingBox == null) {
+              if(player.collide(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(placeSel.x, placeSel.y, placeSel.z), new THREE.Vector3(1, 1, 1)))) {
+                ok = false;
+              }
+            } else {
+              for(var i = 0; i < def.boundingBox.length; i++) {
+                if(player.collide(def.boundingBox[i].clone().translate(new THREE.Vector3(placeSel.x, placeSel.y, placeSel.z)))) {
+                  ok = false;
+                  break;
+                }
+              }
+            }
+            if(ok) {
+              var existingNode = server.getNode(placeSel);
+              if(existingNode != null) {
+                if(existingNode.getDef().canPlaceInside) {
+                  server.placeNode(player, placeSel, destroySel);
+                  needsRaycast = true;
+                }
+              }
+            }
+          }
+        }
+        
+        placeTimer = PLACE_REPEAT_INTERVAL;
+      }
     }
   }
   

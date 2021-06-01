@@ -16,37 +16,26 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __LOG_H__
-#define __LOG_H__
+#ifndef __NODE_META_H__
+#define __NODE_META_H__
+
+#include "vector.h"
+#include "inventory.h"
 
 #include <string>
 
-enum class LogSource {
-  SERVER,
-  SQLITEDB,
-  MEMORYDB,
-  LOADER,
-  MAP,
-  MAPGEN,
-  AUTH,
-  PLAYER,
-  CONFIG,
-  INIT,
-  VECTOR
+class NodeMeta {
+  public:
+    NodeMeta(MapPos<int> _pos) : is_nil(true), db_error(false), parse_error(false), pos(_pos) {};
+    NodeMeta(MapPos<int> _pos, std::string json);
+    std::string to_json();
+    
+    InvSet inventory;
+    
+    bool is_nil;
+    bool db_error;
+    bool parse_error;
+    MapPos<int> pos;
 };
-
-//Based on https://en.wikipedia.org/wiki/Syslog#Severity_level
-enum class LogLevel {
-  EMERG,
-  ALERT,
-  ERR,
-  WARNING,
-  NOTICE,
-  INFO,
-  EXTRA,
-  DEBUG
-};
-
-void log(LogSource src, LogLevel lvl, std::string message);
 
 #endif

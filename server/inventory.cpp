@@ -310,6 +310,14 @@ bool InvList::take_at(int index, InvStack to_take) {
   return true;
 }
 
+bool InvList::is_empty() {
+  for(auto it : list) {
+    if(!it.is_nil)
+      return false;
+  }
+  return true;
+}
+
 InvSet::InvSet(boost::property_tree::ptree pt) {
   for(auto it : pt) {
     std::string list_name = it.first;
@@ -379,4 +387,12 @@ bool InvSet::set_at(InvRef ref, InvStack stack) {
     return false;
   
   return list.set_at(ref.index, stack);
+}
+
+bool InvSet::is_empty() {
+  for(auto it : inventory) {
+    if(!it.second.is_empty())
+      return false;
+  }
+  return true;
 }

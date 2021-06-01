@@ -85,71 +85,15 @@ void PlayerState::send_privs(WsServer& sender) {
     log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
   }
 }
-void PlayerState::send_inv(WsServer& sender) {
-  try {
-    for(auto it : data.inventory.inventory) {
-      send_inv(it.first);
-    }
-    sender.send(m_connection_hdl, "{\"type\": \"inv_ready\"}", websocketpp::frame::opcode::text);
-  } catch(websocketpp::exception const& e) {
-    log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
-  }
+
+void PlayerState::interest_inventory(InvRef ref) {
+  known_inventories.insert(ref);
 }
-/*void PlayerState::send_inv(InvRef ref) {
-  bool exists = lock_invlist(ref);
-  if(!exists)
+void PlayerState::uninterest_inventory(InvRef ref) {
+  auto search = known_inventories.find(ref);
+  if(search == known_inventories.end())
     return;
-  
-  InvList list = get_invlist(ref);
-  if(list.is_nil)
-    return;
-  
-  unlock_invlist(ref);
-  
-  std::ostringstream out;
-  out << "{\"type\":\"inv_list\","
-      << "\"ref\":{\"objType\":\"" << json_escape(ref.obj_type) << "\",\"objID\":\"" << json_escape(ref.obj_id)
-      << "\",\"listName\":\"" << json_escape(ref.list_name) << "\", \"index\": null},"
-      << "\"list\":[";
-  
-  bool first = true;
-  for(auto item : list.list) {
-    if(!first)
-      out << ",";
-    first = false;
-    out << item.as_json();
-  }
-  
-  out << "]}";
-  
-  std::unique_lock<std::shared_mutex> self_lock(lock);
-  known_inventories[InvRef("player", "", list_name, std::nullopt)] = list;
-  send(out.str(), m_sender);
-}*/
-void PlayerState::send_inv(std::string list_name) {
-  if(!data.inventory.has_list(list_name)) {
-    return;
-  }
-  
-  std::ostringstream out;
-  out << "{\"type\":\"inv_list\","
-      << "\"ref\":{\"objType\":\"player\",\"objID\":null,\"listName\":\"" << json_escape(list_name) << "\", \"index\": null},"
-      << "\"list\":[";
-  
-  bool first = true;
-  InvList& list = data.inventory.get(list_name);
-  for(auto item : list.list) {
-    if(!first)
-      out << ",";
-    first = false;
-    out << item.as_json();
-  }
-  
-  out << "]}";
-  
-  known_inventories[InvRef("player", "", list_name, -1)] = list;
-  
-  send(out.str(), m_sender);
+  known_inventories.erase(search);
 }
 
 bool PlayerState::inv_give(InvStack stack) {

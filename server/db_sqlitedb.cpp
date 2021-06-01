@@ -130,6 +130,51 @@ CREATE TABLE IF NOT EXISTS player_data ( \
   data MEDIUMTEXT\
 );
 */
+/* Version 5:
+
+//Changes:
+//  - new node meta table
+
+//Upgrade path:
+//  - create the new table
+
+CREATE TABLE IF NOT EXISTS map ( \
+  x INT,\
+  y INT,\
+  z INT,\
+  w INT,\
+  world INT,\
+  universe INT,\
+  data MEDIUMBLOB,\
+  id_to_is TEXT,\
+  sunlit BOOLEAN,\
+  dirty BOOLEAN,\
+  version SMALLINT UNSIGNED,\
+  primary key (x, y, z, w, world, universe)\
+);
+CREATE TABLE IF NOT EXISTS node_meta ( \
+  x INT,\
+  y INT,\
+  z INT,\
+  w INT,\
+  world INT,\
+  universe INT,\
+  data MEDIUMTEXT,\
+  primary key (x, y, z, w, world, universe)\
+);
+CREATE TABLE IF NOT EXISTS player_auth ( \
+  entry_id INTEGER PRIMARY KEY,\
+  type VARCHAR(32),\
+  login_name VARCHAR(255),\
+  auth_id VARCHAR(80),\
+  data TEXT\
+);
+CREATE TABLE IF NOT EXISTS player_data ( \
+  auth_id VARCHAR(80) PRIMARY KEY,\
+  name VARCHAR(255),\
+  data MEDIUMTEXT\
+);
+*/
 
 SQLiteDB::SQLiteDB(const char* filename) {
   std::unique_lock<std::shared_mutex> db_l(db_lock);
@@ -204,6 +249,17 @@ SQLiteDB::SQLiteDB(const char* filename) {
   sunlit BOOLEAN,\
   dirty BOOLEAN,\
   version SMALLINT UNSIGNED,\
+  primary key (x, y, z, w, world, universe)\
+);"},
+{"node_meta",
+"CREATE TABLE IF NOT EXISTS node_meta ( \
+  x INT,\
+  y INT,\
+  z INT,\
+  w INT,\
+  world INT,\
+  universe INT,\
+  data MEDIUMTEXT,\
   primary key (x, y, z, w, world, universe)\
 );"},
 {"player_auth",
@@ -363,6 +419,42 @@ SQLiteDB::SQLiteDB(const char* filename) {
     }
     
     db_version = 4;
+  }
+  
+  //Upgrades from version 4 to version 5
+  if(db_version == 4) {
+    log(LogSource::SQLITEDB, LogLevel::NOTICE, "Upgrading database from version 4 to version 5");
+    
+    std::array<std::string, 4> sql_str = {
+      "BEGIN EXCLUSIVE TRANSACTION;",
+      "CREATE TABLE node_meta ( \
+        x INT,\
+        y INT,\
+        z INT,\
+        w INT,\
+        world INT,\
+        universe INT,\
+        data MEDIUMTEXT,\
+        primary key (x, y, z, w, world, universe)\
+      );",
+      "PRAGMA user_version = 5;",
+      "COMMIT TRANSACTION;"
+    };
+    
+    for(size_t i = 0; i < sql_str.size(); i++) {
+      sqlite3_stmt *statement;
+      if(sqlite3_prepare_v2(db, sql_str[i].c_str(), -1, &statement, NULL) != SQLITE_OK) {
+        log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to migrate database: ") + std::string(sqlite3_errmsg(db)));
+        exit(1);
+      }
+      if(sqlite3_step(statement) != SQLITE_DONE) {
+        log(LogSource::SQLITEDB, LogLevel::EMERG, std::string("Unable to migrate database: ") + std::string(sqlite3_errmsg(db)));
+        exit(1);
+      }
+      sqlite3_finalize(statement);
+    }
+    
+    db_version = 5;
   }
   
   
@@ -982,4 +1074,142 @@ void SQLiteDB::clean_cache_prelock() {
     log(LogSource::SQLITEDB, LogLevel::EXTRA, std::to_string(read_cache_hits.size()) + " mapblocks in cache (" + std::to_string(evicted_count) + " demoted), " +
                                               std::to_string(L2_cache.size()) + " in L2 cache (" + std::to_string(L2_evicted_count) + " evicted).");
   }
+}
+
+
+
+NodeMeta* SQLiteDB::get_node_meta(MapPos<int> pos) {
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
+  NodeMeta *meta = new NodeMeta(pos);
+  
+  const char *sql = "SELECT data FROM node_meta WHERE x=? AND y=? AND z=? AND w=? AND world=? AND universe=? LIMIT 1;";
+  sqlite3_stmt *statement;
+  if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return meta;
+  }
+  if(sqlite3_bind_int(statement, 1, pos.x) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    meta->db_error = true;
+    return meta;
+  }
+  if(sqlite3_bind_int(statement, 2, pos.y) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    meta->db_error = true;
+    return meta;
+  }
+  if(sqlite3_bind_int(statement, 3, pos.z) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    meta->db_error = true;
+    return meta;
+  }
+  if(sqlite3_bind_int(statement, 4, pos.w) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    meta->db_error = true;
+    return meta;
+  }
+  if(sqlite3_bind_int(statement, 5, pos.world) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    meta->db_error = true;
+    return meta;
+  }
+  if(sqlite3_bind_int(statement, 6, pos.universe) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::get_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    meta->db_error = true;
+    return meta;
+  }
+  
+  int step_result = sqlite3_step(statement);
+  if(step_result == SQLITE_ROW) {
+    //Have row.
+    const unsigned char *data_json_raw = sqlite3_column_text(statement, 0);
+    std::string data_json(reinterpret_cast<const char*>(data_json_raw));
+    
+    delete meta;
+    NodeMeta *result = new NodeMeta(pos, data_json);
+    
+    sqlite3_finalize(statement);
+    return result;
+  } else if(step_result == SQLITE_DONE) {
+    //no more rows
+    sqlite3_finalize(statement);
+    return meta;
+  } else {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::fetch_player_data: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    meta->db_error = true;
+    return meta;
+  }
+}
+
+void SQLiteDB::set_node_meta(MapPos<int> pos, NodeMeta *meta) {
+  //if meta->is_nil, this will delete instead
+  std::string json = meta->to_json();
+  
+  std::unique_lock<std::shared_mutex> db_l(db_lock);
+  
+  const char *sql_replace = "REPLACE INTO node_meta (x, y, z, w, world, universe, data) VALUES (?, ?, ?, ?, ?, ?, ?);";
+  const char *sql_delete = "DELETE FROM node_meta WHERE x=? AND y=? AND z=? AND w=? AND world=? AND universe=?;";
+  const char *sql = sql_replace;
+  if(meta->is_nil)
+    sql = sql_delete;
+  
+  sqlite3_stmt *statement;
+  if(sqlite3_prepare_v2(db, sql, -1, &statement, NULL) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  if(sqlite3_bind_int(statement, 1, pos.x) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  if(sqlite3_bind_int(statement, 2, pos.y) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  if(sqlite3_bind_int(statement, 3, pos.z) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  if(sqlite3_bind_int(statement, 4, pos.w) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  if(sqlite3_bind_int(statement, 5, pos.world) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  if(sqlite3_bind_int(statement, 6, pos.universe) != SQLITE_OK) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  if(!meta->is_nil) {
+    if(sqlite3_bind_text(statement, 7, json.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+      log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_node_meta: ") + std::string(sqlite3_errmsg(db)));
+      sqlite3_finalize(statement);
+      return;
+    }
+  }
+  
+  if(sqlite3_step(statement) != SQLITE_DONE) {
+    log(LogSource::SQLITEDB, LogLevel::ERR, std::string("Error in SQLiteDB::set_node_meta: ") + std::string(sqlite3_errmsg(db)));
+    sqlite3_finalize(statement);
+    return;
+  }
+  sqlite3_finalize(statement);
 }

@@ -467,8 +467,9 @@ void Server::cmd_giveme(PlayerState *player, std::vector<std::string> args) {
     if(player->auth) {
       db.update_player_data(player->get_data());
     }
-    player->send_inv("main");
     player_lock_unique.unlock();
+    //TODO use patch
+    send_inv(player, InvRef("player", "null", "main", -1));
     chat_send_player(player, "server", "'" + to_give.spec() + "' added to inventory.");
     return;
   }

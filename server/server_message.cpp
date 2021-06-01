@@ -321,12 +321,13 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(player->auth || player->auth_guest) {
         player->send_pos(m_server);
         player->send_privs(m_server);
-        player->send_inv(m_server);
         
         player->prepare_nearby_mapblocks(2, 3, 0, map);
         player->prepare_nearby_mapblocks(1, 2, 1, map);
         
         player_lock_unique.unlock();
+        
+        send_inv(player);
         
         log(LogSource::SERVER, LogLevel::INFO, player->get_name() + " (from " + player->address_and_port + ") connected!");
         chat_send_player(player, "server", status());
@@ -494,6 +495,13 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         return;
       }
       
+      //Does extra stuff, like manage metadata.
+      //true = must go through with the dig
+      //false = abort
+      bool do_continue = on_dig_node(target, pos);
+      if(!do_continue)
+        return;
+      
       log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' digs '" + target.itemstring + "' at " + pos.to_string());
       
 #ifdef DEBUG_PERF
@@ -530,18 +538,20 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         to_give = InvStack(target_def.drops);
       else if(get_item_def(target.itemstring).itemstring != "nothing")
         to_give = InvStack(target.itemstring, 1, std::nullopt, std::nullopt);
-      else
-        log(LogSource::SERVER, LogLevel::NOTICE, "node '" + target.itemstring + "' drops nothing");
+      //else
+      //  log(LogSource::SERVER, LogLevel::NOTICE, "node '" + target.itemstring + "' drops nothing");
       
       if(!player->inv_give(to_give)) {
         //TODO
       }
       
-      //FIXME use InvPatches?
-      player->send_inv("main");
       if(player->auth) {
         db.update_player_data(player->get_data());
       }
+      
+      player_lock_unique.unlock();
+      //TODO use patch
+      send_inv(player, InvRef("player", "null", "main", -1));
     } else if(type == "place_node") {
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       int wield_index = pt.get<int>("wield");
@@ -549,15 +559,24 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       InvStack wield_stack = player->inv_get("main", wield_index);
       
+      //FIXME this should be handled by 'expected' in set_node
+      Node existing = map.get_node(pos);
+      if(existing.itemstring != "air") {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name()
+                                                 + " attempted to place node '" + to_place.itemstring + "' over '" + existing.itemstring + "'");
+        //TODO tell the client
+        return;
+      }
+      
       if(wield_stack.is_nil) {
         log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name()
-                                                 + " attempted to place node '" + to_place.itemstring + " but they are not wielding anything");
+                                                 + " attempted to place node '" + to_place.itemstring + "' but they are not wielding anything");
         //TODO tell the client
         return;
       }
       if(to_place.itemstring != wield_stack.itemstring) {
         log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name()
-                                                 + " attempted to place node '" + to_place.itemstring + " but they are really wielding '" + wield_stack.itemstring + "'");
+                                                 + " attempted to place node '" + to_place.itemstring + "' but they are really wielding '" + wield_stack.itemstring + "'");
         //TODO tell the client
         return;
       }
@@ -579,7 +598,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       //take the dug node from the player
       InvStack to_take(to_place.itemstring, 1, std::nullopt, std::nullopt);
       if(player->inv_take_at("main", wield_index, to_take)) {
-        player->send_inv("main");
+        
       } else {
         log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to place '" + to_place.itemstring + " but they don't have any in inventory");
         return;
@@ -587,6 +606,14 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(player->auth) {
         db.update_player_data(player->get_data());
       }
+      
+      //FIXME FIXME if this fails, give the player back their item
+      //Does extra stuff, like manage metadata.
+      //true = must go through with the place
+      //false = abort
+      bool do_continue = on_place_node(to_place, pos);
+      if(!do_continue)
+        return;
       
       log(LogSource::SERVER, LogLevel::EXTRA, "Player '" + player->get_name() + "' places '" + to_place.itemstring + "' at " + pos.to_string());
       
@@ -602,17 +629,23 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       std::cout << "place_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
 #endif
+      
+      player_lock_unique.unlock();
+      //TODO use patch
+      send_inv(player, InvRef("player", "null", "main", -1));
     } else if(type == "inv_swap") {
       InvRef ref1(pt.get_child("ref1"));
-      ref1.obj_id = "null"; //prevent access to other players' inventories (FIXME)
       InvRef ref2(pt.get_child("ref2"));
-      ref2.obj_id = "null";
       InvStack orig1(pt.get_child("orig1"));
       InvStack orig2(pt.get_child("orig2"));
       std::string req_id = pt.get<std::string>("reqID");
       std::string craft_patch_id = pt.get<std::string>("craftPatchID");
       
       //TODO: access control (incl. accessing only own player's inventory)
+      if(ref1.obj_type == "player")
+        ref1.obj_id = "null"; //prevent access to other players' inventories (FIXME)
+      if(ref2.obj_type == "player")
+        ref2.obj_id = "null"; //prevent access to other players' inventories (FIXME)
       
       std::optional<InvPatch> override_result
           = inv_interact_override(ref1, orig1, ref2, orig2, req_id, player);
@@ -650,9 +683,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       }
     } else if(type == "inv_distribute") {
       InvRef ref1(pt.get_child("ref1"));
-      ref1.obj_id = "null"; //prevent access to other players' inventories (FIXME)
       InvRef ref2(pt.get_child("ref2"));
-      ref2.obj_id = "null";
       InvStack orig1(pt.get_child("orig1"));
       InvStack orig2(pt.get_child("orig2"));
       int qty1 = pt.get<int>("qty1");
@@ -661,6 +692,10 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       std::string craft_patch_id = pt.get<std::string>("craftPatchID");
       
       //TODO: access control (incl. accessing only own player's inventory)
+      if(ref1.obj_type == "player")
+        ref1.obj_id = "null"; //prevent access to other players' inventories (FIXME)
+      if(ref2.obj_type == "player")
+        ref2.obj_id = "null"; //prevent access to other players' inventories (FIXME)
       
       if(ref1 == ref2) {
         InvPatch deny_patch(req_id);
@@ -739,9 +774,9 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
           db.update_player_data(player->get_data());
         }
         
-        player->send_inv("main");
-        
         player_lock_unique.unlock();
+        //TODO use patch
+        send_inv(player, InvRef("player", "null", "main", -1));
         chat_send_player(player, "server", "pulverized '" + wield_stack.spec() + "'");
         return;
       }
@@ -759,6 +794,27 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       player_lock_unique.unlock();
       chat_send(channel, from, message);
       return;
+    } else if(type == "interact") {
+      MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
+      Node node = map.get_node(pos);
+      //TODO close ui if it gets dug?
+      //TODO track ui IDs or something
+      if(node.itemstring == "default:chest") {
+        InvRef chest_ref("node", pos.to_json(), "chest", -1);
+        
+        player_lock_unique.unlock();
+        send_inv(player, chest_ref);
+        std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+        player->send("{\"type\":\"ui_open\",\"ui\":[{\"type\":\"inv_list\",\"ref\":" + chest_ref.as_json() + "},{\"type\":\"spacer\"},{\"type\":\"inv_list\",\"ref\":{\"objType\":\"player\",\"objID\":null,\"listName\":\"main\",\"index\":null}}],\"on_close\":{\"type\":\"stop_interact\",\"pos\":" + pos.to_json() + ",\"itemstring\":\"" + json_escape(node.itemstring) + "\"}}");
+      }
+    } else if(type == "stop_interact") {
+      MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
+      std::string itemstring(pt.get<std::string>("itemstring"));
+      
+      if(itemstring == "default:chest") {
+        InvRef chest_ref("node", pos.to_json(), "chest", -1);
+        player->uninterest_inventory(chest_ref);
+      }
     } else if(type == "chat_command") {
       std::string command = pt.get<std::string>("command");
       
