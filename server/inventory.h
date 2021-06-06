@@ -41,7 +41,7 @@ class InvStack {
     bool operator==(const InvStack& other) const;
     bool operator!=(const InvStack& other) const;
     
-    std::string as_json() const;
+    std::string to_json() const;
     std::string spec();
     
     std::string itemstring;
@@ -62,7 +62,7 @@ class InvRef {
     
     bool operator<(const InvRef& other) const;
     bool operator==(const InvRef& other) const;
-    std::string as_json() const;
+    std::string to_json() const;
     
     std::string obj_type;
     std::string obj_id;
@@ -75,7 +75,7 @@ class InvDiff {
     InvDiff(InvRef _ref, InvStack _prev, InvStack _current)
         : ref(_ref), prev(_prev), current(_current) {};
     
-    std::string as_json() const;
+    std::string to_json() const;
     
     InvRef ref;
     InvStack prev;
@@ -92,7 +92,7 @@ class InvPatch {
     InvPatch operator+(const InvPatch& other) const;
     InvPatch& operator+=(const InvPatch& other);
     
-    std::string as_json(std::string type) const;
+    std::string to_json(std::string type) const;
     void make_deny();
     
     std::optional<std::string> req_id;
@@ -105,7 +105,7 @@ class InvList {
     InvList() : is_nil(true) {};
     InvList(int count) : list(count, InvStack()), is_nil(false) {};
     InvList(boost::property_tree::ptree pt);
-    std::string as_json() const;
+    std::string to_json() const;
     
     InvStack get_at(int index) const;
     bool set_at(int index, InvStack stack);
@@ -120,8 +120,8 @@ class InvSet {
   public:
     InvSet() {};
     InvSet(boost::property_tree::ptree pt);
-    std::string as_json() const;
-    std::string as_json(std::set<std::string> exclude_lists) const;
+    std::string to_json() const;
+    std::string to_json(std::set<std::string> exclude_lists) const;
     
     InvList& get(std::string list_name);
     bool set(std::string list_name, InvList list);

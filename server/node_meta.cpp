@@ -50,7 +50,7 @@ std::string NodeMeta::to_json() {
   out << "{";
   
   if(inventory.inventory.size() > 0) {
-    out << "\"inventory\":" << inventory.as_json();
+    out << "\"inventory\":" << inventory.to_json();
   }
   
   out << "}";

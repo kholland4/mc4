@@ -41,7 +41,7 @@ bool InvRef::operator==(const InvRef& other) const {
          && list_name == other.list_name && index == other.index;
 }
 
-std::string InvRef::as_json() const {
+std::string InvRef::to_json() const {
   std::ostringstream out;
   
   out << "{\"objType\":\"" << json_escape(obj_type) << "\",";
@@ -76,7 +76,7 @@ InvStack::InvStack(boost::property_tree::ptree pt) : is_nil(false) {
   else
     data = pt.get<std::string>("data");
 }
-std::string InvStack::as_json() const {
+std::string InvStack::to_json() const {
   if(is_nil)
     return "null";
   
@@ -158,13 +158,13 @@ bool InvStack::operator!=(const InvStack& other) const {
   return !operator==(other);
 }
 
-std::string InvDiff::as_json() const {
+std::string InvDiff::to_json() const {
   std::ostringstream out;
-  out << "{\"ref\":" << ref.as_json() << ",\"prev\":" << prev.as_json() << ",\"current\":" << current.as_json() << "}";
+  out << "{\"ref\":" << ref.to_json() << ",\"prev\":" << prev.to_json() << ",\"current\":" << current.to_json() << "}";
   return out.str();
 }
 
-std::string InvPatch::as_json(std::string type) const {
+std::string InvPatch::to_json(std::string type) const {
   std::ostringstream out;
   
   out << "{\"type\":\"" << json_escape(type) << "\",";
@@ -178,7 +178,7 @@ std::string InvPatch::as_json(std::string type) const {
     if(!first)
       out << ",";
     first = false;
-    out << it.as_json();
+    out << it.to_json();
   }
   
   out << "]}";
@@ -213,7 +213,7 @@ InvList::InvList(boost::property_tree::ptree pt) : is_nil(false) {
     list.push_back(InvStack(it.second));
   }
 }
-std::string InvList::as_json() const {
+std::string InvList::to_json() const {
   if(is_nil)
     return "null";
   
@@ -226,7 +226,7 @@ std::string InvList::as_json() const {
     if(!first)
       out << ",";
     first = false;
-    out << it.as_json();
+    out << it.to_json();
   }
   
   out << "]";
@@ -272,7 +272,7 @@ InvSet::InvSet(boost::property_tree::ptree pt) {
   }
 }
 
-std::string InvSet::as_json(std::set<std::string> exclude_lists) const {
+std::string InvSet::to_json(std::set<std::string> exclude_lists) const {
   std::ostringstream out;
   
   out << "{";
@@ -285,7 +285,7 @@ std::string InvSet::as_json(std::set<std::string> exclude_lists) const {
     if(!first)
       out << ",";
     first = false;
-    out << "\"" << json_escape(it.first) << "\":" << it.second.as_json();
+    out << "\"" << json_escape(it.first) << "\":" << it.second.to_json();
   }
   
   out << "}";
@@ -293,8 +293,8 @@ std::string InvSet::as_json(std::set<std::string> exclude_lists) const {
   return out.str();
 }
 
-std::string InvSet::as_json() const {
-  return as_json(std::set<std::string>());
+std::string InvSet::to_json() const {
+  return to_json(std::set<std::string>());
 }
 
 InvList& InvSet::get(std::string list_name) {

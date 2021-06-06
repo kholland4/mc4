@@ -697,7 +697,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(override_result) {
         player_lock_unique.unlock();
         if((*override_result).is_deny) {
-          player->send((*override_result).as_json("inv_patch_deny"));
+          player->send((*override_result).to_json("inv_patch_deny"));
         } else {
           inv_apply_patch(*override_result, player);
         }
@@ -750,7 +750,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
             InvDiff(ref2, orig2, orig2));
         deny_patch.make_deny();
         player_lock_unique.unlock();
-        player->send(deny_patch.as_json("inv_patch_deny"));
+        player->send(deny_patch.to_json("inv_patch_deny"));
         return;
       }
       
@@ -759,7 +759,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(override_result) {
         player_lock_unique.unlock();
         if((*override_result).is_deny) {
-          player->send((*override_result).as_json("inv_patch_deny"));
+          player->send((*override_result).to_json("inv_patch_deny"));
         } else {
           inv_apply_patch(*override_result, player);
         }
@@ -783,7 +783,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
             InvDiff(ref2, orig2, orig2));
         deny_patch.make_deny();
         player_lock_unique.unlock();
-        player->send(deny_patch.as_json("inv_patch_deny"));
+        player->send(deny_patch.to_json("inv_patch_deny"));
         return;
       }
       

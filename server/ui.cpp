@@ -24,7 +24,7 @@
 std::string UI_InvList::to_json() const {
   std::ostringstream out;
   
-  out << "{\"type\":\"inv_list\",\"ref\":" << ref.as_json() << "}";
+  out << "{\"type\":\"inv_list\",\"ref\":" << ref.to_json() << "}";
   return out.str();
 }
 

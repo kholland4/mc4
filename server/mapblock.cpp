@@ -94,7 +94,7 @@ std::string Mapblock::id_to_itemstring(unsigned int id) {
   return std::string();
 }
 
-std::string Mapblock::as_json() {
+std::string Mapblock::to_json() {
   std::ostringstream out;
   
   out << "{\"type\":\"req_mapblock\",\"data\":{"

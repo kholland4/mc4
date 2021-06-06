@@ -40,7 +40,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
   for(const auto& ref : refs_to_lock) {
     ok = lock_invlist(ref, requesting_player);
     if(!ok) {
-      err_message = "invalid inventory reference: " + ref.as_json();
+      err_message = "invalid inventory reference: " + ref.to_json();
       break;
     }
     locked_refs.insert(ref);
@@ -53,7 +53,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
     log(LogSource::SERVER, LogLevel::NOTICE, "inv_apply_patch: " + err_message);
     patch.make_deny();
     if(requesting_player != NULL)
-      requesting_player->send(patch.as_json("inv_patch_deny"));
+      requesting_player->send(patch.to_json("inv_patch_deny"));
     return false;
   }
   
@@ -69,7 +69,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
     
     if(orig_stack != diff.prev) {
       ok = false;
-      err_message = "patch doesn't match current state at reference: " + diff.ref.as_json() + " (expected " + orig_stack.as_json() + " got " + diff.prev.as_json() + ")";
+      err_message = "patch doesn't match current state at reference: " + diff.ref.to_json() + " (expected " + orig_stack.to_json() + " got " + diff.prev.to_json() + ")";
       //break;
       //don't break b/c we need to gather other stacks to make deny_patch_new
     }
@@ -84,7 +84,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
     
     log(LogSource::SERVER, LogLevel::NOTICE, "inv_apply_patch: " + err_message);
     if(requesting_player != NULL)
-      requesting_player->send(deny_patch_new.as_json("inv_patch_deny"));
+      requesting_player->send(deny_patch_new.to_json("inv_patch_deny"));
     return false;
   }
   
@@ -97,7 +97,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
     list.set_at(diff.ref.index, diff.current);
     ok = set_invlist(diff.ref, list, requesting_player);
     if(!ok) {
-      err_message = "error writing to inventory at reference: " + diff.ref.as_json();
+      err_message = "error writing to inventory at reference: " + diff.ref.to_json();
       break;
     }
   }
@@ -117,7 +117,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
     
     log(LogSource::SERVER, LogLevel::NOTICE, "inv_apply_patch: " + err_message);
     if(requesting_player != NULL)
-      requesting_player->send(deny_patch_new.as_json("inv_patch_deny"));
+      requesting_player->send(deny_patch_new.to_json("inv_patch_deny"));
     return false;
   }
   
@@ -127,7 +127,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
   }
   
   if(requesting_player != NULL)
-    requesting_player->send(patch.as_json("inv_patch_accept"));
+    requesting_player->send(patch.to_json("inv_patch_accept"));
   
   //Inform interested players (possibly with only partial patches)
   std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
@@ -157,7 +157,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
     if(interest_patch.diffs.size() == 0)
       continue;
     
-    check->send(interest_patch.as_json("inv_patch"));
+    check->send(interest_patch.to_json("inv_patch"));
   }
   
   return true;
@@ -385,7 +385,7 @@ void Server::send_inv(PlayerState *player) {
 void Server::send_inv(PlayerState *player, InvRef ref) {
   bool lock_success = lock_invlist(ref, player);
   if(!lock_success) {
-    log(LogSource::SERVER, LogLevel::ERR, "unable to send inventory list " + ref.as_json() + " : not found");
+    log(LogSource::SERVER, LogLevel::ERR, "unable to send inventory list " + ref.to_json() + " : not found");
     return;
   }
   
@@ -394,8 +394,8 @@ void Server::send_inv(PlayerState *player, InvRef ref) {
   
   std::ostringstream out;
   out << "{\"type\":\"inv_list\","
-      << "\"ref\":" << ref.as_json() << ","
-      << "\"list\":" << list.as_json() << "}";
+      << "\"ref\":" << ref.to_json() << ","
+      << "\"list\":" << list.to_json() << "}";
   
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   player->interest_inventory(ref);

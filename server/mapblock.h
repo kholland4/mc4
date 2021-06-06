@@ -36,7 +36,7 @@ class Mapblock {
     unsigned int itemstring_to_id(std::string itemstring);
     std::string id_to_itemstring(unsigned int id);
     
-    std::string as_json();
+    std::string to_json();
     
     const MapPos<int> pos;
     

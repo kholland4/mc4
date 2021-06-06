@@ -105,7 +105,7 @@ std::string PlayerData::to_json() {
   
   out << "],";
   
-  out << "\"inventory\":" << inventory.as_json(std::set<std::string>{"creative"}) << ",";
+  out << "\"inventory\":" << inventory.to_json(std::set<std::string>{"creative"}) << ",";
   
   out << "\"creative_mode\":" << std::boolalpha << creative_mode;
   
