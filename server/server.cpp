@@ -289,3 +289,14 @@ void Server::set_time(int hours, int minutes) {
   
   log(LogSource::SERVER, LogLevel::INFO, "Time set to " + std::to_string(hours) + ":" + (minutes < 10 ? "0" : "") + std::to_string(minutes) + ".");
 }
+
+PlayerState* Server::get_player_by_tag(std::string tag) {
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  
+  for(auto p : m_players) {
+    PlayerState *check = p.second;
+    if(check->get_tag() == tag)
+      return check;
+  }
+  return NULL;
+}

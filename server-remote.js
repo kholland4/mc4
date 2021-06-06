@@ -516,15 +516,15 @@ class ServerRemote extends ServerBase {
       } else if(data.type == "ui_open") {
         var ui = data.ui;
         var win = new api.UIWindow();
-        if("on_close" in data) {
-          var closeMessage = JSON.stringify(data.on_close);
-          win.onClose = function() {
-            if(!this._socketReady) { return; }
-            
-            console.log(closeMessage);
-            this.socket.send(closeMessage);
-          }.bind(this, closeMessage);
-        }
+        
+        win.onClose = function(id) {
+          if(!this._socketReady) { return; }
+          
+          this.socket.send(JSON.stringify({
+            type: "ui_close",
+            id: id
+          }));
+        }.bind(this, data.id);
         
         for(var element of ui) {
           if(element.type == "inv_list") {

@@ -76,6 +76,7 @@
 #include "item.h"
 #include "craft.h"
 #include "database.h"
+#include "ui.h"
 
 #include "player.h"
 #include "player_data.h"
@@ -156,6 +157,11 @@ class Server {
     bool on_place_node(Node node, MapPos<int> pos);
     bool on_dig_node(Node node, MapPos<int> pos);
     
+    void open_ui(PlayerState *player, const UIInstance& instance);
+    void close_ui(PlayerState *player, const UIInstance& instance);
+    
+    PlayerState* get_player_by_tag(std::string tag);
+    
     typedef std::map<connection_hdl, PlayerState*, std::owner_less<connection_hdl>> player_list;
     
     WsServer m_server;
@@ -170,6 +176,9 @@ class Server {
     
     std::string motd;
     mutable std::shared_mutex motd_lock;
+    
+    std::set<UIInstance> active_ui;
+    mutable std::shared_mutex active_ui_lock;
     
     int mapblock_tick_counter;
     int fluid_tick_counter;

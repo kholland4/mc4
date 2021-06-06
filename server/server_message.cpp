@@ -817,19 +817,46 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(node.itemstring == "default:chest") {
         InvRef chest_ref("node", pos.to_json(), "chest", -1);
         
+        UISpec chest_ui;
+        chest_ui.components.push_back(
+            UI_InvList(chest_ref).to_json());
+        chest_ui.components.push_back(
+            UI_Spacer().to_json());
+        chest_ui.components.push_back(
+            UI_InvList(InvRef("player", "null", "main", -1)).to_json());
+        
+        UIInstance chest_ui_instance(chest_ui);
+        std::string player_tag = player->get_tag();
+        
+        chest_ui_instance.close_callback = [this, chest_ref, player_tag]() {
+          std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+          PlayerState *found_player = get_player_by_tag(player_tag);
+          if(found_player == NULL)
+            return;
+          std::unique_lock<std::shared_mutex> found_player_lock(found_player->lock);
+          
+          found_player->uninterest_inventory(chest_ref);
+        };
+        
         player_lock_unique.unlock();
         send_inv(player, chest_ref);
-        std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
-        player->send("{\"type\":\"ui_open\",\"ui\":[{\"type\":\"inv_list\",\"ref\":" + chest_ref.as_json() + "},{\"type\":\"spacer\"},{\"type\":\"inv_list\",\"ref\":{\"objType\":\"player\",\"objID\":null,\"listName\":\"main\",\"index\":null}}],\"on_close\":{\"type\":\"stop_interact\",\"pos\":" + pos.to_json() + ",\"itemstring\":\"" + json_escape(node.itemstring) + "\"}}");
+        open_ui(player, chest_ui_instance);
       }
-    } else if(type == "stop_interact") {
-      MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
-      std::string itemstring(pt.get<std::string>("itemstring"));
+    } else if(type == "ui_close") {
+      player_lock_unique.unlock();
       
-      if(itemstring == "default:chest") {
-        InvRef chest_ref("node", pos.to_json(), "chest", -1);
-        player->uninterest_inventory(chest_ref);
-      }
+      std::string id = pt.get<std::string>("id");
+      UIInstance search_instance(id);
+      
+      std::unique_lock<std::shared_mutex> ui_list_lock(active_ui_lock);
+      auto search = active_ui.find(search_instance);
+      if(search == active_ui.end())
+        return;
+      
+      if(search->close_callback)
+        search->close_callback();
+      
+      active_ui.erase(search);
     } else if(type == "chat_command") {
       std::string command = pt.get<std::string>("command");
       
