@@ -77,21 +77,13 @@ std::string PlayerState::opts_as_json() {
   return out.str();
 }
 
-void PlayerState::send_pos(WsServer& sender) {
-  try {
-    sender.send(m_connection_hdl, pos_as_json(), websocketpp::frame::opcode::text);
-  } catch(websocketpp::exception const& e) {
-    log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
-  }
+void PlayerState::send_pos() {
+  send(pos_as_json());
 }
-void PlayerState::send_privs(WsServer& sender) {
-  try {
-    sender.send(m_connection_hdl, privs_as_json(), websocketpp::frame::opcode::text);
-  } catch(websocketpp::exception const& e) {
-    log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
-  }
+void PlayerState::send_privs() {
+  send(privs_as_json());
 }
-void PlayerState::send_opts(WsServer& sender) {
+void PlayerState::send_opts() {
   send(opts_as_json());
 }
 
@@ -132,7 +124,7 @@ bool PlayerState::needs_mapblock_update(MapblockUpdateInfo info) {
   return true;
 }
 
-unsigned int PlayerState::send_mapblock_compressed(MapblockCompressed *mbc, WsServer& sender) {
+unsigned int PlayerState::send_mapblock_compressed(MapblockCompressed *mbc) {
   known_mapblocks[mbc->pos] = MapblockUpdateInfo(*mbc);
   
   std::ostringstream IDtoIS_ss;
@@ -205,7 +197,7 @@ unsigned int PlayerState::send_mapblock_compressed(MapblockCompressed *mbc, WsSe
   arr_pos += (IDtoIS_len / sizeof(uint32_t)) + 1;
   
   try {
-    sender.send(m_connection_hdl, out_buf, arr_pos * sizeof(uint32_t), websocketpp::frame::opcode::binary);
+    m_sender.send(m_connection_hdl, out_buf, arr_pos * sizeof(uint32_t), websocketpp::frame::opcode::binary);
   } catch(websocketpp::exception const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
   }
@@ -270,7 +262,7 @@ void PlayerState::prepare_nearby_mapblocks(int mb_radius, int mb_radius_outer, i
   prepare_mapblocks(mb_to_update, map);
 }
 
-void PlayerState::update_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map, WsServer& sender) {
+void PlayerState::update_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map) {
   prepare_mapblocks(mapblock_list, map);
   
   for(size_t i = 0; i < mapblock_list.size(); i++) {
@@ -278,7 +270,7 @@ void PlayerState::update_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& 
     MapblockUpdateInfo info = map.get_mapblockupdateinfo(mb_pos);
     if(needs_mapblock_update(info)) {
       MapblockCompressed *mbc = map.get_mapblock_compressed(mb_pos);
-      send_mapblock_compressed(mbc, sender);
+      send_mapblock_compressed(mbc);
       delete mbc;
     }
   }
@@ -286,7 +278,7 @@ void PlayerState::update_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& 
 
 
 
-void PlayerState::update_nearby_mapblocks(int mb_radius, int mb_radius_w, Map& map, WsServer& sender) {
+void PlayerState::update_nearby_mapblocks(int mb_radius, int mb_radius_w, Map& map) {
   MapPos<int> mb_pos = containing_mapblock();
   MapPos<int> min_pos(mb_pos.x - mb_radius, mb_pos.y - mb_radius, mb_pos.z - mb_radius, mb_pos.w - mb_radius_w, mb_pos.world, mb_pos.universe);
   MapPos<int> max_pos(mb_pos.x + mb_radius, mb_pos.y + mb_radius, mb_pos.z + mb_radius, mb_pos.w + mb_radius_w, mb_pos.world, mb_pos.universe);
@@ -305,7 +297,7 @@ void PlayerState::update_nearby_mapblocks(int mb_radius, int mb_radius_w, Map& m
       }
     }
   }
-  update_mapblocks(mb_to_update, map, sender);
+  update_mapblocks(mb_to_update, map);
 }
 std::vector<MapPos<int>> PlayerState::list_nearby_known_mapblocks(int mb_radius, int mb_radius_w) {
   MapPos<int> mb_pos = containing_mapblock();
@@ -334,12 +326,12 @@ std::vector<MapPos<int>> PlayerState::list_nearby_known_mapblocks(int mb_radius,
   
   return mb_to_update;
 }
-void PlayerState::update_nearby_known_mapblocks(int mb_radius, int mb_radius_w, Map& map, WsServer& sender) {
+void PlayerState::update_nearby_known_mapblocks(int mb_radius, int mb_radius_w, Map& map) {
   std::vector<MapPos<int>> mb_to_update = list_nearby_known_mapblocks(mb_radius, mb_radius_w);
-  update_mapblocks(mb_to_update, map, sender);
+  update_mapblocks(mb_to_update, map);
 }
-void PlayerState::update_nearby_known_mapblocks(std::vector<MapPos<int>> mb_to_update, Map& map, WsServer& sender) {
-  update_mapblocks(mb_to_update, map, sender);
+void PlayerState::update_nearby_known_mapblocks(std::vector<MapPos<int>> mb_to_update, Map& map) {
+  update_mapblocks(mb_to_update, map);
 }
 
 

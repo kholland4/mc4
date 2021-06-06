@@ -319,9 +319,9 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       }
       
       if(player->auth || player->auth_guest) {
-        player->send_pos(m_server);
-        player->send_privs(m_server);
-        player->send_opts(m_server);
+        player->send_pos();
+        player->send_privs();
+        player->send_opts();
         
         player->prepare_nearby_mapblocks(2, 3, 0, map);
         player->prepare_nearby_mapblocks(1, 2, 1, map);
@@ -368,7 +368,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       }
       MapblockCompressed *mbc = map.get_mapblock_compressed(mb_pos);
 #ifdef DEBUG_NET
-      unsigned int len = player->send_mapblock_compressed(mbc, m_server);
+      unsigned int len = player->send_mapblock_compressed(mbc);
       
       {
         std::unique_lock<std::shared_mutex> net_lock(net_debug_lock);
@@ -376,7 +376,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         mb_out_count++;
       }
 #else
-      player->send_mapblock_compressed(mbc, m_server);
+      player->send_mapblock_compressed(mbc);
 #endif
       delete mbc;
     } else if(type == "set_player_pos") {
@@ -434,7 +434,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       if(violation) {
         log(LogSource::SERVER, LogLevel::WARNING, "player '" + player->get_name() + "' tried to move too fast");
-        player->send_pos(m_server); //pull them back
+        player->send_pos(); //pull them back
         return; //don't accept the new position
       }
 #endif

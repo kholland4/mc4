@@ -230,7 +230,7 @@ void Server::chat_send(std::string channel, std::string from, std::string messag
     PlayerState *receiver = p.second;
     
     std::shared_lock<std::shared_mutex> player_lock(receiver->lock);
-    receiver->send(broadcast_str, m_server);
+    receiver->send(broadcast_str);
   }
 }
 
@@ -249,7 +249,7 @@ void Server::chat_send(std::string channel, std::string message) {
     PlayerState *receiver = p.second;
     
     std::shared_lock<std::shared_mutex> player_lock(receiver->lock);
-    receiver->send(broadcast_str, m_server);
+    receiver->send(broadcast_str);
   }
 }
 
@@ -264,7 +264,7 @@ void Server::chat_send_player(PlayerState *player, std::string channel, std::str
   std::string broadcast_str = broadcast.str();
   
   std::shared_lock<std::shared_mutex> player_lock(player->lock);
-  player->send(broadcast_str, m_server);
+  player->send(broadcast_str);
 }
 
 void Server::set_motd(std::string new_motd) {
@@ -284,7 +284,7 @@ void Server::set_time(int hours, int minutes) {
     PlayerState *receiver = p.second;
     
     std::shared_lock<std::shared_mutex> player_lock(receiver->lock);
-    receiver->send(out_str, m_server);
+    receiver->send(out_str);
   }
   
   log(LogSource::SERVER, LogLevel::INFO, "Time set to " + std::to_string(hours) + ":" + (minutes < 10 ? "0" : "") + std::to_string(minutes) + ".");

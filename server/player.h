@@ -86,39 +86,30 @@ class PlayerState {
     std::string privs_as_json();
     std::string opts_as_json();
     
-    void send_pos(WsServer& sender);
-    void send_privs(WsServer& sender);
-    void send_opts(WsServer& sender);
-    //void send_inv(WsServer& sender);
-    //void send_inv(std::string list_name);
-    //void send_inv(InvRef ref);
+    void send_pos();
+    void send_privs();
+    void send_opts();
     
     void interest_inventory(InvRef ref);
     void uninterest_inventory(InvRef ref);
     
     InvList inv_get(std::string list_name);
     InvStack inv_get(std::string list_name, int index);
-    //bool inv_set(std::string list_name, int index, InvStack stack);
     
     bool needs_mapblock_update(MapblockUpdateInfo info);
-    unsigned int send_mapblock_compressed(MapblockCompressed *mbc, WsServer& sender);
+    unsigned int send_mapblock_compressed(MapblockCompressed *mbc);
     
     void prepare_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map);
     void prepare_nearby_mapblocks(int mb_radius, int mb_radius_outer, int mb_radius_w, Map& map);
     
-    void update_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map, WsServer& sender);
-    void update_nearby_mapblocks(int mb_radius, int mb_radius_w, Map& map, WsServer& sender);
+  private:
+    void update_mapblocks(std::vector<MapPos<int>> mapblock_list, Map& map);
+    void update_nearby_mapblocks(int mb_radius, int mb_radius_w, Map& map);
+  public:
     std::vector<MapPos<int>> list_nearby_known_mapblocks(int mb_radius, int mb_radius_w);
-    void update_nearby_known_mapblocks(int mb_radius, int mb_radius_w, Map& map, WsServer& sender);
-    void update_nearby_known_mapblocks(std::vector<MapPos<int>> mb_to_update, Map& map, WsServer& sender);
+    void update_nearby_known_mapblocks(int mb_radius, int mb_radius_w, Map& map);
+    void update_nearby_known_mapblocks(std::vector<MapPos<int>> mb_to_update, Map& map);
     
-    void send(std::string msg, WsServer& sender) {
-      try {
-        sender.send(m_connection_hdl, msg, websocketpp::frame::opcode::text);
-      } catch(websocketpp::exception const& e) {
-        log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
-      }
-    }
     void send(std::string msg) {
       try {
         m_sender.send(m_connection_hdl, msg, websocketpp::frame::opcode::text);

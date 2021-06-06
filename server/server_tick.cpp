@@ -47,7 +47,7 @@ void Server::tick(const boost::system::error_code&) {
       
       std::vector<MapPos<int>> nearby_known_mapblocks = player->list_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, PLAYER_MAPBLOCK_INTEREST_DISTANCE_W);
       
-      player->update_nearby_known_mapblocks(nearby_known_mapblocks, map, m_server);
+      player->update_nearby_known_mapblocks(nearby_known_mapblocks, map);
       
       for(size_t i = 0; i < nearby_known_mapblocks.size(); i++) {
         interested_mapblocks.insert(nearby_known_mapblocks[i]);
@@ -127,7 +127,7 @@ void Server::tick(const boost::system::error_code&) {
     
     out << "]}";
     
-    player->send(out.str(), m_server);
+    player->send(out.str());
   }
   
   slow_tick_counter++;

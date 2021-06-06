@@ -135,7 +135,7 @@ void Server::on_close(connection_hdl hdl) {
           out << "{\"type\":\"update_entities\",\"actions\":[";
           out << "{\"type\":\"delete\",\"data\":" << player->entity_data_as_json() << "}";
           out << "]}";
-          receiver->send(out.str(), m_server);
+          receiver->send(out.str());
           
           receiver->known_player_tags.erase(player->get_tag());
         }

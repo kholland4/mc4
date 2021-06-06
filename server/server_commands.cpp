@@ -145,7 +145,7 @@ void Server::cmd_tp(PlayerState *player, std::vector<std::string> args) {
     player_lock_unique.unlock();
     chat_send_player(player, "server", "Teleported to " + MapPos<int>(x, y, z, player->pos.w, player->pos.world, player->pos.universe).to_string() + "!");
     player_lock_unique.lock();
-    player->send_pos(m_server);
+    player->send_pos();
     if(player->auth) {
       db.update_player_data(player->get_data());
     }
@@ -183,7 +183,7 @@ void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
       player_lock_unique.unlock();
       chat_send_player(player, "server", "Welcome to " + it.second->name + "!");
       player_lock_unique.lock();
-      player->send_pos(m_server);
+      player->send_pos();
       if(player->auth) {
         db.update_player_data(player->get_data());
       }
@@ -221,7 +221,7 @@ void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args)
       player_lock_unique.unlock();
       chat_send_player(player, "server", "Welcome to universe " + std::to_string(player->pos.universe) + "!");
       player_lock_unique.lock();
-      player->send_pos(m_server);
+      player->send_pos();
       if(player->auth) {
         db.update_player_data(player->get_data());
       }
@@ -279,7 +279,7 @@ void Server::cmd_grant(PlayerState *player, std::vector<std::string> args) {
   }
   
   player_found->data.privs.insert(new_priv);
-  player_found->send_privs(m_server);
+  player_found->send_privs();
   
   if(player_found->auth) {
     db.update_player_data(player_found->get_data());
@@ -314,7 +314,7 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
   }
   
   player->data.privs.insert(new_priv);
-  player->send_privs(m_server);
+  player->send_privs();
   
   if(player->auth) {
     db.update_player_data(player->get_data());
@@ -366,7 +366,7 @@ void Server::cmd_revoke(PlayerState *player, std::vector<std::string> args) {
   }
   
   player_found->data.privs.erase(search);
-  player_found->send_privs(m_server);
+  player_found->send_privs();
   
   if(player_found->auth) {
     db.update_player_data(player_found->get_data());
@@ -547,7 +547,7 @@ void Server::cmd_creative(PlayerState *player, std::vector<std::string> args) {
     if(player->auth) {
       db.update_player_data(player->get_data());
     }
-    player->send_opts(m_server);
+    player->send_opts();
     
     player_lock_unique.unlock();
     chat_send_player(player, "server", "creative mode is now " + mode);
