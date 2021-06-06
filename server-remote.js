@@ -459,6 +459,8 @@ class ServerRemote extends ServerBase {
         this._posReady = true;
       } else if(data.type == "set_player_privs") {
         this.player.privs = data.privs;
+      } else if(data.type == "set_player_opts") {
+        //TODO
       } else if(data.type == "inv_list") {
         var ref = new InvRef(data.ref.objType, data.ref.objID, data.ref.listName, data.ref.index);
         var list = data.list;

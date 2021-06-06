@@ -73,6 +73,12 @@ PlayerData::PlayerData(std::string json, std::string _auth_id) : is_nil(true), a
     
     inventory.add("creative", get_creative_inventory());
     
+    creative_mode = false;
+    if(pt.get_child_optional("creative_mode"))
+      creative_mode = pt.get<bool>("creative_mode");
+    if(!has_priv("creative"))
+      creative_mode = false;
+    
     is_nil = false;
   } catch(boost::property_tree::ptree_error const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " json=" + json);
@@ -99,7 +105,9 @@ std::string PlayerData::to_json() {
   
   out << "],";
   
-  out << "\"inventory\":" << inventory.as_json(std::set<std::string>{"creative"});
+  out << "\"inventory\":" << inventory.as_json(std::set<std::string>{"creative"}) << ",";
+  
+  out << "\"creative_mode\":" << std::boolalpha << creative_mode;
   
   out << "}";
   

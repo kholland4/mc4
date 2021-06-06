@@ -513,3 +513,46 @@ void Server::cmd_clearinv(PlayerState *player, std::vector<std::string> args) {
   else
     chat_send_player(player, "server", "error when attempting to clear inventory");
 }
+
+void Server::cmd_creative(PlayerState *player, std::vector<std::string> args) {
+  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
+  
+  if(args.size() < 2) {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "creative is " + std::string(player->data.creative_mode ? "on" : "off"));
+    return;
+  }
+  
+  std::string mode = args[1];
+  if(mode != "on" && mode != "off") {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "usage: /creative [on|off]");
+    return;
+  }
+  
+  if(!player->has_priv("creative") && mode != "off") {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "missing priv: creative");
+    return;
+  }
+  
+  bool old_creative_mode = player->data.creative_mode;
+  
+  if(mode == "on")
+    player->data.creative_mode = true;
+  if(mode == "off")
+    player->data.creative_mode = false;
+  
+  if(player->data.creative_mode != old_creative_mode) {
+    if(player->auth) {
+      db.update_player_data(player->get_data());
+    }
+    player->send_opts(m_server);
+    
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "creative mode is now " + mode);
+  } else {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "creative mode is already " + mode);
+  }
+}

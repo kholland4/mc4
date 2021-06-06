@@ -84,9 +84,11 @@ class PlayerState {
     std::string pos_as_json();
     std::string entity_data_as_json();
     std::string privs_as_json();
+    std::string opts_as_json();
     
     void send_pos(WsServer& sender);
     void send_privs(WsServer& sender);
+    void send_opts(WsServer& sender);
     //void send_inv(WsServer& sender);
     //void send_inv(std::string list_name);
     //void send_inv(InvRef ref);

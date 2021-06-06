@@ -31,6 +31,8 @@ void init_player_data(PlayerData &data) {
   data.inventory.add("craftOutput", InvList(1));
   data.inventory.add("hand", InvList(1));
   data.inventory.add("creative", get_creative_inventory());
+  
+  data.creative_mode = false;
 }
 
 bool validate_player_name(std::string name) {

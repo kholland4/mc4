@@ -43,6 +43,8 @@ class PlayerData {
     std::set<std::string> privs;
     InvSet inventory;
     
+    bool creative_mode;
+    
     bool is_nil;
     
     std::string auth_id; //unique identifier of player in database

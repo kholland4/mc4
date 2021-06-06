@@ -71,6 +71,12 @@ std::string PlayerState::privs_as_json() {
   return out.str();
 }
 
+std::string PlayerState::opts_as_json() {
+  std::ostringstream out;
+  out << "{\"type\":\"set_player_opts\",\"creative_mode\":" << std::boolalpha << data.creative_mode << "}";
+  return out.str();
+}
+
 void PlayerState::send_pos(WsServer& sender) {
   try {
     sender.send(m_connection_hdl, pos_as_json(), websocketpp::frame::opcode::text);
@@ -84,6 +90,9 @@ void PlayerState::send_privs(WsServer& sender) {
   } catch(websocketpp::exception const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "Socket send error");
   }
+}
+void PlayerState::send_opts(WsServer& sender) {
+  send(opts_as_json());
 }
 
 void PlayerState::interest_inventory(InvRef ref) {

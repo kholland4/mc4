@@ -321,6 +321,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(player->auth || player->auth_guest) {
         player->send_pos(m_server);
         player->send_privs(m_server);
+        player->send_opts(m_server);
         
         player->prepare_nearby_mapblocks(2, 3, 0, map);
         player->prepare_nearby_mapblocks(1, 2, 1, map);
@@ -904,6 +905,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         cmd_giveme(player, tokens);
       } else if(tokens[0] == "/clearinv") {
         cmd_clearinv(player, tokens);
+      } else if(tokens[0] == "/creative") {
+        cmd_creative(player, tokens);
       } else {
         chat_send_player(player, "server", "unknown command");
         return;

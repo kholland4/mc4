@@ -50,26 +50,32 @@
     return didChange;
   };
   
-  api.onModLoaded("chat", function() {
-    mods.chat.registerCommand(new mods.chat.ChatCommand("/gamemode", function(args) {
-      if(args.length == 1) {
-        return "creative: " + (mods.gamemode.creative ? "yes" : "no");
-      } else {
-        var str = args[1];
-        if(str == "creative") {
-          if(!mods.gamemode.creative && !api.player.privs.includes("creative")) {
-            return "no creative priv";
-          }
-          
-          var didChange = mods.gamemode.set({creative: true});
-          return didChange ? "game set to creative" : "already in creative";
-        } else if(str == "survival") {
-          var didChange = mods.gamemode.set({creative: false});
-          return didChange ? "game set to survival" : "already in survival";
+  if(!api.server.isRemote()) {
+    api.onModLoaded("chat", function() {
+      mods.chat.registerCommand(new mods.chat.ChatCommand("/creative", function(args) {
+        if(args.length == 1) {
+          return "creative: " + (mods.gamemode.creative ? "yes" : "no");
         } else {
-          return "not a valid game mode.";
+          var str = args[1];
+          if(str == "on") {
+            if(!mods.gamemode.creative && !api.player.privs.includes("creative")) {
+              return "no creative priv";
+            }
+            
+            var didChange = mods.gamemode.set({creative: true});
+            return didChange ? "game set to creative" : "already in creative";
+          } else if(str == "off") {
+            var didChange = mods.gamemode.set({creative: false});
+            return didChange ? "game set to survival" : "already in survival";
+          } else {
+            return "expected 'on' or 'off'";
+          }
         }
-      }
-    }, "/gamemode [survival|creative] : get or set the current game mode"));
-  });
+      }, "/creative [on|off] : get or set creative mode"));
+    });
+  } else {
+    api.server.registerMessageHook("set_player_opts", function(data) {
+      mods.gamemode.set({creative: data.creative_mode});
+    });
+  }
 })();
