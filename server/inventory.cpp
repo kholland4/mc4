@@ -201,6 +201,13 @@ InvPatch InvPatch::operator+(const InvPatch& other) const {
   return result;
 }
 
+InvPatch& InvPatch::operator+=(const InvPatch& other) {
+  for(const auto& diff : other.diffs) {
+    diffs.push_back(diff);
+  }
+  return *this;
+}
+
 InvList::InvList(boost::property_tree::ptree pt) : is_nil(false) {
   for(auto it : pt) {
     list.push_back(InvStack(it.second));

@@ -491,9 +491,11 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       std::optional<double> break_time_tool = calc_dig_time(target, wield_stack);
       std::optional<double> break_time_hand = calc_dig_time(target, InvStack());
       
-      if(!break_time_tool && !break_time_hand) {
-        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to dig with inadequate tools node '" + target.itemstring + "' at " + pos.to_string());
-        return;
+      if(!player->data.creative_mode) {
+        if(!break_time_tool && !break_time_hand) {
+          log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to dig with inadequate tools node '" + target.itemstring + "' at " + pos.to_string());
+          return;
+        }
       }
       
       //Does extra stuff, like manage metadata.
@@ -518,26 +520,31 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       std::cout << "dig_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
 #endif
       
-      //consume tool
-      InvPatch use_tool_patch;
+      InvPatch combined_patch;
       
-      if(break_time_tool) {
-        bool do_consume = true;
-        if(break_time_hand) {
-          if(*break_time_hand <= *break_time_tool)
-            do_consume = false;
+      if(!player->data.creative_mode) {
+        //consume tool
+        InvPatch use_tool_patch;
+        if(break_time_tool) {
+          bool do_consume = true;
+          if(break_time_hand) {
+            if(*break_time_hand <= *break_time_tool)
+              do_consume = false;
+          }
+          if(do_consume && wield_stack.wear) {
+            InvStack new_wield_stack(wield_stack);
+            new_wield_stack.wear = *new_wield_stack.wear - 1;
+            if(new_wield_stack.wear <= 0)
+              new_wield_stack = InvStack();
+            
+            use_tool_patch.diffs.push_back(InvDiff(
+                InvRef("player", "null", "main", wield_index),
+                wield_stack,
+                new_wield_stack));
+          }
         }
-        if(do_consume && wield_stack.wear) {
-          InvStack new_wield_stack(wield_stack);
-          new_wield_stack.wear = *new_wield_stack.wear - 1;
-          if(new_wield_stack.wear <= 0)
-            new_wield_stack = InvStack();
-          
-          use_tool_patch.diffs.push_back(InvDiff(
-              InvRef("player", "null", "main", wield_index),
-              wield_stack,
-              new_wield_stack));
-        }
+        
+        combined_patch += use_tool_patch;
       }
       
       //give the dug node to the player
@@ -549,23 +556,39 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       //else
       //  log(LogSource::SERVER, LogLevel::NOTICE, "node '" + target.itemstring + "' drops nothing");
       
-      std::optional<InvPatch> give_patch = inv_calc_give(
-          InvRef("player", "null", "main", -1),
-          player->inv_get("main"),
-          to_give);
-      
-      if(!give_patch) {
-        //couldn't give
-        //TODO
-        return;
+      if(!to_give.is_nil) {
+        bool should_give = true;
+        if(player->data.creative_mode && !to_give.data) {
+          const InvList& main_list = player->inv_get("main");
+          for(const auto& stack : main_list.list) {
+            if(stack.itemstring == to_give.itemstring) {
+              should_give = false;
+              break;
+            }
+          }
+        }
+        
+        if(should_give) {
+          std::optional<InvPatch> give_patch = inv_calc_give(
+              InvRef("player", "null", "main", -1),
+              player->inv_get("main"),
+              to_give);
+          
+          if(give_patch) {
+            combined_patch += *give_patch;
+          } else {
+            //couldn't give
+            //TODO
+          }
+        }
       }
       
-      InvPatch combined_patch = *give_patch + use_tool_patch;
-      
-      player_lock_unique.unlock();
-      bool res = inv_apply_patch(combined_patch, player);
-      if(!res) {
-        //TODO
+      if(combined_patch.diffs.size() > 0) {
+        player_lock_unique.unlock();
+        bool res = inv_apply_patch(combined_patch, player);
+        if(!res) {
+          //TODO
+        }
       }
     } else if(type == "place_node") {
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
@@ -610,17 +633,20 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         return;
       }
       
-      //take the dug node from the player
-      InvStack to_take(to_place.itemstring, 1, std::nullopt, std::nullopt);
-      
-      std::optional<InvPatch> take_patch = inv_calc_take_at(
-          InvRef("player", "null", "main", wield_index),
-          player->inv_get("main"),
-          to_take);
-      
-      if(!take_patch) {
-        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to place '" + to_place.itemstring + " but they don't have any in inventory");
-        return;
+      std::optional<InvPatch> take_patch = std::nullopt;
+      if(!player->data.creative_mode) {
+        //take the dug node from the player
+        InvStack to_take(to_place.itemstring, 1, std::nullopt, std::nullopt);
+        
+        take_patch = inv_calc_take_at(
+            InvRef("player", "null", "main", wield_index),
+            player->inv_get("main"),
+            to_take);
+        
+        if(!take_patch) {
+          log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' attempted to place '" + to_place.itemstring + " but they don't have any in inventory");
+          return;
+        }
       }
       
       //Does extra stuff, like manage metadata.
@@ -645,10 +671,12 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       std::cout << "place_node in " << std::chrono::duration<double, std::milli>(diff).count() << " ms" << std::endl;
 #endif
       
-      player_lock_unique.unlock();
-      bool res = inv_apply_patch(*take_patch, player);
-      if(!res) {
-        //TODO
+      if(!player->data.creative_mode) {
+        player_lock_unique.unlock();
+        bool res = inv_apply_patch(*take_patch, player);
+        if(!res) {
+          //TODO
+        }
       }
     } else if(type == "inv_swap") {
       InvRef ref1(pt.get_child("ref1"));

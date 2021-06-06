@@ -90,6 +90,7 @@ class InvPatch {
         : req_id(_req_id), is_deny(false) {};
     
     InvPatch operator+(const InvPatch& other) const;
+    InvPatch& operator+=(const InvPatch& other);
     
     std::string as_json(std::string type) const;
     void make_deny();
