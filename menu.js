@@ -36,11 +36,16 @@ function showMenu() {
     var win = new api.UIWindow();
     
     win.add(api.uiElement("text", "mc4 v" + api.version() + "\na voxel building game by kholland4"));
+    
     win.add(api.uiElement("spacer"));
     win.add(api.uiElement("link", ["Source code on GitHub", "https://github.com/kholland4/mc4/"]));
     win.add(api.uiElement("spacer"));
+    
     win.add(api.uiElement("text", "Inspired by "));
     win.add(api.uiElement("link", ["Minetest", "https://www.minetest.net/"]));
+    
+    win.add(api.uiElement("spacer"));
+    win.add(api.uiElement("text", "Use '/help' for ingame command help."));
     
     api.uiShowWindow(win);
     menuIsOpen = true;
