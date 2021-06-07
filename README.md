@@ -1,8 +1,31 @@
 # mc4
 
-Voxel building game inspired by [Minetest](https://www.minetest.net/)
+Multiplayer, browser-based voxel building game inspired by [Minetest](https://www.minetest.net/)
 
-[![Play](play-button.png)](https://www.tausquared.net/mc4/)
+[![Play](play-button.png)](https://www.tausquared.net/mc4/) ← try it out!
+
+## Gameplay quick reference
+
+#### Keys
+
+  * `w`/`a`/`s`/`d` : move around
+  * `space` : jump or fly up/down
+  * `j` : toggle fast
+  * `k` : toggle fly
+  * `r` (hold) : peek backwards in the 4th dimension
+  * `f` (hold) : peek forward in the 4th dimension
+  * `[`/`PageDown` (hold) : move backwards once in the 4th dimension
+  * `]`/`PageUp` (hold) : move forwards once in the 4th dimension
+  * `t`/`/` : open chat
+
+#### Commands
+
+  * `/help` : command reference
+  * `/grantme [whatever]` : give yourself a privilege
+    * `/grantme fast`
+    * `/grantme fly`
+    * `/grantme creative`
+  * `/creative on`/`/creative off` : creative mode
 
 ## License
 
