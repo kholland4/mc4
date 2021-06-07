@@ -175,15 +175,36 @@
         commands.push(key);
       }
       commands.sort();
-      return "available commands: " + commands.join(" ");
+      
+      if(api.server.isRemote()) {
+        api.server.sendMessage({
+          type: "chat_command",
+          command: "/help"
+        });
+        
+        return "available commands (client): " + commands.join(" ");
+      } else {
+        return "available commands: " + commands.join(" ");
+      }
     } else if(args.length >= 2) {
       var name = args[1];
       if(!(name in mods.chat.commands) && !name.startsWith("/")) { name = "/" + name; }
-      if(!(name in mods.chat.commands)) { return "unknown command '" + name + "'"; }
+      if(!(name in mods.chat.commands)) {
+        if(api.server.isRemote()) {
+          api.server.sendMessage({
+            type: "chat_command",
+            command: args.join(" ")
+          });
+          return;
+        }
+        return "unknown command '" + name + "'";
+      }
       
       var helptext = mods.chat.commands[name].helptext;
-      if(helptext == null) { return "no help available for '" + name + "'"; }
-      return helptext;
+      if(helptext != null)
+        return helptext;
+      
+      return "no help available for '" + name + "'";
     }
   }, "/help [<command>] : list available commands or give help for a command"));
   

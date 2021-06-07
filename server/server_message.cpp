@@ -906,39 +906,14 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       player_lock_unique.unlock();
       
-      //TODO table pointing to these functions
-      if(tokens[0] == "/nick") {
-        cmd_nick(player, tokens);
-      } else if(tokens[0] == "/status") {
-        cmd_status(player, tokens);
-      } else if(tokens[0] == "/time") {
-        cmd_time(player, tokens);
-      } else if(tokens[0] == "/whereami") {
-        cmd_whereami(player, tokens);
-      } else if(tokens[0] == "/tp") {
-        cmd_tp(player, tokens);
-      } else if(tokens[0] == "/world") {
-        cmd_tp_world(player, tokens);
-      } else if(tokens[0] == "/universe") {
-        cmd_tp_universe(player, tokens);
-      } else if(tokens[0] == "/grant") {
-        cmd_grant(player, tokens);
-      } else if(tokens[0] == "/grantme") {
-        cmd_grantme(player, tokens);
-      } else if(tokens[0] == "/revoke") {
-        cmd_revoke(player, tokens);
-      } else if(tokens[0] == "/privs") {
-        cmd_privs(player, tokens);
-      } else if(tokens[0] == "/giveme") {
-        cmd_giveme(player, tokens);
-      } else if(tokens[0] == "/clearinv") {
-        cmd_clearinv(player, tokens);
-      } else if(tokens[0] == "/creative") {
-        cmd_creative(player, tokens);
-      } else {
-        chat_send_player(player, "server", "unknown command");
+      auto search = commands_list.find(command_name);
+      if(search == commands_list.end()) {
+        chat_send_player(player, "server", "unknown command '" + command_name + "', use /help for assistance");
         return;
       }
+      
+      const ServerCommand& cmd = search->second;
+      cmd.fn(player, tokens);
     }
   } catch(boost::property_tree::ptree_error const& e) {
     log(LogSource::SERVER, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " payload=" + msg->get_payload());

@@ -534,6 +534,8 @@ class ServerRemote extends ServerBase {
             win.add(api.uiRenderInventoryList(ref, {width: 8, interactive: true}));
           } else if(element.type == "spacer") {
             win.add(api.uiElement("spacer"));
+          } else if(element.type == "textblock") {
+            win.add(api.uiElement("textblock", element.content));
           }
         }
         

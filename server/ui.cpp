@@ -23,13 +23,18 @@
 
 std::string UI_InvList::to_json() const {
   std::ostringstream out;
-  
   out << "{\"type\":\"inv_list\",\"ref\":" << ref.to_json() << "}";
   return out.str();
 }
 
 std::string UI_Spacer::to_json() const {
   return "{\"type\":\"spacer\"}";
+}
+
+std::string UI_TextBlock::to_json() const {
+  std::ostringstream out;
+  out << "{\"type\":\"textblock\",\"content\":\"" << json_escape(content) << "\"}";
+  return out.str();
 }
 
 std::string UISpec::components_to_json() const {

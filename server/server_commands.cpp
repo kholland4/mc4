@@ -24,6 +24,46 @@
 
 std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime", "give", "creative", "grant"};
 
+void Server::cmd_help(PlayerState *player, std::vector<std::string> args) {
+  std::optional<std::string> topic = std::nullopt;
+  if(args.size() >= 2)
+    topic = args[1];
+  
+  std::ostringstream help_text;
+  
+  if(topic) {
+    std::string topic_s = "/" + *topic;
+    
+    auto search = commands_list.find(topic_s);
+    if(search == commands_list.end()) {
+      help_text << "Unknown command '" + topic_s + "'";
+    } else {
+      const std::string& name = search->first;
+      const ServerCommand& cmd = search->second;
+      
+      help_text << "Help for '" << name << "'\n=====\n\n";
+      help_text << cmd.help_long;
+    }
+  } else {
+    help_text << "Server command reference\n=====\n\n";
+    help_text << "Available commands:";
+    
+    for(const auto& it : commands_list) {
+      const std::string& name = it.first;
+      const ServerCommand& cmd = it.second;
+      
+      help_text << "\n  " << name << " : " << cmd.help_brief;
+    }
+    
+    help_text << "\n\nUse '/help <command>' for help on a specific command";
+  }
+  
+  UISpec help_ui;
+  help_ui.components.push_back(
+      UI_TextBlock(help_text.str()).to_json());
+  UIInstance help_ui_instance(help_ui);
+  open_ui(player, help_ui_instance);
+}
 
 void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
@@ -69,6 +109,8 @@ void Server::cmd_status(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
+  //TODO allow getting time
+  
   if(!player->has_priv("settime")) {
     chat_send_player(player, "server", "missing priv: settime");
     return;
@@ -255,6 +297,19 @@ void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args)
 }
 
 void Server::cmd_grant(PlayerState *player, std::vector<std::string> args) {
+  //TODO check for 'grant' priv and update help message
+  
+  if(args.size() == 1) {
+    std::ostringstream out;
+    out << "valid privileges:";
+    for(const auto& p : allowed_privs) {
+      out << " " << p;
+    }
+    
+    chat_send_player(player, "server", out.str());
+    return;
+  }
+  
   std::shared_lock<std::shared_mutex> self_lock(player->lock);
   std::string self_name = player->get_name();
   self_lock.unlock();
@@ -399,8 +454,6 @@ void Server::cmd_revoke(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {
-  //TODO: /privs <any player nick or login name>
-  
   if(args.size() == 1) {
     std::shared_lock<std::shared_mutex> player_lock(player->lock);
     

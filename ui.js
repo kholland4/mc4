@@ -89,6 +89,12 @@ function uiElement(name, opts) {
     if(opts != undefined) { el.innerText = opts; }
     return el;
   }
+  if(name == "textblock") {
+    var el = document.createElement("pre");
+    el.className = "uiEl_textblock";
+    if(opts != undefined) { el.innerText = opts; }
+    return el;
+  }
   if(name == "link") {
     var el = document.createElement("a");
     el.className = "uiEl_link";

@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.5-dev9"
+#define VERSION "0.4.5-dev10"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -53,6 +53,7 @@
 #include <chrono>
 #include <cmath>
 #include <shared_mutex>
+#include <functional>
 
 #ifdef TLS
 #include <websocketpp/config/asio.hpp>
@@ -93,6 +94,12 @@ using websocketpp::lib::placeholders::_2;
 
 
 
+struct ServerCommand {
+  std::function<void(PlayerState*, std::vector<std::string>)> fn;
+  std::string help_brief;
+  std::string help_long;
+};
+
 class Server {
   public:
     Server(Database& _db, std::map<int, World*> _worlds);
@@ -126,6 +133,7 @@ class Server {
   private:
     void on_message(connection_hdl hdl, websocketpp::config::asio::message_type::ptr msg);
     
+    void cmd_help(PlayerState *player, std::vector<std::string> args);
     void cmd_nick(PlayerState *player, std::vector<std::string> args);
     void cmd_status(PlayerState *player, std::vector<std::string> args);
     void cmd_time(PlayerState *player, std::vector<std::string> args);
@@ -140,6 +148,118 @@ class Server {
     void cmd_giveme(PlayerState *player, std::vector<std::string> args);
     void cmd_clearinv(PlayerState *player, std::vector<std::string> args);
     void cmd_creative(PlayerState *player, std::vector<std::string> args);
+    
+    std::map<std::string, ServerCommand> commands_list{
+      {"/help", {
+        std::bind(&Server::cmd_help, this, std::placeholders::_1, std::placeholders::_2),
+        "list or describe available commands",
+        "/help : list available commands\n"
+        "/help <command-name> : describe a command"
+      }},
+      {"/nick", {
+        std::bind(&Server::cmd_nick, this, std::placeholders::_1, std::placeholders::_2),
+        "change your nickname",
+        "/nick <new-nickname> : set your display (not login) name to <new-nickname>\n"
+        "\n"
+        "Character set and length restrictions apply."
+      }},
+      {"/status", {
+        std::bind(&Server::cmd_status, this, std::placeholders::_1, std::placeholders::_2),
+        "information about server status",
+        "/status : information about server status"
+      }},
+      {"/time", {
+        std::bind(&Server::cmd_time, this, std::placeholders::_1, std::placeholders::_2),
+        "get or set the time of day",
+        "/time : current time of day\n"
+        "/time <hh>:<mm> : set time of day\n"
+        "\n"
+        "Times are in 24-hour format.\n"
+        "'settime' privilege required to set the time."
+      }},
+      {"/whereami", {
+        std::bind(&Server::cmd_whereami, this, std::placeholders::_1, std::placeholders::_2),
+        "display your coordinates",
+        "/whereami : display your coordinates"
+      }},
+      {"/tp", {
+        std::bind(&Server::cmd_tp, this, std::placeholders::_1, std::placeholders::_2),
+        "teleport somewhere in the world",
+        "/tp <x> <y> <z> [<w>] : teleport to given integer coordinates in the world\n"
+        "\n"
+        "Use /world and /universe to teleport outside the current world.\n"
+        "'teleport' privilege required."
+      }},
+      {"/world", {
+        std::bind(&Server::cmd_tp_world, this, std::placeholders::_1, std::placeholders::_2),
+        "teleport to a named world",
+        "/world <name> : teleport to a named world\n"
+        "\n"
+        "Use /whereami to see the world you're currently in.\n"
+        "'teleport' privilege required."
+      }},
+      {"/universe", {
+        std::bind(&Server::cmd_tp_universe, this, std::placeholders::_1, std::placeholders::_2),
+        "teleport to a universe",
+        "/universe <number> : teleport to a universe\n"
+        "\n"
+        "Use /whereami to see the universe you're currently in.\n"
+        "'teleport' privilege required."
+      }},
+      {"/grant", {
+        std::bind(&Server::cmd_grant, this, std::placeholders::_1, std::placeholders::_2),
+        "grant a privilege to a player",
+        "/grant <player> <priv> : grant <priv> to <player>\n"
+        "/grant : list possible privileges\n"
+        "\n"
+        "The player will receive a message informing them of the grant."
+      }},
+      {"/grantme", {
+        std::bind(&Server::cmd_grantme, this, std::placeholders::_1, std::placeholders::_2),
+        "grant a privilege to yourself",
+        "/grantme <priv> : grant <priv> to yourself\n"
+        "\n"
+        "Use /grant to list possible privileges."
+      }},
+      {"/revoke", {
+        std::bind(&Server::cmd_revoke, this, std::placeholders::_1, std::placeholders::_2),
+        "revoke a privilege from a player",
+        "/revoke <player> <priv> : revoke <priv> from <player>\n"
+        "\n"
+        "The player will receive a message informing them of the revocation."
+      }},
+      {"/privs", {
+        std::bind(&Server::cmd_privs, this, std::placeholders::_1, std::placeholders::_2),
+        "list your own or another player's privileges",
+        "/privs : list your privileges\n"
+        "/privs <player> : list a player's privileges\n"
+        "\n"
+        "Use /grant for a list of possible privileges."
+      }},
+      {"/giveme", {
+        std::bind(&Server::cmd_giveme, this, std::placeholders::_1, std::placeholders::_2),
+        "give yourself an item",
+        "/giveme <itemstring> [<count>] : give yourself an item\n"
+        "\n"
+        "For example:\n"
+        "  /giveme default:cobble 64"
+      }},
+      {"/clearinv", {
+        std::bind(&Server::cmd_clearinv, this, std::placeholders::_1, std::placeholders::_2),
+        "clear everything in your inventory",
+        "/clearinv : clear everything in your inventory\n"
+        "\n"
+        "Permanently destroy everything in your main inventory, craft grid, and hand.\n"
+        "Use with caution. This cannot be undone."
+      }},
+      {"/creative", {
+        std::bind(&Server::cmd_creative, this, std::placeholders::_1, std::placeholders::_2),
+        "turn creative mode on or off",
+        "/creative [on|off] : enable or disable creative mode\n"
+        "\n"
+        "'creative' privilege required."
+      }}
+    };
     
     std::pair<websocketpp::close::status::value, std::string> validate_connection(connection_hdl hdl);
     void on_open(connection_hdl hdl);

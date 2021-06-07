@@ -47,6 +47,14 @@ class UI_Spacer : public UIComponent {
     virtual std::string to_json() const;
 };
 
+class UI_TextBlock : public UIComponent {
+  public:
+    UI_TextBlock(std::string _content) : content(_content) {};
+    virtual std::string to_json() const;
+    
+    std::string content;
+};
+
 class UISpec {
   public:
     std::string components_to_json() const;

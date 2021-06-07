@@ -120,6 +120,10 @@
   font-family: sans-serif;
   font-size: 18px;
 }
+.uiEl_textblock {
+  font-family: monospace;
+  font-size: 14px;
+}
 .uiEl_link {
   font-family: sans-serif;
   font-size: 18px;
@@ -188,7 +192,7 @@
     border: 2px solid #888;
     background-color: #222;
   }
-  .uiEl_text {
+  .uiEl_text, .uiEl_textblock {
     color: white;
   }
   .uiEl_button, .uiEl_select, .uiEl_input_text {
