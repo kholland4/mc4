@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.5-dev7"
+#define VERSION "0.4.5-dev8"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8

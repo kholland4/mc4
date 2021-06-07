@@ -91,8 +91,17 @@ void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
   std::string hours_str = time_spec.substr(0, colon_pos);
   std::string minutes_str = time_spec.substr(colon_pos + 1);
   
-  int hours = std::stoi(hours_str);
-  int minutes = std::stoi(minutes_str);
+  int hours, minutes;
+  try {
+    hours = std::stoi(hours_str);
+    minutes = std::stoi(minutes_str);
+  } catch(std::invalid_argument const& e) {
+    chat_send_player(player, "server", "not a number: " + hours_str + " or " + minutes_str);
+    return;
+  } catch(std::out_of_range const& e) {
+    chat_send_player(player, "server", "invalid (too large) number: " + hours_str + " or " + minutes_str);
+    return;
+  }
   set_time(hours, minutes);
   
   chat_send_player(player, "server", "Time set to " + std::to_string(hours) + ":" + (minutes < 10 ? "0" : "") + std::to_string(minutes) + ".");
@@ -125,35 +134,41 @@ void Server::cmd_tp(PlayerState *player, std::vector<std::string> args) {
     return;
   }
   
-  try {
-    int x = stoi(args[1]);
-    int y = stoi(args[2]);
-    int z = stoi(args[3]);
-    int w = 0;
-    if(args.size() >= 5) {
-      w = stoi(args[4]);
+  int args_int[4] = {0, 0, 0, 0};
+  for(size_t i = 1; i < std::min((size_t)5, args.size()); i++) {
+    try {
+      args_int[i - 1] = stoi(args[i]);
+    } catch(std::invalid_argument const& e) {
+      player_lock_unique.unlock();
+      chat_send_player(player, "server", "not a number: " + args[i]);
+      return;
+    } catch(std::out_of_range const& e) {
+      player_lock_unique.unlock();
+      chat_send_player(player, "server", "invalid (too large) number: " + args[i]);
+      return;
     }
-    
-    player->pos.x = x;
-    player->pos.y = y;
-    player->pos.z = z;
-    if(args.size() >= 5) {
-      player->pos.w = w;
-    }
-    player->just_tp = true;
-    //print ints, not doubles
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "Teleported to " + MapPos<int>(x, y, z, player->pos.w, player->pos.world, player->pos.universe).to_string() + "!");
-    player_lock_unique.lock();
-    player->send_pos();
-    if(player->auth) {
-      db.update_player_data(player->get_data());
-    }
-    return;
-  } catch(boost::property_tree::ptree_error const& e) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "invalid command: invalid input, expected '/tp <int x> <int y> <int z> [<int w>]'");
   }
+  int x = args_int[0];
+  int y = args_int[1];
+  int z = args_int[2];
+  int w = args_int[3];
+  
+  player->pos.x = x;
+  player->pos.y = y;
+  player->pos.z = z;
+  if(args.size() >= 5) {
+    player->pos.w = w;
+  }
+  player->just_tp = true;
+  //print ints, not doubles
+  player_lock_unique.unlock();
+  chat_send_player(player, "server", "Teleported to " + MapPos<int>(x, y, z, player->pos.w, player->pos.world, player->pos.universe).to_string() + "!");
+  player_lock_unique.lock();
+  player->send_pos();
+  if(player->auth) {
+    db.update_player_data(player->get_data());
+  }
+  return;
 }
 
 void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
@@ -209,27 +224,33 @@ void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args)
     return;
   }
   
+  int universe;
   try {
-    int universe = stoi(args[1]);
-    
-    if(player->pos.universe == universe) {
-      player_lock_unique.unlock();
-      chat_send_player(player, "server", "You're already in universe " + std::to_string(universe) + ".");
-    } else {
-      player->pos.universe = universe;
-      player->just_tp = true;
-      player_lock_unique.unlock();
-      chat_send_player(player, "server", "Welcome to universe " + std::to_string(player->pos.universe) + "!");
-      player_lock_unique.lock();
-      player->send_pos();
-      if(player->auth) {
-        db.update_player_data(player->get_data());
-      }
-      return;
-    }
-  } catch(boost::property_tree::ptree_error const& e) {
+    universe = stoi(args[1]);
+  } catch(std::invalid_argument const& e) {
     player_lock_unique.unlock();
-    chat_send_player(player, "server", "invalid command: invalid input, expected '/universe <number>'");
+    chat_send_player(player, "server", "not a number: " + args[1]);
+    return;
+  } catch(std::out_of_range const& e) {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "invalid (too large) number: " + args[1]);
+    return;
+  }
+  
+  if(player->pos.universe == universe) {
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "You're already in universe " + std::to_string(universe) + ".");
+  } else {
+    player->pos.universe = universe;
+    player->just_tp = true;
+    player_lock_unique.unlock();
+    chat_send_player(player, "server", "Welcome to universe " + std::to_string(player->pos.universe) + "!");
+    player_lock_unique.lock();
+    player->send_pos();
+    if(player->auth) {
+      db.update_player_data(player->get_data());
+    }
+    return;
   }
 }
 
