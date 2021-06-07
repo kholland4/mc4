@@ -54,20 +54,23 @@ class InvStack {
 
 class InvRef {
   public:
-    InvRef(std::string _obj_type, std::string _obj_id, std::string _list_name, int _index)
+    InvRef(
+        std::string _obj_type,
+        std::optional<std::string> _obj_id,
+        std::string _list_name,
+        std::optional<int> _index)
         : obj_type(_obj_type), obj_id(_obj_id), list_name(_list_name), index(_index) {};
-    InvRef(boost::property_tree::ptree pt)
-        : obj_type(pt.get<std::string>("objType")), obj_id(pt.get<std::string>("objID")),
-          list_name(pt.get<std::string>("listName")), index(pt.get<int>("index")) {};
+    
+    InvRef(boost::property_tree::ptree pt);
     
     bool operator<(const InvRef& other) const;
     bool operator==(const InvRef& other) const;
     std::string to_json() const;
     
     std::string obj_type;
-    std::string obj_id;
+    std::optional<std::string> obj_id;
     std::string list_name;
-    int index;
+    std::optional<int> index;
 };
 
 class InvDiff {
@@ -108,7 +111,9 @@ class InvList {
     std::string to_json() const;
     
     InvStack get_at(int index) const;
+    InvStack get_at(const InvRef& ref) const;
     bool set_at(int index, InvStack stack);
+    bool set_at(const InvRef& ref, InvStack stack);
     
     bool is_empty();
     

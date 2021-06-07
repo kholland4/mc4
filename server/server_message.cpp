@@ -241,7 +241,7 @@ std::optional<InvPatch> update_craft_if_needed(const InvRef& ref1, const InvRef&
       craft_res_stack = (*craft_res).second.diffs[0].current;
     
     if(craft_output != craft_res_stack) {
-      InvRef craft_output_ref("player", "null", "craftOutput", 0);
+      InvRef craft_output_ref("player", std::nullopt, "craftOutput", 0);
       InvPatch out;
       out.diffs.push_back(
           InvDiff(craft_output_ref, craft_output, craft_res_stack));
@@ -538,7 +538,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
               new_wield_stack = InvStack();
             
             use_tool_patch.diffs.push_back(InvDiff(
-                InvRef("player", "null", "main", wield_index),
+                InvRef("player", std::nullopt, "main", wield_index),
                 wield_stack,
                 new_wield_stack));
           }
@@ -570,7 +570,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         
         if(should_give) {
           std::optional<InvPatch> give_patch = inv_calc_give(
-              InvRef("player", "null", "main", -1),
+              InvRef("player", std::nullopt, "main", std::nullopt),
               player->inv_get("main"),
               to_give);
           
@@ -639,7 +639,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         InvStack to_take(to_place.itemstring, 1, std::nullopt, std::nullopt);
         
         take_patch = inv_calc_take_at(
-            InvRef("player", "null", "main", wield_index),
+            InvRef("player", std::nullopt, "main", wield_index),
             player->inv_get("main"),
             to_take);
         
@@ -688,9 +688,9 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       //TODO: access control (incl. accessing only own player's inventory)
       if(ref1.obj_type == "player")
-        ref1.obj_id = "null"; //prevent access to other players' inventories (FIXME)
+        ref1.obj_id = std::nullopt; //prevent access to other players' inventories (FIXME)
       if(ref2.obj_type == "player")
-        ref2.obj_id = "null"; //prevent access to other players' inventories (FIXME)
+        ref2.obj_id = std::nullopt; //prevent access to other players' inventories (FIXME)
       
       std::optional<InvPatch> override_result
           = inv_interact_override(ref1, orig1, ref2, orig2, req_id, player);
@@ -738,9 +738,9 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       //TODO: access control (incl. accessing only own player's inventory)
       if(ref1.obj_type == "player")
-        ref1.obj_id = "null"; //prevent access to other players' inventories (FIXME)
+        ref1.obj_id = std::nullopt; //prevent access to other players' inventories (FIXME)
       if(ref2.obj_type == "player")
-        ref2.obj_id = "null"; //prevent access to other players' inventories (FIXME)
+        ref2.obj_id = std::nullopt; //prevent access to other players' inventories (FIXME)
       
       if(ref1 == ref2) {
         InvPatch deny_patch(req_id);
@@ -815,7 +815,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       InvPatch pulverize_patch;
       pulverize_patch.diffs.push_back(InvDiff(
-          InvRef("player", "null", "main", wield_index),
+          InvRef("player", std::nullopt, "main", wield_index),
           wield_stack,
           InvStack()));
       
@@ -852,7 +852,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         chest_ui.components.push_back(
             UI_Spacer().to_json());
         chest_ui.components.push_back(
-            UI_InvList(InvRef("player", "null", "main", -1)).to_json());
+            UI_InvList(InvRef("player", std::nullopt, "main", std::nullopt)).to_json());
         
         UIInstance chest_ui_instance(chest_ui);
         std::string player_tag = player->get_tag();

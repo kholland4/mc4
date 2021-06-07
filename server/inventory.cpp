@@ -21,6 +21,19 @@
 #include "log.h"
 #include <sstream>
 
+InvRef::InvRef(boost::property_tree::ptree pt)
+    : obj_type(pt.get<std::string>("objType")), obj_id(std::nullopt),
+      list_name(pt.get<std::string>("listName")), index(std::nullopt)
+{
+  std::string obj_id_raw(pt.get<std::string>("objID"));
+  if(obj_id_raw != "null")
+    obj_id = obj_id_raw;
+  
+  std::string index_raw(pt.get<std::string>("index"));
+  if(index_raw != "null")
+    index = pt.get<int>("index");
+}
+
 bool InvRef::operator<(const InvRef& other) const {
   if(obj_type == other.obj_type) {
     if(obj_id == other.obj_id) {
@@ -46,13 +59,17 @@ std::string InvRef::to_json() const {
   
   out << "{\"objType\":\"" << json_escape(obj_type) << "\",";
   
-  if(obj_id != "null")
-    out << "\"objID\":\"" << json_escape(obj_id) << "\",";
+  if(obj_id)
+    out << "\"objID\":\"" << json_escape(*obj_id) << "\",";
   else
     out << "\"objID\":null,";
   
-  out << "\"listName\":\"" << json_escape(list_name) << "\","
-      << "\"index\":" << std::to_string(index) << "}";
+  out << "\"listName\":\"" << json_escape(list_name) << "\",";
+  
+  if(index)
+    out << "\"index\":" << std::to_string(*index) << "}";
+  else
+    out << "\"index\":null}";
   
   return out.str();
 }
@@ -249,12 +266,22 @@ InvStack InvList::get_at(int index) const {
   
   return list[index];
 }
+InvStack InvList::get_at(const InvRef& ref) const {
+  if(!ref.index)
+    return InvStack();
+  return get_at(*ref.index);
+}
 bool InvList::set_at(int index, InvStack stack) {
   if(index < 0 || index >= (int)list.size())
     return false;
   
   list[index] = stack;
   return true;
+}
+bool InvList::set_at(const InvRef& ref, InvStack stack) {
+  if(!ref.index)
+    return false;
+  return set_at(*ref.index, stack);
 }
 
 bool InvList::is_empty() {
@@ -326,14 +353,14 @@ InvStack InvSet::get_at(InvRef ref) {
   if(list.is_nil)
     return InvStack();
   
-  return list.get_at(ref.index);
+  return list.get_at(ref);
 }
 bool InvSet::set_at(InvRef ref, InvStack stack) {
   InvList& list = get(ref.list_name);
   if(list.is_nil)
     return false;
   
-  return list.set_at(ref.index, stack);
+  return list.set_at(ref, stack);
 }
 
 bool InvSet::is_empty() {
@@ -416,7 +443,7 @@ std::optional<InvPatch> inv_calc_take_at(const InvRef& stack_ref, const InvList&
   if(to_take.is_nil)
     return result_patch;
   
-  const InvStack& orig_stack = list.get_at(stack_ref.index);
+  const InvStack& orig_stack = list.get_at(stack_ref);
   if(orig_stack.is_nil)
     return std::nullopt;
   if(orig_stack.itemstring != to_take.itemstring)

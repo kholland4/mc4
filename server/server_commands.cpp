@@ -463,7 +463,7 @@ void Server::cmd_giveme(PlayerState *player, std::vector<std::string> args) {
   InvStack to_give = InvStack(spec.str());
   
   std::optional<InvPatch> give_patch = inv_calc_give(
-          InvRef("player", "null", "main", -1),
+          InvRef("player", std::nullopt, "main", std::nullopt),
           player->inv_get("main"),
           to_give);
   
@@ -497,7 +497,7 @@ void Server::cmd_clearinv(PlayerState *player, std::vector<std::string> args) {
     InvList clear_list = player->inv_get(list_name);
     for(size_t i = 0; i < clear_list.list.size(); i++) {
       clear_patch.diffs.push_back(InvDiff(
-          InvRef("player", "null", list_name, i),
+          InvRef("player", std::nullopt, list_name, i),
           clear_list.list[i],
           InvStack()
       ));

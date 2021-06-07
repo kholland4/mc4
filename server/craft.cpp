@@ -57,7 +57,7 @@ void load_craft_defs(boost::property_tree::ptree pt) {
 std::optional<std::pair<InvPatch, InvPatch>> craft_calc_result(const CraftDef& craft, const InvList& craft_input, std::pair<int, int> craft_input_shape) {
   InvPatch result_patch;
   result_patch.diffs.push_back(InvDiff(
-    InvRef("player", "null", "craftOutput", 0),
+    InvRef("player", std::nullopt, "craftOutput", 0),
     InvStack(),
     craft.result
   ));
@@ -130,7 +130,7 @@ std::optional<std::pair<InvPatch, InvPatch>> craft_calc_result(const CraftDef& c
               consumed_stack = InvStack();
             
             out_patch.diffs.push_back(InvDiff(
-              InvRef("player", "null", "craft", input_index),
+              InvRef("player", std::nullopt, "craft", input_index),
               input_stack,
               consumed_stack
             ));
@@ -188,7 +188,7 @@ std::optional<std::pair<InvPatch, InvPatch>> craft_calc_result(const CraftDef& c
           consumed_stack = InvStack();
         
         out_patch.diffs.push_back(InvDiff(
-          InvRef("player", "null", "craft", n),
+          InvRef("player", std::nullopt, "craft", n),
           input_stack,
           consumed_stack
         ));

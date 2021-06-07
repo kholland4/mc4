@@ -33,7 +33,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
   
   for(const auto& diff : patch.diffs) {
     InvRef list_ref = diff.ref;
-    list_ref.index = -1;
+    list_ref.index = std::nullopt;
     refs_to_lock.insert(list_ref);
   }
   
@@ -62,7 +62,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
   
   for(const auto& diff : patch.diffs) {
     InvList list = get_invlist(diff.ref, requesting_player);
-    InvStack orig_stack = list.get_at(diff.ref.index);
+    InvStack orig_stack = list.get_at(diff.ref);
     
     deny_patch_new.diffs.push_back(
         InvDiff(diff.ref, orig_stack, orig_stack));
@@ -94,7 +94,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
   err_message = "";
   for(const auto& diff : patch.diffs) {
     InvList list = get_invlist(diff.ref, requesting_player);
-    list.set_at(diff.ref.index, diff.current);
+    list.set_at(diff.ref, diff.current);
     ok = set_invlist(diff.ref, list, requesting_player);
     if(!ok) {
       err_message = "error writing to inventory at reference: " + diff.ref.to_json();
@@ -106,7 +106,7 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
     //Something went wrong, revert everything
     for(const auto& diff : patch.diffs) {
       InvList list = get_invlist(diff.ref, requesting_player);
-      list.set_at(diff.ref.index, diff.prev);
+      list.set_at(diff.ref, diff.prev);
       set_invlist(diff.ref, list, requesting_player);
     }
     
@@ -169,8 +169,8 @@ bool Server::lock_unlock_invlist(InvRef ref, bool do_lock, PlayerState *player_h
     
     std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
     
-    if(player == NULL) {
-      std::string player_id = ref.obj_id;
+    if(player == NULL && ref.obj_id) {
+      std::string player_id = *ref.obj_id;
       
       for(auto it : m_players) {
         PlayerState *check = it.second;
@@ -236,9 +236,12 @@ bool Server::lock_unlock_invlist(InvRef ref, bool do_lock, PlayerState *player_h
     //Lock/unlock the node's entire metadata
     //and check for existence of the requested inv list (for lock only)
     
+    if(!ref.obj_id)
+      return false;
+    
     MapPos<int> node_pos;
     try {
-      node_pos = MapPos<int>(ref.obj_id);
+      node_pos = MapPos<int>(*ref.obj_id);
     } catch(std::invalid_argument const& e) {
       return false;
     }
@@ -280,8 +283,8 @@ InvList Server::get_invlist(InvRef ref, PlayerState *player_hint) {
   if(ref.obj_type == "player") {
     PlayerState *player = player_hint;
     
-    if(player == NULL) {
-      std::string player_id = ref.obj_id;
+    if(player == NULL && ref.obj_id) {
+      std::string player_id = *ref.obj_id;
       
       std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
       for(auto it : m_players) {
@@ -302,9 +305,12 @@ InvList Server::get_invlist(InvRef ref, PlayerState *player_hint) {
   }
   
   if(ref.obj_type == "node") {
+    if(!ref.obj_id)
+      return InvList();
+    
     MapPos<int> node_pos;
     try {
-      node_pos = MapPos<int>(ref.obj_id);
+      node_pos = MapPos<int>(*ref.obj_id);
     } catch(std::invalid_argument const& e) {
       return InvList();
     }
@@ -321,8 +327,8 @@ bool Server::set_invlist(InvRef ref, InvList list, PlayerState *player_hint) {
   if(ref.obj_type == "player") {
     PlayerState *player = player_hint;
     
-    if(player == NULL) {
-      std::string player_id = ref.obj_id;
+    if(player == NULL && ref.obj_id) {
+      std::string player_id = *ref.obj_id;
       
       std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
       for(auto it : m_players) {
@@ -350,9 +356,12 @@ bool Server::set_invlist(InvRef ref, InvList list, PlayerState *player_hint) {
   }
   
   if(ref.obj_type == "node") {
+    if(!ref.obj_id)
+      return false;
+    
     MapPos<int> node_pos;
     try {
-      node_pos = MapPos<int>(ref.obj_id);
+      node_pos = MapPos<int>(*ref.obj_id);
     } catch(std::invalid_argument const& e) {
       return false;
     }
@@ -373,7 +382,7 @@ void Server::send_inv(PlayerState *player) {
   std::vector<InvRef> ref_list;
   for(auto it : player->data.inventory.inventory) {
     ref_list.push_back(
-        InvRef("player", "null", it.first, -1));
+        InvRef("player", std::nullopt, it.first, std::nullopt));
   }
   player_lock.unlock();
   
