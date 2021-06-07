@@ -58,7 +58,8 @@ std::map<std::string, int> config_int;
 
 std::map<std::string, bool> config_keys_bool = {
   {"auth.allow_register", true},
-  {"server.many_threads", false}
+  {"server.many_threads", false},
+  {"server.so_reuseaddr", false}
 };
 std::map<std::string, bool> config_bool;
 

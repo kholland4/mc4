@@ -39,6 +39,9 @@ Server::Server(Database& _db, std::map<int, World*> _worlds)
   m_server.clear_access_channels(websocketpp::log::alevel::all);
   //m_server.clear_error_channels(websocketpp::log::elevel::all);
   
+  if(get_config<bool>("server.so_reuseaddr"))
+    m_server.set_reuse_addr(true);
+  
   m_server.init_asio(&m_io);
   
   m_server.set_message_handler(
