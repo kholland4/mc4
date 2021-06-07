@@ -328,6 +328,10 @@ class ServerBase {
     for(var i = 0; i < el.length; i++) {
       var props = JSON.parse(el[i].dataset.inv);
       var pRef = new InvRef(props.ref.objType, props.ref.objID, props.ref.listName, props.ref.index);
+      if(pRef.index != null) {
+        props.start = pRef.index;
+        props.count = 1;
+      }
       if(ref.sameList(pRef)) {
         uiUpdateInventoryList(pRef, props.args, el[i]);
       }
