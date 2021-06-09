@@ -879,7 +879,6 @@
     });
   }
   api.server.registerMessageHook("set_time", function(data) {
-    console.log("recv");
     mods.default.setTimeOfDay(data["hours"], data["minutes"]);
   });
   
