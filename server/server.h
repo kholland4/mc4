@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.5-dev10"
+#define VERSION "0.4.5-dev11"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -98,6 +98,11 @@ struct ServerCommand {
   std::function<void(PlayerState*, std::vector<std::string>)> fn;
   std::string help_brief;
   std::string help_long;
+};
+
+struct ServerTime {
+  int hours;
+  int minutes;
 };
 
 class Server {
@@ -300,6 +305,8 @@ class Server {
     
     std::set<UIInstance> active_ui;
     mutable std::shared_mutex active_ui_lock;
+    
+    ServerTime server_time = {12, 0}; //noon
     
     int mapblock_tick_counter;
     int fluid_tick_counter;

@@ -276,10 +276,11 @@ void Server::set_motd(std::string new_motd) {
 }
 
 void Server::set_time(int hours, int minutes) {
-  //TODO: have the server track the time
+  server_time.hours = hours;
+  server_time.minutes = minutes;
   
   std::ostringstream out;
-  out << "{\"type\":\"set_time\",\"hours\":" << hours << ",\"minutes\":" << minutes << "}";
+  out << "{\"type\":\"set_time\",\"hours\":" << server_time.hours << ",\"minutes\":" << server_time.minutes << "}";
   std::string out_str = out.str();
   
   std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
@@ -290,7 +291,7 @@ void Server::set_time(int hours, int minutes) {
     receiver->send(out_str);
   }
   
-  log(LogSource::SERVER, LogLevel::INFO, "Time set to " + std::to_string(hours) + ":" + (minutes < 10 ? "0" : "") + std::to_string(minutes) + ".");
+  log(LogSource::SERVER, LogLevel::INFO, "Time set to " + std::to_string(server_time.hours) + ":" + (server_time.minutes < 10 ? "0" : "") + std::to_string(server_time.minutes) + ".");
 }
 
 PlayerState* Server::get_player_by_tag(std::string tag) {

@@ -323,6 +323,10 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         player->send_privs();
         player->send_opts();
         
+        std::ostringstream time_s;
+        time_s << "{\"type\":\"set_time\",\"hours\":" << server_time.hours << ",\"minutes\":" << server_time.minutes << "}";
+        player->send(time_s.str());
+        
         player->prepare_nearby_mapblocks(2, 3, 0, map);
         player->prepare_nearby_mapblocks(1, 2, 1, map);
         

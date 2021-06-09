@@ -638,6 +638,7 @@ function setSun(amount) {
   amount = Math.max(Math.min(amount, 1), 0);
   if(amount == sunAmount) { return; }
   sunAmount = amount;
+  console.log("set sun", sunAmount);
   
   for(var key in renderCurrentMeshes) {
     renderQueueLightingUpdate(renderCurrentMeshes[key].pos);

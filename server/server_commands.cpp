@@ -109,15 +109,23 @@ void Server::cmd_status(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
-  //TODO allow getting time
+  if(args.size() == 1) {
+    std::ostringstream time_s;
+    time_s << "time of day is ";
+    time_s << server_time.hours;
+    time_s << ":" << std::setw(2) << std::setfill('0') << server_time.minutes;
+    chat_send_player(player, "server", time_s.str());
+    return;
+  }
   
+  //set time
   if(!player->has_priv("settime")) {
     chat_send_player(player, "server", "missing priv: settime");
     return;
   }
   
   if(args.size() != 2) {
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/time hh:mm'");
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/time' or '/time hh:mm'");
     return;
   }
   
@@ -146,7 +154,7 @@ void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
   }
   set_time(hours, minutes);
   
-  chat_send_player(player, "server", "Time set to " + std::to_string(hours) + ":" + (minutes < 10 ? "0" : "") + std::to_string(minutes) + ".");
+  chat_send_player(player, "server", "time set to " + std::to_string(hours) + ":" + (minutes < 10 ? "0" : "") + std::to_string(minutes));
 }
 
 void Server::cmd_whereami(PlayerState *player, std::vector<std::string> args) {

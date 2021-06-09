@@ -830,21 +830,26 @@
     var currentTime = mods.default.timeOfDay();
     
     mods.default.timeOffset += (h - currentTime.h) * 60 + (m - currentTime.m);
+    mods.default.updateSun();
+  };
+  
+  mods.default._oldTime = 0;
+  mods.default.updateSun = function() {
+    var tRaw = mods.default.timeOfDay();
+    var t = (tRaw.h * 60 + tRaw.m) / 1440;
+    
+    if(t != mods.default._oldTime) {
+      var sun = Math.min(Math.max(-Math.cos(6.283 * t) + 0.5, 0), 1);
+      api.setSun(sun);
+    }
+    mods.default._oldTime = t;
   };
   
   mods.default._sunUpdateCount = 0;
-  mods.default._oldTime = 0;
   api.registerOnFrame(function(tscale) {
     mods.default._sunUpdateCount++;
     if(mods.default._sunUpdateCount > 100) {
-      var tRaw = mods.default.timeOfDay();
-      var t = (tRaw.h * 60 + tRaw.m) / 1440;
-      
-      if(t != mods.default._oldTime) {
-        var sun = Math.min(Math.max(-Math.cos(6.283 * t) + 0.5, 0), 1);
-        api.setSun(sun);
-      }
-      mods.default._oldTime = t;
+      mods.default.updateSun();
       
       mods.default._sunUpdateCount = 0;
     }
@@ -874,6 +879,7 @@
     });
   }
   api.server.registerMessageHook("set_time", function(data) {
+    console.log("recv");
     mods.default.setTimeOfDay(data["hours"], data["minutes"]);
   });
   
