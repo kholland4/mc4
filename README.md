@@ -12,11 +12,15 @@ Multiplayer, browser-based voxel building game inspired by [Minetest](https://ww
   * `space` : jump or fly up/down
   * `j` : toggle fast
   * `k` : toggle fly
+  * `alt` (hold) : sprint
   * `r` (hold) : peek backwards in the 4th dimension
   * `f` (hold) : peek forward in the 4th dimension
   * `[`/`PageDown` (hold) : move backwards once in the 4th dimension
   * `]`/`PageUp` (hold) : move forwards once in the 4th dimension
   * `t`/`/` : open chat
+  * `e` : inventory
+  * `e`/`esc` : close window
+    * `e` is recommended, `esc` can't relock the mouse
 
 #### Commands
 

@@ -63,6 +63,10 @@
       var invList = api.uiRenderInventoryList(new InvRef("player", null, "main", null), {width: 8, interactive: true});
       win.add(invList);
       
+      win.onClose = function() {
+        mods.inventory.isOpen = false;
+      };
+      
       api.uiShowWindow(win);
       api.uiShowHand(new InvRef("player", null, "hand", 0));
       mods.inventory.isOpen = true;
@@ -70,7 +74,7 @@
   };
   
   api.registerKey(function(key) {
-    if((key.toLowerCase() == "e" && api.ingameKey()) || (mods.inventory.isOpen && (key == "e" || key == "Escape"))) {
+    if(key.toLowerCase() == "e" && api.ingameKey() && !api.uiWindowOpen()) {
       mods.inventory.show();
     }
   });

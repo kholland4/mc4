@@ -27,6 +27,13 @@ function initUI() {
     }
     uiVirtualWindows = 0; //FIXME
   });
+  
+  api.registerKey(function(key) {
+    if(uiWindowOpen && (key == "e" || key == "Escape")) {
+      event.stopImmediatePropagation();
+      uiHideWindow();
+    }
+  });
 }
 
 //---
@@ -46,6 +53,7 @@ class UIWindow {
 var uiWindowOpen = false;
 
 function uiShowWindow(win) {
+  console.log("show");
   var doUnlock = true;
   if(uiWindowOpen) { uiHideWindow(false); doUnlock = false; }
   
@@ -59,6 +67,7 @@ function uiShowWindow(win) {
 }
 function uiHideWindow(doLock=true) {
   if(uiWindowOpen) {
+    console.log("hide");
     var el = document.getElementById("uiWindowContainer");
     el.style.display = "none";
     while(el.firstChild) { el.removeChild(el.firstChild); }
