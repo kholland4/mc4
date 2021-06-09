@@ -506,11 +506,16 @@ class ServerRemote extends ServerBase {
           this.invPatches.splice(0, 1);
         } else {
           //either a denial, or an unreleated inv patch
-          //revert all pending inv patches and apply the received one
+          //revert any pending inv patches that overlap with the received one and apply it
           
           for(var i = this.invPatches.length - 1; i >= 0; i--) {
-            this.invPatches[i].doRevert(this);
-            this.invPatches.splice(i, 1);
+            if(
+              server_patch.overlaps(this.invPatches[i]) ||
+              (server_patch.reqID != null && server_patch.reqID == this.invPatches[i].reqID)
+            ) {
+              this.invPatches[i].doRevert(this);
+              this.invPatches.splice(i, 1);
+            }
           }
           
           server_patch.doApply(this);

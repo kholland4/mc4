@@ -149,6 +149,20 @@ class InvPatch {
     }
     return true;
   }
+  
+  overlaps(other) {
+    var diffList1 = [...this.diffs];
+    var diffList2 = [...other.diffs];
+    
+    for(var check1 of diffList1) {
+      for(var check2 of diffList2) {
+        if(check1.ref.equals(check2.ref))
+          return true;
+      }
+    }
+    
+    return false;
+  }
 }
 
 class ServerBase {
