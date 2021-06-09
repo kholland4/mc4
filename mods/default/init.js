@@ -850,32 +850,29 @@
     }
   });
   
-  api.onModLoaded("chat", function() {
-    mods.chat.registerCommand(new mods.chat.ChatCommand("/time", function(args) {
-      if(args.length == 1) {
-        var time = mods.default.timeOfDay();
-        return "time of day is " + time.h + ":" + time.m.toString().padStart(2, "0");
-      } else if(api.server.isRemote()) {
-        api.server.sendMessage({
-          type: "chat_command",
-          command: args.join(" ")
-        });
-      } else {
-        var str = args[1];
-        var c = str.split(":");
-        if(c.length < 2) { return "invalid time '" + str + "'"; }
-        var h = parseInt(c[0]);
-        var m = parseInt(c[1]);
-        if(isNaN(h) || isNaN(m)) { return "invalid time '" + str + "'"; }
-        if(!(h >= 0 && h < 24 && m >= 0 && m < 60)) { return "invalid time '" + str + "'"; }
-        
-        mods.default.setTimeOfDay(h, m);
-        
-        var time = mods.default.timeOfDay();
-        return "time of day set to " + time.h + ":" + time.m.toString().padStart(2, "0");
-      }
-    }, "/time [<hh>:<mm>] : get or set the time of day"));
-  });
+  if(!api.server.isRemote()) {
+    api.onModLoaded("chat", function() {
+      mods.chat.registerCommand(new mods.chat.ChatCommand("/time", function(args) {
+        if(args.length == 1) {
+          var time = mods.default.timeOfDay();
+          return "time of day is " + time.h + ":" + time.m.toString().padStart(2, "0");
+        } else {
+          var str = args[1];
+          var c = str.split(":");
+          if(c.length < 2) { return "invalid time '" + str + "'"; }
+          var h = parseInt(c[0]);
+          var m = parseInt(c[1]);
+          if(isNaN(h) || isNaN(m)) { return "invalid time '" + str + "'"; }
+          if(!(h >= 0 && h < 24 && m >= 0 && m < 60)) { return "invalid time '" + str + "'"; }
+          
+          mods.default.setTimeOfDay(h, m);
+          
+          var time = mods.default.timeOfDay();
+          return "time of day set to " + time.h + ":" + time.m.toString().padStart(2, "0");
+        }
+      }, "/time [<hh>:<mm>] : get or set the time of day"));
+    });
+  }
   api.server.registerMessageHook("set_time", function(data) {
     mods.default.setTimeOfDay(data["hours"], data["minutes"]);
   });
