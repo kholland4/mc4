@@ -35,6 +35,7 @@ void load_node_defs(boost::property_tree::ptree pt) {
     def->light_level = n.second.get<int>("lightLevel");
     
     def->is_fluid = n.second.get<bool>("isFluid");
+    def->can_place_inside = n.second.get<bool>("canPlaceInside");
     
     def->drops = n.second.get<std::string>("drops");
     if(def->drops == "null")
@@ -52,6 +53,9 @@ void load_node_defs(boost::property_tree::ptree pt) {
   log(LogSource::LOADER, LogLevel::INFO, std::string("Loaded " + std::to_string(count) + " node definitions"));
 }
 
+NodeDef get_node_def(Node node) {
+  return get_node_def(node.itemstring);
+}
 NodeDef get_node_def(std::string itemstring) {
   auto search = all_node_defs.find(itemstring);
   if(search != all_node_defs.end()) {

@@ -16,7 +16,8 @@ function dumpAllDefs() {
       isFluid: src.isFluid,
       drops: src.drops,
       breakable: src.breakable,
-      groups: src.groups
+      groups: src.groups,
+      canPlaceInside: src.canPlaceInside
     };
   }
   

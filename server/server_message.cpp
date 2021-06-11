@@ -603,7 +603,8 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       //FIXME this should be handled by 'expected' in set_node
       Node existing = map.get_node(pos);
-      if(existing.itemstring != "air") {
+      NodeDef existing_def = get_node_def(existing);
+      if(!existing_def.can_place_inside) {
         log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name()
                                                  + " attempted to place node '" + to_place.itemstring + "' over '" + existing.itemstring + "'");
         //TODO tell the client
@@ -666,7 +667,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       auto start = std::chrono::steady_clock::now();
 #endif
       
-      map.set_node(pos, to_place, Node("air"));
+      map.set_node(pos, to_place, existing);
       
 #ifdef DEBUG_PERF
       auto end = std::chrono::steady_clock::now();

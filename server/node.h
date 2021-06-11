@@ -46,16 +46,17 @@ class Node {
 
 class NodeDef {
   public:
-    NodeDef() : itemstring("nothing"), transparent(false), pass_sunlight(false), light_level(0), is_fluid(false), breakable(false) {};
-    NodeDef(std::string _itemstring) : itemstring(_itemstring), transparent(false), pass_sunlight(false), light_level(0), is_fluid(false), breakable(true) {};
+    NodeDef() : itemstring("nothing"), breakable(false) {};
+    NodeDef(std::string _itemstring) : itemstring(_itemstring), breakable(true) {};
     
     std::string itemstring;
     
-    bool transparent;
-    bool pass_sunlight;
-    int light_level;
+    bool transparent = false;
+    bool pass_sunlight = false;
+    int light_level = 0;
     
-    bool is_fluid;
+    bool is_fluid = false;
+    bool can_place_inside = false;
     
     std::string drops;
     bool breakable;
@@ -63,6 +64,7 @@ class NodeDef {
 };
 
 void load_node_defs(boost::property_tree::ptree pt);
+NodeDef get_node_def(Node node);
 NodeDef get_node_def(std::string itemstring);
 
 #endif
