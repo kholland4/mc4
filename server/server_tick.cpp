@@ -45,7 +45,13 @@ void Server::tick(const boost::system::error_code&) {
       
       if(!player->auth && !player->auth_guest) { continue; }
       
-      std::vector<MapPos<int>> nearby_known_mapblocks = player->list_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, PLAYER_MAPBLOCK_INTEREST_DISTANCE_W);
+      std::vector<MapPos<int>> nearby_known_mapblocks_1 = player->list_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE, PLAYER_MAPBLOCK_INTEREST_DISTANCE_W);
+      std::vector<MapPos<int>> nearby_known_mapblocks_2 = player->list_nearby_known_mapblocks(PLAYER_MAPBLOCK_INTEREST_DISTANCE_SMALL, PLAYER_MAPBLOCK_INTEREST_DISTANCE_SMALL_W);
+      
+      std::set<MapPos<int>> nearby_known_mapblocks_set(nearby_known_mapblocks_1.begin(), nearby_known_mapblocks_1.end());
+      nearby_known_mapblocks_set.insert(nearby_known_mapblocks_2.begin(), nearby_known_mapblocks_2.end());
+      
+      std::vector<MapPos<int>> nearby_known_mapblocks(nearby_known_mapblocks_set.begin(), nearby_known_mapblocks_set.end());
       
       player->update_nearby_known_mapblocks(nearby_known_mapblocks, map);
       
