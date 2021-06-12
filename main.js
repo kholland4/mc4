@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.3.4-dev1";
+var VERSION = "0.3.4-dev2";
 
 var serverListURL = "https://ss1.tausquared.net:8083/serverlist.json";
 
@@ -78,6 +78,8 @@ function initEntryMenu() {
   /*if(window.location.hostname != "") {
     menuConfig.remoteServer = "wss://" + window.location.hostname + ":8080/";
   }*/
+  
+  initConfig();
   
   var win = new UIWindow();
   win.dom.style.minWidth = "400px";

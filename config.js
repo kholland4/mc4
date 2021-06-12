@@ -34,6 +34,45 @@ var defaultConfig = {
 
 var userConfig = {};
 
+function initConfig() {
+  try {
+    var storedConfig = localStorage.getItem("mc4_user_config");
+    if(!storedConfig)
+      return;
+  } catch(e) {
+    console.log("Failed to load localStorage mc4_user_config", e);
+    return;
+  }
+  
+  try {
+    userConfig = JSON.parse(storedConfig);
+  } catch(e) {
+    console.log("Failed to parse localStorage mc4_user_config", e);
+    return;
+  }
+}
+
+function saveConfig() {
+  try {
+    localStorage.setItem("mc4_user_config", JSON.stringify(userConfig));
+    return true;
+  } catch(e) {
+    console.log("Failed to save localStorage mc4_user_config", e);
+    return false;
+  }
+}
+
+function resetConfig() {
+  userConfig = {};
+  try {
+    localStorage.removeItem("mc4_user_config");
+    return true;
+  } catch(e) {
+    console.log("Failed to remove localStorage mc4_user_config", e);
+    return false;
+  }
+}
+
 function registerConfig(key, val) {
   if(key in defaultConfig)
     throw new Error("cannot register config key '" + key + "', already exists");
@@ -58,6 +97,7 @@ function setConfig(key, val) {
     throw new Error("cannot assign type " + (typeof val) + " to config key '" + key + "' (type " + (typeof defaultConfig[key]) + ")");
   
   userConfig[key] = val;
+  saveConfig();
   
   buildKeymap();
 }
