@@ -20,7 +20,8 @@ var menuIsOpen = false;
 
 function initMenu() {
   api.registerKey(function(key) {
-    if(key == "Escape" && (!api.uiWindowOpen() || menuIsOpen)) {
+    var keybind = mapKey(key);
+    if(keybind.includes("keybind_open_menu") && (!api.uiWindowOpen() || menuIsOpen)) {
       showMenu();
     }
   });

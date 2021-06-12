@@ -33,32 +33,31 @@ class Player {
     window.addEventListener("keydown", function(e) {
       if(!api.ingameKey()) { return; }
       
-      var key = e.key;
-      if(key.length == 1) { key = key.toLowerCase(); }
-      if(key == "{") { key == "["; }
-      if(key == "}") { key == "]"; }
-      if(key == "PageUp" || key == "]" || key == "PageDown" || key == "[") {
-        if((key == "PageUp" && !this.keys.travelWForward1) || (key == "]" && !this.keys.travelWForward2)) {
+      var keybind = mapKey(e.key);
+      
+      if(keybind.includes("keybind_w_forward") || keybind.includes("keybind_w_backward")) {
+        if(keybind.includes("keybind_w_forward") && !this.keys.travelWForward) {
           if(this.wAttemptDir != 1) {
             this.wAttemptDir = 1;
             this.wHeatup = PLAYER_W_MOVE_HEATUP;
           }
-        } else if((key == "PageDown" && !this.keys.travelWBackward1) || (key == "[" && !this.keys.travelWBackward2)) {
+        } else if(keybind.includes("keybind_w_backward") && !this.keys.travelWBackward) {
           if(this.wAttemptDir != -1) {
             this.wAttemptDir = -1;
             this.wHeatup = PLAYER_W_MOVE_HEATUP;
           }
         }
         
-        if(key == "PageUp") { this.keys.travelWForward1 = true; }
-        else if(key == "]") { this.keys.travelWForward2 = true; }
-        else if(key == "PageDown") { this.keys.travelWBackward1 = true; }
-        else if(key == "[") { this.keys.travelWBackward2 = true; }
-      } else if(key == "r") {
-        this.keys.peekWBackward = true;
-      } else if(key == "f") {
-        this.keys.peekWForward = true;
+        if(keybind.includes("keybind_w_forward"))
+          this.keys.travelWForward = true;
+        if(keybind.includes("keybind_w_backward"))
+          this.keys.travelWBackward = true;
       }
+      
+      if(keybind.includes("keybind_w_peek_backward"))
+        this.keys.peekWBackward = true;
+      if(keybind.includes("keybind_w_peek_forward"))
+        this.keys.peekWForward = true;
       
       if(this.keys.peekWForward) {
         this.peekW = 1;
@@ -71,29 +70,28 @@ class Player {
     window.addEventListener("keyup", function(e) {
       if(!api.ingameKey()) { return; }
       
-      var key = e.key;
-      if(key.length == 1) { key = key.toLowerCase(); }
-      if(key == "{") { key == "["; }
-      if(key == "}") { key == "]"; }
-      if(key == "PageUp" || key == "]" || key == "PageDown" || key == "[") {
-        if(key == "PageUp") { this.keys.travelWForward1 = false; }
-        else if(key == "]") { this.keys.travelWForward2 = false; }
-        else if(key == "PageDown") { this.keys.travelWBackward1 = false; }
-        else if(key == "[") { this.keys.travelWBackward2 = false; }
+      var keybind = mapKey(e.key);
+      
+      if(keybind.includes("keybind_w_forward") || keybind.includes("keybind_w_backward")) {
+        if(keybind.includes("keybind_w_forward"))
+          this.keys.travelWForward = false;
+        if(keybind.includes("keybind_w_backward"))
+          this.keys.travelWBackward = false;
         
-        if(!this.keys.travelWForward1 && !this.keys.travelWForward2 && this.wAttemptDir == 1) {
+        if(!this.keys.travelWForward && this.wAttemptDir == 1) {
           this.wAttemptDir = 0;
           this.wHeatup = 0;
         }
-        if(!this.keys.travelWBackward1 && !this.keys.travelWBackward2 && this.wAttemptDir == -1) {
+        if(!this.keys.travelWBackward && this.wAttemptDir == -1) {
           this.wAttemptDir = 0;
           this.wHeatup = 0;
         }
-      } else if(key == "r") {
-        this.keys.peekWBackward = false;
-      } else if(key == "f") {
-        this.keys.peekWForward = false;
       }
+      
+      if(keybind.includes("keybind_w_peek_backward"))
+        this.keys.peekWBackward = false;
+      if(keybind.includes("keybind_w_peek_forward"))
+        this.keys.peekWForward = false;
       
       if(this.keys.peekWForward) {
         this.peekW = 1;
@@ -118,7 +116,7 @@ class Player {
     
     this.boundingBox = new THREE.Box3(new THREE.Vector3(-0.3, -1.5, -0.3), new THREE.Vector3(0.3, 0.3, 0.3));
     
-    this.keys = {peekWForward: false, peekWBackward: false, travelWForward1: false, travelWForward2: false, travelWBackward1: false, travelWBackward2: false};
+    this.keys = {peekWForward: false, peekWBackward: false, travelWForward: false, travelWBackward: false};
     this.peekW = 0;
     
     this.privs = [];

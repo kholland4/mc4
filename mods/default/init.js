@@ -916,14 +916,18 @@
   
   
   //---EXTRA KEYS---
+  registerConfig("keybind_fly", "k");
+  registerConfig("keybind_fast", "j");
+  registerConfig("keybind_sprint", "Alt");
   //FIXME
   mods.default._fast = false;
   mods.default._sprint = false;
   api.registerKey(function(key) {
     if(!api.ingameKey()) { return; }
-    key = key.toLowerCase();
     
-    if(key == "k") {
+    var keybind = mapKey(key);
+    
+    if(keybind.includes("keybind_fly")) {
       if(api.player.fly) {
         api.player.fly = false;
       } else {
@@ -934,7 +938,7 @@
         }
       }
     }
-    if(key == "j") {
+    if(keybind.includes("keybind_fast")) {
       if(mods.default._fast) {
         api.player.controls.speed = mods.default._sprint ? 8 : 4;
         mods.default._fast = false;
@@ -948,16 +952,16 @@
       }
     }
     
-    if(key == "alt") { //FIXME - ease in/out
+    if(keybind.includes("keybind_sprint")) { //FIXME - ease in/out
       api.player.controls.speed = mods.default._fast ? 16 : 8;
       mods.default._sprint = true;
     }
   });
   api.registerKeyUp(function(key) {
     if(!api.ingameKey()) { return; }
-    key = key.toLowerCase();
+    var keybind = mapKey(key);
     
-    if(key == "alt" && mods.default._sprint) {
+    if(keybind.includes("keybind_sprint") && mods.default._sprint) {
       api.player.controls.speed = mods.default._fast ? 12 : 4;
       mods.default._sprint = false;
     }

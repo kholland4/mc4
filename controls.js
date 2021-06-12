@@ -40,12 +40,12 @@ class KeyboardControls extends BaseControls {
     super();
     
     this.keymap = {
-      w: "up",
-      a: "left",
-      s: "down",
-      d: "right",
-      " ": "jump",
-      Shift: "sneak"
+      keybind_forward: "up",
+      keybind_left: "left",
+      keybind_backward: "down",
+      keybind_right: "right",
+      keybind_jump: "jump",
+      keybind_sneak: "sneak"
     };
     
     this.keysPressed = {"up": false, "down": false, "left": false, "right": false, "jump": false, "sneak": false};
@@ -73,24 +73,24 @@ class KeyboardControls extends BaseControls {
   keyDown(e) {
     if(!api.ingameKey()) { return; }
     
-    var key = e.key;
-    if(key.length == 1) { key = key.toLowerCase(); }
-    if(key in this.keymap) {
-      if(this.keymap[key] in this.keysPressed) {
-        this.keysPressed[this.keymap[key]] = true;
-      }
-    }
+    mapKey(e.key).forEach((keybind) => {
+      if(!(keybind in this.keymap))
+        return;
+      if(!(this.keymap[keybind] in this.keysPressed))
+        return;
+      this.keysPressed[this.keymap[keybind]] = true;
+    });
   }
   keyUp(e) {
     if(!api.ingameKey()) { return; }
     
-    var key = e.key;
-    if(key.length == 1) { key = key.toLowerCase(); }
-    if(key in this.keymap) {
-      if(this.keymap[key] in this.keysPressed) {
-        this.keysPressed[this.keymap[key]] = false;
-      }
-    }
+    mapKey(e.key).forEach((keybind) => {
+      if(!(keybind in this.keymap))
+        return;
+      if(!(this.keymap[keybind] in this.keysPressed))
+        return;
+      this.keysPressed[this.keymap[keybind]] = false;
+    });
   }
   
   tick(tscale) {

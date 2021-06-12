@@ -73,8 +73,11 @@
     }
   };
   
+  registerConfig("keybind_open_inventory", "e");
+  
   api.registerKey(function(key) {
-    if(key.toLowerCase() == "e" && api.ingameKey() && !api.uiWindowOpen()) {
+    var keybind = mapKey(key);
+    if(keybind.includes("keybind_open_inventory") && api.ingameKey() && !api.uiWindowOpen()) {
       mods.inventory.show();
     }
   });

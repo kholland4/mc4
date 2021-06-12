@@ -70,15 +70,19 @@
       }
     });
     
+    for(var n = 1; n <= 8; n++) {
+      registerConfig("keybind_hotbar_" + n, n.toString());
+    }
+    
     api.registerKey(function(key) {
-      if(api.uiWindowOpen()) { return; }
+      if(!api.ingameKey()) { return; }
       
-      key = key.toLowerCase();
+      var keybind = mapKey(key);
       
-      if(!isNaN(parseInt(key))) {
-        var n = parseInt(key);
-        if(n >= 1 && n <= 8) {
+      for(var n = 1; n <= 8; n++) {
+        if(keybind.includes("keybind_hotbar_" + n)) {
           api.player.wieldIndex = n - 1;
+          break;
         }
       }
     });

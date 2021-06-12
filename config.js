@@ -1,0 +1,86 @@
+/*
+    mc4, a web voxel building game
+    Copyright (C) 2021 kholland4
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+var defaultConfig = {
+  keybind_forward: "w",
+  keybind_left: "a",
+  keybind_backward: "s",
+  keybind_right: "d",
+  keybind_jump: " ",
+  keybind_sneak: "Shift",
+  keybind_w_backward: "[",
+  keybind_w_forward: "]",
+  keybind_w_peek_backward: "r",
+  keybind_w_peek_forward: "f",
+  keybind_close_window1: "e",
+  keybind_close_window2: "Escape",
+  keybind_open_menu: "Escape"
+};
+
+var userConfig = {};
+
+function registerConfig(key, val) {
+  if(key in defaultConfig)
+    throw new Error("cannot register config key '" + key + "', already exists");
+  
+  defaultConfig[key] = val;
+  buildKeymap();
+}
+
+function getConfig(key) {
+  if(!(key in defaultConfig))
+    throw new Error("cannot get nonexistent config key '" + key + "'");
+  
+  if(key in userConfig)
+    return userConfig[key];
+  return defaultConfig[key];
+}
+
+function setConfig(key, val) {
+  if(!(key in defaultConfig))
+    throw new Error("cannot set nonexistent config key '" + key + "'");
+  if(typeof val != typeof defaultConfig[key])
+    throw new Error("cannot assign type " + (typeof val) + " to config key '" + key + "' (type " + (typeof defaultConfig[key]) + ")");
+  
+  userConfig[key] = val;
+  
+  buildKeymap();
+}
+
+function buildKeymap() {
+  keymap = {};
+  for(var keybind of Object.keys(defaultConfig)) {
+    if(!keybind.startsWith("keybind_"))
+      continue;
+    
+    var val = keybind in userConfig ? userConfig[keybind] : defaultConfig[keybind];
+    if(!(val in keymap))
+      keymap[val] = [];
+    keymap[val].push(keybind);
+  }
+}
+
+function mapKey(k) {
+  if(k.length == 1) { k = k.toLowerCase(); }
+  if(k == "{") { k == "["; }
+  if(k == "}") { k == "]"; }
+  return keymap[k] || [];
+}
+
+var keymap = {};
+buildKeymap();

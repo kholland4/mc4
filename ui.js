@@ -29,7 +29,8 @@ function initUI() {
   });
   
   api.registerKey(function(key) {
-    if(uiWindowOpen && (key == "e" || key == "Escape")) {
+    var keybind = mapKey(key);
+    if(uiWindowOpen && (keybind.includes("keybind_close_window1") || keybind.includes("keybind_close_window2"))) {
       event.stopImmediatePropagation();
       uiHideWindow();
     }

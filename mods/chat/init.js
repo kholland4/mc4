@@ -115,16 +115,22 @@
   
   api.registerVWCloseHandler(mods.chat.hideInput);
   
+  registerConfig("keybind_open_chat_command", "/");
+  registerConfig("keybind_open_chat", "t");
+  registerConfig("keybind_close_chat", "Escape");
+  
   api.registerKey(function(key) {
+    var keybind = mapKey(key);
+    
     if(!mods.chat.inputOpen && !api.uiWindowOpen()) {
-      if(key == "/") {
+      if(keybind.includes("keybind_open_chat_command")) {
         mods.chat.showInput("/");
         return false;
-      } else if(key.toLowerCase() == "t") {
+      } else if(keybind.includes("keybind_open_chat")) {
         mods.chat.showInput();
         return false;
       }
-    } else if(mods.chat.inputOpen && key == "Escape") {
+    } else if(mods.chat.inputOpen && keybind.includes("keybind_close_chat")) {
       mods.chat.hideInput();
     }
   });
