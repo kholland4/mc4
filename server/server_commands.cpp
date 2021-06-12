@@ -32,16 +32,23 @@ void Server::cmd_help(PlayerState *player, std::vector<std::string> args) {
   std::ostringstream help_text;
   
   if(topic) {
-    std::string topic_s = "/" + *topic;
+    std::string topic_s(*topic);
+    
+    if(topic_s.rfind("/", 0) != 0)
+      topic_s = "/" + topic_s;
     
     auto search = commands_list.find(topic_s);
     if(search == commands_list.end()) {
-      help_text << "Unknown command '" + topic_s + "'";
+      help_text << "Unknown command '" + topic_s + "'\n";
+      help_text << "{{Back to list|/help}}";
     } else {
       const std::string& name = search->first;
       const ServerCommand& cmd = search->second;
       
-      help_text << "Help for '" << name << "'\n=====\n\n";
+      help_text << "Help for '" << name << "'\n";
+      help_text << "{{Back to list|/help}}\n";
+      help_text << "=====\n";
+      help_text << "\n";
       help_text << cmd.help_long;
     }
   } else {
@@ -52,7 +59,7 @@ void Server::cmd_help(PlayerState *player, std::vector<std::string> args) {
       const std::string& name = it.first;
       const ServerCommand& cmd = it.second;
       
-      help_text << "\n  " << name << " : " << cmd.help_brief;
+      help_text << "\n  {{" << name << "|/help " << name << "}} : " << cmd.help_brief;
     }
     
     help_text << "\n\nUse '/help <command>' for help on a specific command";
@@ -61,8 +68,18 @@ void Server::cmd_help(PlayerState *player, std::vector<std::string> args) {
   UISpec help_ui;
   help_ui.components.push_back(
       UI_TextBlock(help_text.str()).to_json());
-  UIInstance help_ui_instance(help_ui);
-  open_ui(player, help_ui_instance);
+  
+  std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+  UIInstance current_ui = find_ui(player->get_tag() + " server_cmd_help");
+  
+  if(current_ui.is_nil) {
+    UIInstance help_ui_instance(help_ui);
+    help_ui_instance.what_for = player->get_tag() + " server_cmd_help";
+    open_ui(player, help_ui_instance);
+  } else {
+    current_ui.spec = help_ui;
+    update_ui(player, current_ui);
+  }
 }
 
 void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {

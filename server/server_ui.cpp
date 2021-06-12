@@ -29,6 +29,17 @@ void Server::open_ui(PlayerState *player, const UIInstance& instance) {
     instance.open_callback();
 }
 
+void Server::update_ui(PlayerState *player, const UIInstance& instance) {
+  std::unique_lock<std::shared_mutex> ui_list_lock(active_ui_lock);
+  active_ui.insert(instance); // will replace existing UI because they have the same id
+  
+  std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+  player->send(instance.ui_update_json());
+  
+  if(instance.update_callback)
+    instance.update_callback();
+}
+
 void Server::close_ui(PlayerState *player, const UIInstance& instance) {
   if(instance.close_callback)
     instance.close_callback();
@@ -40,4 +51,15 @@ void Server::close_ui(PlayerState *player, const UIInstance& instance) {
   auto search = active_ui.find(instance);
   if(search != active_ui.end())
     active_ui.erase(search);
+}
+
+UIInstance Server::find_ui(std::string what_for) {
+  std::shared_lock<std::shared_mutex> ui_list_lock(active_ui_lock);
+  
+  for(const auto& it : active_ui) {
+    if(it.what_for == what_for)
+      return it;
+  }
+  
+  return UIInstance();
 }

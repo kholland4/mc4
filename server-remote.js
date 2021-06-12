@@ -521,8 +521,8 @@ class ServerRemote extends ServerBase {
           server_patch.doApply(this);
         }
       } else if(data.type == "ui_open") {
-        var ui = data.ui;
         var win = new api.UIWindow();
+        win.id = data.id;
         
         win.onClose = function(id) {
           if(!this._socketReady) { return; }
@@ -531,21 +531,47 @@ class ServerRemote extends ServerBase {
             type: "ui_close",
             id: id
           }));
-        }.bind(this, data.id);
+        }.bind(this, win.id);
         
-        for(var element of ui) {
+        for(var element of data.ui) {
           if(element.type == "inv_list") {
             var ref = new InvRef(element.ref.objType, element.ref.objID, element.ref.listName, element.ref.index);
             win.add(api.uiRenderInventoryList(ref, {width: 8, interactive: true}));
           } else if(element.type == "spacer") {
             win.add(api.uiElement("spacer"));
           } else if(element.type == "textblock") {
-            win.add(api.uiElement("textblock", element.content));
+            win.add(api.uiElement("textblock_links", element.content));
           }
         }
         
         api.uiShowWindow(win);
         api.uiShowHand(new InvRef("player", null, "hand", 0));
+      } else if(data.type == "ui_update") {
+        var win = uiCurrentWindow;
+        
+        if(win.id != data.id) {
+          if(!this._socketReady) { return; }
+          
+          this.socket.send(JSON.stringify({
+            type: "ui_close",
+            id: data.id
+          }));
+          return;
+        }
+        
+        while(win.dom.firstChild)
+          win.dom.removeChild(win.dom.firstChild);
+        
+        for(var element of data.ui) {
+          if(element.type == "inv_list") {
+            var ref = new InvRef(element.ref.objType, element.ref.objID, element.ref.listName, element.ref.index);
+            win.add(api.uiRenderInventoryList(ref, {width: 8, interactive: true}));
+          } else if(element.type == "spacer") {
+            win.add(api.uiElement("spacer"));
+          } else if(element.type == "textblock") {
+            win.add(api.uiElement("textblock_links", element.content));
+          }
+        }
       } else if(data.type == "ui_close") {
         //TODO
       } else if(data.type == "auth_step") {

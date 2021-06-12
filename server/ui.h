@@ -64,17 +64,22 @@ class UISpec {
 
 class UIInstance {
   public:
-    UIInstance(UISpec _spec) : spec(_spec), id(boost::uuids::to_string(boost::uuids::random_generator()())) {};
-    UIInstance(std::string _id) : id(_id) {};
+    UIInstance(UISpec _spec) : is_nil(false), spec(_spec), id(boost::uuids::to_string(boost::uuids::random_generator()())) {};
+    UIInstance(std::string _id) : is_nil(false), id(_id) {};
+    UIInstance() : is_nil(true) {};
     
     bool operator<(const UIInstance& other) const;
     
     std::string ui_open_json() const;
+    std::string ui_update_json() const;
     std::string ui_close_json() const;
     
+    bool is_nil;
     UISpec spec;
     std::string id;
+    std::string what_for;
     std::function<void()> open_callback;
+    std::function<void()> update_callback;
     std::function<void()> close_callback;
 };
 

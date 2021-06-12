@@ -62,6 +62,12 @@ std::string UIInstance::ui_open_json() const {
       << "\"id\":\"" << json_escape(id) << "\"}";
   return out.str();
 }
+std::string UIInstance::ui_update_json() const {
+  std::ostringstream out;
+  out << "{\"type\":\"ui_update\",\"ui\":" << spec.components_to_json() << ","
+      << "\"id\":\"" << json_escape(id) << "\"}";
+  return out.str();
+}
 std::string UIInstance::ui_close_json() const {
   std::ostringstream out;
   out << "{\"type\":\"ui_close\",\"id\":\"" << json_escape(id) << "\"}";

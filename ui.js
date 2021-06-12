@@ -44,6 +44,7 @@ class UIWindow {
     this.dom = document.createElement("div");
     this.dom.className = "uiWindow";
     this.onClose = function() {};
+    this.id = null;
   }
   
   add(el) {
@@ -101,6 +102,40 @@ function uiElement(name, opts) {
     var el = document.createElement("pre");
     el.className = "uiEl_textblock";
     if(opts != undefined) { el.innerText = opts; }
+    return el;
+  }
+  if(name == "textblock_links") {
+    var el = document.createElement("pre");
+    el.className = "uiEl_textblock";
+    if(opts == undefined)
+      return el;
+    
+    var fullText = opts;
+    var index = 0;
+    
+    var linkMatches = fullText.matchAll(/{{(.*?)\|(.*?)}}/g);
+    for(var m of linkMatches) {
+      var fullMatch = m[0];
+      var text = m[1];
+      var action = m[2];
+      
+      var where = fullText.indexOf(fullMatch);
+      if(where == -1)
+        throw new Error("couldn't find match '" + fullMatch + "'");
+      el.appendChild(document.createTextNode(fullText.substr(index, where - index)));
+      var a = document.createElement("a");
+      a.innerText = text;
+      a.href = "javascript:;";
+      a.onclick = function(c) {
+        server.sendMessage({
+          type: "chat_command",
+          command: c
+        });
+      }.bind(null, action);
+      el.appendChild(a);
+      index = where + fullMatch.length;
+    }
+    el.appendChild(document.createTextNode(fullText.substr(index)));
     return el;
   }
   if(name == "link") {

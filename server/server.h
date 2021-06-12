@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.5-dev13"
+#define VERSION "0.4.6-dev1"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -286,7 +286,9 @@ class Server {
     bool on_dig_node(Node node, MapPos<int> pos);
     
     void open_ui(PlayerState *player, const UIInstance& instance);
+    void update_ui(PlayerState *player, const UIInstance& instance);
     void close_ui(PlayerState *player, const UIInstance& instance);
+    UIInstance find_ui(std::string what_for);
     
     PlayerState* get_player_by_tag(std::string tag);
     
