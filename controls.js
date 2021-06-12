@@ -73,7 +73,7 @@ class KeyboardControls extends BaseControls {
   keyDown(e) {
     if(!api.ingameKey()) { return; }
     
-    mapKey(e.key).forEach((keybind) => {
+    mapKey(e.code).forEach((keybind) => {
       if(!(keybind in this.keymap))
         return;
       if(!(this.keymap[keybind] in this.keysPressed))
@@ -84,7 +84,7 @@ class KeyboardControls extends BaseControls {
   keyUp(e) {
     if(!api.ingameKey()) { return; }
     
-    mapKey(e.key).forEach((keybind) => {
+    mapKey(e.code).forEach((keybind) => {
       if(!(keybind in this.keymap))
         return;
       if(!(this.keymap[keybind] in this.keysPressed))

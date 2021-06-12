@@ -32,7 +32,7 @@ api.registerOnFrame = function(f) {
 
 api.registerKey = function(f) {
   document.body.addEventListener("keydown", function(e) {
-    var res = this(e.key);
+    var res = this(e.code);
     if(res === false) {
       e.preventDefault();
       return false;
@@ -41,7 +41,7 @@ api.registerKey = function(f) {
 };
 api.registerKeyUp = function(f) {
   document.body.addEventListener("keyup", function(e) {
-    var res = this(e.key);
+    var res = this(e.code);
     if(res === false) {
       e.preventDefault();
       return false;

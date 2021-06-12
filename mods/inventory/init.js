@@ -73,7 +73,7 @@
     }
   };
   
-  registerConfig("keybind_open_inventory", "e");
+  registerConfig("keybind_open_inventory", "KeyE");
   
   api.registerKey(function(key) {
     var keybind = mapKey(key);

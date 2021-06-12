@@ -115,8 +115,8 @@
   
   api.registerVWCloseHandler(mods.chat.hideInput);
   
-  registerConfig("keybind_open_chat_command", "/");
-  registerConfig("keybind_open_chat", "t");
+  registerConfig("keybind_open_chat_command", "Slash");
+  registerConfig("keybind_open_chat", "KeyT");
   registerConfig("keybind_close_chat", "Escape");
   
   api.registerKey(function(key) {

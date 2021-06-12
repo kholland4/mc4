@@ -33,7 +33,7 @@ class Player {
     window.addEventListener("keydown", function(e) {
       if(!api.ingameKey()) { return; }
       
-      var keybind = mapKey(e.key);
+      var keybind = mapKey(e.code);
       
       if(keybind.includes("keybind_w_forward") || keybind.includes("keybind_w_backward")) {
         if(keybind.includes("keybind_w_forward") && !this.keys.travelWForward) {
@@ -70,7 +70,7 @@ class Player {
     window.addEventListener("keyup", function(e) {
       if(!api.ingameKey()) { return; }
       
-      var keybind = mapKey(e.key);
+      var keybind = mapKey(e.code);
       
       if(keybind.includes("keybind_w_forward") || keybind.includes("keybind_w_backward")) {
         if(keybind.includes("keybind_w_forward"))

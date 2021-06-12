@@ -17,17 +17,17 @@
 */
 
 var defaultConfig = {
-  keybind_forward: "w",
-  keybind_left: "a",
-  keybind_backward: "s",
-  keybind_right: "d",
-  keybind_jump: " ",
-  keybind_sneak: "Shift",
-  keybind_w_backward: "[",
-  keybind_w_forward: "]",
-  keybind_w_peek_backward: "r",
-  keybind_w_peek_forward: "f",
-  keybind_close_window1: "e",
+  keybind_forward: "KeyW",
+  keybind_left: "KeyA",
+  keybind_backward: "KeyS",
+  keybind_right: "KeyD",
+  keybind_jump: "Space",
+  keybind_sneak: "ShiftLeft",
+  keybind_w_backward: "BracketLeft",
+  keybind_w_forward: "BracketRight",
+  keybind_w_peek_backward: "KeyR",
+  keybind_w_peek_forward: "KeyF",
+  keybind_close_window1: "KeyE",
   keybind_close_window2: "Escape",
   keybind_open_menu: "Escape"
 };
@@ -116,9 +116,6 @@ function buildKeymap() {
 }
 
 function mapKey(k) {
-  if(k.length == 1) { k = k.toLowerCase(); }
-  if(k == "{") { k == "["; }
-  if(k == "}") { k == "]"; }
   return keymap[k] || [];
 }
 

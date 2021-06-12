@@ -916,9 +916,9 @@
   
   
   //---EXTRA KEYS---
-  registerConfig("keybind_fly", "k");
-  registerConfig("keybind_fast", "j");
-  registerConfig("keybind_sprint", "Alt");
+  registerConfig("keybind_fly", "KeyK");
+  registerConfig("keybind_fast", "KeyJ");
+  registerConfig("keybind_sprint", "AltLeft");
   //FIXME
   mods.default._fast = false;
   mods.default._sprint = false;

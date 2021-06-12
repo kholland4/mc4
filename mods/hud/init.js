@@ -71,7 +71,7 @@
     });
     
     for(var n = 1; n <= 8; n++) {
-      registerConfig("keybind_hotbar_" + n, n.toString());
+      registerConfig("keybind_hotbar_" + n, "Digit" + n);
     }
     
     api.registerKey(function(key) {
