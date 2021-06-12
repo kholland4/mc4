@@ -21,6 +21,7 @@ Multiplayer, browser-based voxel building game inspired by [Minetest](https://ww
   * `e` : inventory
   * `e`/`esc` : close window
     * `e` is recommended, `esc` can't relock the mouse
+  * `F4` : info overlay
 
 #### Commands
 

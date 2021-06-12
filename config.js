@@ -29,7 +29,8 @@ var defaultConfig = {
   keybind_w_peek_forward: "KeyF",
   keybind_close_window1: "KeyE",
   keybind_close_window2: "Escape",
-  keybind_open_menu: "Escape"
+  keybind_open_menu: "Escape",
+  keybind_show_debug: "F4"
 };
 
 var userConfig = {};

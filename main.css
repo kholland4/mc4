@@ -125,6 +125,20 @@ body {
   font-family: monospace;
 }
 
+#debugOverlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 6;
+  
+  padding: 10px;
+  font-size: 14px;
+  font-family: monospace;
+  color: white;
+  text-align: right;
+}
+
 .joinServerList {
   display: inline-block;
   vertical-align: top;

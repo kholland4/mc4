@@ -62,8 +62,22 @@ class MapPos {
     this.universe = universe;
   }
   
-  toString() {
-    return "(" + this.x + ", " + this.y + ", " + this.z + ", w=" + this.w + ", world=" + this.world + ", universe=" + this.universe + ")";
+  toString(fixed=null) {
+    if(fixed !== null) {
+      return "(" + this.x.toFixed(fixed)
+          + ", " + this.y.toFixed(fixed)
+          + ", " + this.z.toFixed(fixed)
+          + ", w=" + this.w
+          + ", world=" + this.world
+          + ", universe=" + this.universe + ")";
+    } else {
+      return "(" + this.x
+          + ", " + this.y
+          + ", " + this.z
+          + ", w=" + this.w
+          + ", world=" + this.world
+          + ", universe=" + this.universe + ")";
+    }
   }
   
   add(other) {

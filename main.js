@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.3.4-dev3";
+var VERSION = "0.3.5-dev1";
 
 var serverListURL = "https://ss1.tausquared.net:8083/serverlist.json";
 
@@ -59,6 +59,8 @@ var RAYCAST_DISTANCE = 10;
 var DIG_PREEMPT_TIME = 0.04;
 var CREATIVE_DIG_TIME = 0.15;
 var PLACE_REPEAT_INTERVAL = 0.25;
+
+var doShowDebug = false;
 
 var serverAddrBox;
 var serverListContainer;
@@ -446,6 +448,14 @@ function init() {
     }
   });
   
+  window.addEventListener("keydown", function(e) {
+    var keybind = mapKey(e.code);
+    if(keybind.includes("keybind_show_debug")) {
+      doShowDebug = !doShowDebug;
+      document.getElementById("debugOverlay").style.display = doShowDebug ? "block" : "none";
+    }
+  });
+  
   window.addEventListener("resize", function(e) {
     viewport.w = window.innerWidth;
     viewport.h = window.innerHeight;
@@ -792,5 +802,24 @@ function animate() {
     renderer.domElement.style.filter = (isPeek || isPeekDark) ? "grayscale(100%) blur(" + amt + "px)" : "blur(" + amt + "px)";
   } else {
     renderer.domElement.style.filter = (isPeek || isPeekDark) ? "grayscale(100%)" : "none";
+  }
+  
+  if(doShowDebug) {
+    var debugText = "v" + VERSION + "\n";
+    
+    debugText += "pos = " + player.pos.toString(2) + "\n";
+    debugText += "vel = (" + player.vel.x.toFixed(2) + ", " + player.vel.y.toFixed(2) + ", " + player.vel.z.toFixed(2) + ", w=" + player.wAttemptDir + ")\n";
+    
+    if(destroySel) {
+      var destroyNode = server.getNode(destroySel);
+      if(destroyNode)
+        debugText += "point = " + destroyNode.itemstring + "\n";
+    }
+    
+    var wieldNodeData = server.nodeToPlace(player);
+    if(wieldNodeData)
+      debugText += "wield = " + wieldNodeData.itemstring + "\n";
+    
+    document.getElementById("debugOverlay").innerText = debugText;
   }
 }
