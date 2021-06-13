@@ -213,4 +213,17 @@ td.serverListEntry, td.serverListEntry_header {
     background-color: black;
     color: white;
   }
+  
+  a:link {
+    color: deepskyblue;
+  }
+  a:visited {
+    color: violet;
+  }
+  a:hover {
+    
+  }
+  a:active {
+    color: tomato;
+  }
 }
