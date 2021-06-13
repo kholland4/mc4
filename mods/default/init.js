@@ -122,7 +122,7 @@
       tex: {texAll: "default_" + names[0] + ".png"},
       icon: "default_" + names[0] + ".png",
       node: {groups: {choppy: 1}},
-      item: {groups: {wood: null}}
+      item: {groups: {wood: null}, fuel: 2}
     });
     
     registerNodeHelper("default:" + names[1], {
@@ -130,7 +130,7 @@
       tex: {texTop: "default_" + names[1] + "_top.png", texBottom: "default_" + names[1] + "_top.png", texSides: "default_" + names[1] + ".png"},
       icon: "default_" + names[1] + ".png",
       node: {groups: {choppy: 2}, setRotOnPlace: true, limitRotOnPlace: true},
-      item: {groups: {tree: null}}
+      item: {groups: {tree: null}, fuel: 8}
     });
     api.registerCraft(new api.CraftEntry("default:" + names[0] + " 4", ["default:" + names[1]], {shape: null}));
     
@@ -152,12 +152,13 @@
     icon: "default_ore_coal.png",
     node: {groups: {cracky: 2}, drops: "default:lump_coal"}
   });
-  api.registerItem(new api.Item("default:lump_coal", {desc: "Coal Lump", iconFile: modpath + "/icons/default_coal_lump.png"}));
+  api.registerItem(new api.Item("default:lump_coal", {desc: "Coal Lump", iconFile: modpath + "/icons/default_coal_lump.png", fuel: 10}));
   registerNodeHelper("default:coal_block", {
     desc: "Coal Block",
     tex: {texAll: "default_coal_block.png"},
     icon: "default_coal_block.png",
-    node: {groups: {cracky: 2}}
+    node: {groups: {cracky: 2}},
+    item: {fuel: 90}
   });
   api.registerCraft(new api.CraftEntry("default:coal_block", Array(9).fill("default:lump_coal"), {shape: {x: 3, y: 3}}));
   api.registerCraft(new api.CraftEntry("default:lump_coal 9", ["default:coal_block"], {shape: null}));
@@ -913,6 +914,43 @@
     "group:wood", null, "group:wood",
     "group:wood", "group:wood", "group:wood"
   ], {shape: {x: 3, y: 3}}));
+  
+  
+  //---Furnace---
+  registerNodeHelper("default:furnace", {
+    desc: "Furnace",
+    tex: {
+      texTop: "default_furnace_top.png",
+      texBottom: "default_furnace_bottom.png",
+      texSides: "default_furnace_side.png",
+      texFront: "default_furnace_front.png"
+    },
+    icon: "default_furnace.png",
+    node: {
+      groups: {cracky: 1},
+      allowInteract: true,
+      setRotOnPlace: true
+    }
+  });
+  api.registerCraft(new api.CraftEntry("default:furnace", [
+    "group:stone", "group:stone", "group:stone",
+    "group:stone", null, "group:stone",
+    "group:stone", "group:stone", "group:stone"
+  ], {shape: {x: 3, y: 3}}));
+  
+  api.loadTexture("default:furnace:texActive", modpath + "/textures/default_furnace_active.png");
+  api.registerNode(new api.Node("default:furnace_active", {
+    texTop: "default:furnace:texTop",
+    texBottom: "default:furnace:texBottom",
+    texSides: "default:furnace:texSides",
+    texFront: "default:furnace:texActive",
+    groups: {cracky: 1},
+    allowInteract: true,
+    setRotOnPlace: true,
+    drops: "default:furnace",
+    lightLevel: 12,
+    transparent: true
+  }));
   
   
   //---EXTRA KEYS---

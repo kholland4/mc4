@@ -849,7 +849,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       //TODO close ui if it gets dug?
       //TODO track ui IDs or something
       if(node.itemstring == "default:chest") {
-        InvRef chest_ref("node", pos.to_json(), "chest", -1);
+        InvRef chest_ref("node", pos.to_json(), "chest", std::nullopt);
         
         UISpec chest_ui;
         chest_ui.components.push_back(
@@ -875,6 +875,113 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         player_lock_unique.unlock();
         send_inv(player, chest_ref);
         open_ui(player, chest_ui_instance);
+        return;
+      }
+      
+      if(node.itemstring == "default:furnace" || node.itemstring == "default:furnace_active") {
+        wake_interact_tick(pos);
+        
+        // Calculate furnace status
+        InvRef f_ref_in("node", pos.to_json(), "furnace_in", 0);
+        InvRef f_ref_fuel("node", pos.to_json(), "furnace_fuel", 0);
+        InvRef f_ref_out("node", pos.to_json(), "furnace_out", 0);
+        
+        InvStack f_in = get_invlist(f_ref_in, NULL).get_at(f_ref_in);
+        InvStack f_fuel = get_invlist(f_ref_fuel, NULL).get_at(f_ref_fuel);
+        InvStack f_out = get_invlist(f_ref_out, NULL).get_at(f_ref_out);
+        
+        NodeMeta *meta = db.get_node_meta(pos);
+        int f_active_fuel = 0;
+        if(meta->int1)
+          f_active_fuel = *meta->int1;
+        int f_cook_progress = 0;
+        if(meta->int2)
+          f_cook_progress = *meta->int2;
+        delete meta;
+        
+        std::optional<std::pair<InvStack, int>> cook_result
+            = cook_calc_result(f_in);
+        
+        bool can_cook = false;
+        InvStack cook_res_stack;
+        int cook_time = 0;
+        if(cook_result != std::nullopt) {
+          cook_res_stack = (*cook_result).first;
+          cook_time = (*cook_result).second;
+          
+          if(f_out.is_nil) {
+            can_cook = true;
+          } else {
+            can_cook = true;
+            if(f_out.itemstring != cook_res_stack.itemstring)
+              can_cook = false;
+            
+            ItemDef f_out_def = get_item_def(f_out.itemstring);
+            if(f_out.count + cook_res_stack.count > f_out_def.max_stack)
+              can_cook = false;
+          }
+        }
+        
+        std::ostringstream status;
+        status << "Cooking: " << std::boolalpha << can_cook << "\n"
+               << "Fuel: " << f_active_fuel << "\n"
+               << "Progress: " << f_cook_progress << "/" << cook_time;
+        std::string status_s(status.str());
+        
+        // UI stuff
+        InvRef furnace_ref_in("node", pos.to_json(), "furnace_in", std::nullopt);
+        InvRef furnace_ref_fuel("node", pos.to_json(), "furnace_fuel", std::nullopt);
+        InvRef furnace_ref_out("node", pos.to_json(), "furnace_out", std::nullopt);
+        
+        UISpec furnace_ui;
+        furnace_ui.components.push_back(
+            UI_TextBlock("In").to_json());
+        furnace_ui.components.push_back(
+            UI_InvList(furnace_ref_in).to_json());
+        furnace_ui.components.push_back(
+            UI_TextBlock("Out").to_json());
+        furnace_ui.components.push_back(
+            UI_InvList(furnace_ref_out).to_json());
+        furnace_ui.components.push_back(
+            UI_Spacer().to_json());
+        furnace_ui.components.push_back(
+            UI_TextBlock("Fuel").to_json());
+        furnace_ui.components.push_back(
+            UI_InvList(furnace_ref_fuel).to_json());
+        
+        furnace_ui.components.push_back(
+            UI_Spacer().to_json());
+        // Furnace tick code depends on this being at a specific index
+        furnace_ui.components.push_back(
+            UI_TextBlock(status_s).to_json());
+        
+        furnace_ui.components.push_back(
+            UI_Spacer().to_json());
+        furnace_ui.components.push_back(
+            UI_InvList(InvRef("player", std::nullopt, "main", std::nullopt)).to_json());
+        
+        UIInstance furnace_ui_instance(furnace_ui);
+        furnace_ui_instance.what_for = "furnace " + pos.to_json();
+        std::string player_tag = player->get_tag();
+        
+        furnace_ui_instance.close_callback = [this, furnace_ref_in, furnace_ref_fuel, furnace_ref_out, player_tag]() {
+          std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+          PlayerState *found_player = get_player_by_tag(player_tag);
+          if(found_player == NULL)
+            return;
+          std::unique_lock<std::shared_mutex> found_player_lock(found_player->lock);
+          
+          found_player->uninterest_inventory(furnace_ref_in);
+          found_player->uninterest_inventory(furnace_ref_fuel);
+          found_player->uninterest_inventory(furnace_ref_out);
+        };
+        
+        player_lock_unique.unlock();
+        send_inv(player, furnace_ref_in);
+        send_inv(player, furnace_ref_fuel);
+        send_inv(player, furnace_ref_out);
+        open_ui(player, furnace_ui_instance);
+        return;
       }
     } else if(type == "ui_close") {
       player_lock_unique.unlock();

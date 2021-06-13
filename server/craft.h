@@ -36,7 +36,7 @@ class CraftDef {
     std::optional<std::pair<int, int>> shape;
     
     std::string type;
-    std::optional<double> cook_time;
+    std::optional<int> cook_time;
 };
 
 void load_craft_defs(boost::property_tree::ptree pt);
@@ -44,5 +44,8 @@ void load_craft_defs(boost::property_tree::ptree pt);
 //pair <patch to use when consuming craft, patch to use to display craft output>
 std::optional<std::pair<InvPatch, InvPatch>> craft_calc_result(const InvList& craft_input, std::pair<int, int> craft_input_shape);
 std::optional<std::pair<InvPatch, InvPatch>> craft_calc_result(const CraftDef& craft, const InvList& craft_input, std::pair<int, int> craft_input_shape);
+
+//pair <result stack, cook time>
+std::optional<std::pair<InvStack, int>> cook_calc_result(const InvStack& source_stack);
 
 #endif

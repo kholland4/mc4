@@ -37,6 +37,7 @@ void load_item_defs(boost::property_tree::ptree pt) {
       def->tool_wear = n.second.get<int>("toolWear");
     else
       def->tool_wear = 0;
+    def->fuel = n.second.get<int>("fuel");
     
     def->in_creative_inventory = n.second.get<bool>("inCreativeInventory");
     

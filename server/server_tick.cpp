@@ -142,6 +142,12 @@ void Server::tick(const boost::system::error_code&) {
     slow_tick_counter = 0;
   }
   
+  interact_tick_counter++;
+  if(interact_tick_counter >= SERVER_INTERACT_TICK_RATIO) {
+    interact_tick();
+    interact_tick_counter = 0;
+  }
+  
 #ifdef DEBUG_NET
   //FIXME doesn't include *all* mapblocks sent
   {
@@ -160,4 +166,186 @@ void Server::tick(const boost::system::error_code&) {
 
 void Server::slow_tick() {
   //db.clean_cache();
+}
+
+
+
+void Server::wake_interact_tick(MapPos<int> node_pos) {
+  std::unique_lock<std::shared_mutex> list_lock(active_interact_tick_lock);
+  Node node = map.get_node(node_pos);
+  
+  if(node.itemstring == "default:furnace" || node.itemstring == "default:furnace_active") {
+    active_interact_tick.insert(node_pos);
+    return;
+  }
+  
+  active_interact_tick.erase(node_pos);
+}
+
+void Server::interact_tick() {
+  std::unique_lock<std::shared_mutex> list_lock(active_interact_tick_lock);
+  
+  auto it = active_interact_tick.begin();
+  while(it != active_interact_tick.end()) {
+    auto current = it++;
+    MapPos<int> node_pos = *current;
+    Node node = map.get_node(node_pos);
+    
+    if(node.itemstring == "default:furnace" || node.itemstring == "default:furnace_active") {
+      NodeMeta *meta = db.get_node_meta(node_pos);
+      bool meta_is_nil = meta->is_nil;
+      int f_active_fuel = 0;
+      if(meta->int1)
+        f_active_fuel = *meta->int1;
+      int f_cook_progress = 0;
+      if(meta->int2)
+        f_cook_progress = *meta->int2;
+      delete meta;
+      if(meta_is_nil) {
+        active_interact_tick.erase(current);
+        continue;
+      }
+      
+      bool do_update_meta = false;
+      
+      InvRef f_ref_in("node", node_pos.to_json(), "furnace_in", 0);
+      InvRef f_ref_fuel("node", node_pos.to_json(), "furnace_fuel", 0);
+      InvRef f_ref_out("node", node_pos.to_json(), "furnace_out", 0);
+      
+      InvStack f_in = get_invlist(f_ref_in, NULL).get_at(f_ref_in);
+      InvStack f_fuel = get_invlist(f_ref_fuel, NULL).get_at(f_ref_fuel);
+      InvStack f_out = get_invlist(f_ref_out, NULL).get_at(f_ref_out);
+      
+      // If we've been consuming fuel, increment cook progress
+      if(f_active_fuel > 0) {
+        if(f_cook_progress + 1 > f_cook_progress) // prevent integer oveflow
+          f_cook_progress++;
+        do_update_meta = true;
+      }
+      
+      // Consume fuel.
+      if(f_active_fuel > 0) {
+        f_active_fuel--;
+        do_update_meta = true;
+      }
+      
+      if(f_active_fuel == 0) {
+        ItemDef fuel_def = get_item_def(f_fuel.itemstring);
+        if(fuel_def.fuel > 0) {
+          InvStack f_fuel_result(f_fuel);
+          f_fuel_result.count--;
+          if(f_fuel_result.count == 0)
+            f_fuel_result = InvStack();
+          
+          InvPatch fuel_consume;
+          fuel_consume.diffs.push_back(
+              InvDiff(f_ref_fuel, f_fuel, f_fuel_result));
+          
+          bool res = inv_apply_patch(fuel_consume);
+          if(res) {
+            f_active_fuel += fuel_def.fuel;
+            do_update_meta = true;
+          }
+        }
+      }
+      
+      std::optional<std::pair<InvStack, int>> cook_result
+          = cook_calc_result(f_in);
+      
+      bool can_cook = false;
+      InvStack cook_res_stack;
+      int cook_time = 0;
+      if(cook_result != std::nullopt) {
+        cook_res_stack = (*cook_result).first;
+        cook_time = (*cook_result).second;
+        
+        if(f_out.is_nil) {
+          can_cook = true;
+        } else {
+          can_cook = true;
+          if(f_out.itemstring != cook_res_stack.itemstring)
+            can_cook = false;
+          
+          ItemDef f_out_def = get_item_def(f_out.itemstring);
+          if(f_out.count + cook_res_stack.count > f_out_def.max_stack)
+            can_cook = false;
+        }
+      }
+      
+      if(!can_cook) {
+        f_cook_progress = 0;
+        do_update_meta = true;
+      }
+      
+      if(can_cook && f_cook_progress >= cook_time) {
+        InvStack result_f_in(f_in);
+        result_f_in.count--;
+        if(result_f_in.count == 0)
+          result_f_in = InvStack();
+        
+        InvStack result_f_out(cook_res_stack);
+        if(!f_out.is_nil) {
+          result_f_out = f_out;
+          result_f_out.count += cook_res_stack.count;
+        }
+        InvPatch p;
+        p.diffs.push_back(
+            InvDiff(f_ref_out, f_out, result_f_out));
+        p.diffs.push_back(
+            InvDiff(f_ref_in, f_in, result_f_in));
+        bool res = inv_apply_patch(p, NULL);
+        
+        if(res) {
+          f_cook_progress -= cook_time;
+          do_update_meta = true;
+        }
+      }
+      
+      // If no fuel, stop the furnace.
+      if(f_active_fuel <= 0) {
+        active_interact_tick.erase(current);
+        can_cook = false;
+        f_cook_progress = 0;
+        do_update_meta = true;
+      }
+      
+      // Update stored metadata.
+      if(do_update_meta) {
+        db.lock_node_meta(node_pos);
+        NodeMeta *meta = db.get_node_meta(node_pos);
+        meta->int1 = f_active_fuel;
+        meta->int2 = f_cook_progress;
+        db.set_node_meta(node_pos, meta);
+        db.unlock_node_meta(node_pos);
+        
+        std::ostringstream status;
+        status << "Cooking: " << std::boolalpha << can_cook << "\n"
+               << "Fuel: " << f_active_fuel << "\n"
+               << "Progress: " << f_cook_progress << "/" << cook_time;
+        std::string status_s(status.str());
+        
+        std::vector<UIInstance> relevant_ui
+            = find_ui_multiple("furnace " + node_pos.to_json());
+        
+        for(auto inst : relevant_ui) {
+          inst.spec.components[8] = UI_TextBlock(status_s).to_json();
+          update_ui(inst);
+        }
+      }
+      
+      if(f_active_fuel > 0 && node.itemstring == "default:furnace") {
+        Node new_node(node);
+        new_node.itemstring = "default:furnace_active";
+        map.set_node(node_pos, new_node, node);
+      } else if(f_active_fuel == 0 && node.itemstring == "default:furnace_active") {
+        Node new_node(node);
+        new_node.itemstring = "default:furnace";
+        map.set_node(node_pos, new_node, node);
+      }
+      
+      continue;
+    }
+    
+    active_interact_tick.erase(current);
+  }
 }

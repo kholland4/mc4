@@ -44,7 +44,7 @@ void load_craft_defs(boost::property_tree::ptree pt) {
     if(n.second.get<std::string>("cookTime") == "null")
       def->cook_time = std::nullopt;
     else
-      def->cook_time = n.second.get<double>("cookTime");
+      def->cook_time = n.second.get<int>("cookTime");
     
     all_craft_defs.push_back(def);
     
@@ -216,5 +216,23 @@ std::optional<std::pair<InvPatch, InvPatch>> craft_calc_result(const InvList& cr
       return result;
   }
   
+  return std::nullopt;
+}
+
+
+
+std::optional<std::pair<InvStack, int>> cook_calc_result(const InvStack& source_stack) {
+  for(const auto& craft : all_craft_defs) {
+    if(craft->type != "cook")
+      continue;
+    if(craft->ingredients.get_at(0).itemstring != source_stack.itemstring)
+      continue;
+    
+    int cook_time = 1;
+    if(craft->cook_time)
+      cook_time = *craft->cook_time;
+    
+    return std::make_pair(craft->result, cook_time);
+  }
   return std::nullopt;
 }

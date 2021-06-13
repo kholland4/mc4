@@ -31,6 +31,8 @@ class NodeMeta {
     std::string to_json();
     
     InvSet inventory;
+    std::optional<int> int1;
+    std::optional<int> int2;
     
     bool is_nil;
     bool db_error;

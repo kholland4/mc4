@@ -19,11 +19,12 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.6-dev1"
+#define VERSION "0.4.7-dev1"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
 #define SERVER_SLOW_TICK_RATIO 1 //number of ticks to each slow tick
+#define SERVER_INTERACT_TICK_RATIO 8
 #define PLAYER_ENTITY_VISIBILE_DISTANCE 200
 #define PLAYER_MAPBLOCK_INTEREST_DISTANCE 2
 #define PLAYER_MAPBLOCK_INTEREST_DISTANCE_W 0
@@ -279,16 +280,23 @@ class Server {
     
     void tick(const boost::system::error_code&);
     void slow_tick();
+    void interact_tick();
     
     bool lock_unlock_invlist(InvRef ref, bool do_lock, PlayerState *player_hint);
     
     bool on_place_node(Node node, MapPos<int> pos);
     bool on_dig_node(Node node, MapPos<int> pos);
     
-    void open_ui(PlayerState *player, const UIInstance& instance);
+    void open_ui(PlayerState *player, UIInstance instance);
     void update_ui(PlayerState *player, const UIInstance& instance);
+    void update_ui(const UIInstance& instance);
     void close_ui(PlayerState *player, const UIInstance& instance);
     UIInstance find_ui(std::string what_for);
+    std::vector<UIInstance> find_ui_multiple(std::string what_for);
+    
+    void wake_interact_tick(MapPos<int> node_pos);
+    std::set<MapPos<int>> active_interact_tick;
+    mutable std::shared_mutex active_interact_tick_lock;
     
     PlayerState* get_player_by_tag(std::string tag);
     
@@ -315,6 +323,7 @@ class Server {
     int mapblock_tick_counter;
     int fluid_tick_counter;
     int slow_tick_counter;
+    int interact_tick_counter;
     std::chrono::time_point<std::chrono::steady_clock> last_tick;
     bool halt;
     std::shared_mutex tick_info_lock;

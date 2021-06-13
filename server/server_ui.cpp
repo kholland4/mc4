@@ -18,7 +18,9 @@
 
 #include "server.h"
 
-void Server::open_ui(PlayerState *player, const UIInstance& instance) {
+void Server::open_ui(PlayerState *player, UIInstance instance) {
+  instance.player_tag = player->get_tag();
+  
   std::unique_lock<std::shared_mutex> ui_list_lock(active_ui_lock);
   active_ui.insert(instance);
   
@@ -31,6 +33,23 @@ void Server::open_ui(PlayerState *player, const UIInstance& instance) {
 
 void Server::update_ui(PlayerState *player, const UIInstance& instance) {
   std::unique_lock<std::shared_mutex> ui_list_lock(active_ui_lock);
+  active_ui.insert(instance); // will replace existing UI because they have the same id
+  
+  std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+  player->send(instance.ui_update_json());
+  
+  if(instance.update_callback)
+    instance.update_callback();
+}
+void Server::update_ui(const UIInstance& instance) {
+  std::unique_lock<std::shared_mutex> ui_list_lock(active_ui_lock);
+  PlayerState *player = get_player_by_tag(instance.player_tag);
+  
+  if(player == NULL) {
+    active_ui.erase(instance);
+    return;
+  }
+  
   active_ui.insert(instance); // will replace existing UI because they have the same id
   
   std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
@@ -62,4 +81,17 @@ UIInstance Server::find_ui(std::string what_for) {
   }
   
   return UIInstance();
+}
+
+std::vector<UIInstance> Server::find_ui_multiple(std::string what_for) {
+  std::shared_lock<std::shared_mutex> ui_list_lock(active_ui_lock);
+  
+  std::vector<UIInstance> result;
+  
+  for(const auto& it : active_ui) {
+    if(it.what_for == what_for)
+      result.push_back(it);
+  }
+  
+  return result;
 }

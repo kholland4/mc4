@@ -18,12 +18,33 @@
 
 #include "server.h"
 
+std::map<std::string, std::vector<std::pair<std::string, int>>> init_inventories = {
+  {"default:chest", {
+    {"chest", 32}
+  }},
+  {"default:furnace", {
+    {"furnace_in", 1},
+    {"furnace_fuel", 1},
+    {"furnace_out", 1}
+  }},
+  {"default:furnace_active", {
+    {"furnace_in", 1},
+    {"furnace_fuel", 1},
+    {"furnace_out", 1}
+  }}
+};
+
 bool Server::on_place_node(Node node, MapPos<int> pos) {
-  if(node.itemstring == "default:chest") {
+  auto init_search = init_inventories.find(node.itemstring);
+  if(init_search != init_inventories.end()) {
+    const auto& init_list = init_search->second;
+    
     db.lock_node_meta(pos);
     
     NodeMeta *meta = db.get_node_meta(pos);
-    meta->inventory.add("chest", InvList(32));
+    for(const auto& init_pair : init_list) {
+      meta->inventory.add(init_pair.first, InvList(init_pair.second));
+    }
     meta->is_nil = false;
     db.set_node_meta(pos, meta);
     delete meta;
@@ -35,13 +56,14 @@ bool Server::on_place_node(Node node, MapPos<int> pos) {
   return true;
 }
 bool Server::on_dig_node(Node node, MapPos<int> pos) {
-  if(node.itemstring == "default:chest") {
+  auto init_search = init_inventories.find(node.itemstring);
+  if(init_search != init_inventories.end()) {
     db.lock_node_meta(pos);
     
     //Delete meta.
     NodeMeta *meta = db.get_node_meta(pos);
     if(!meta->inventory.is_empty()) {
-      //Can't dig a non-empty chest.
+      //Can't dig a non-empty node.
       delete meta;
       db.unlock_node_meta(pos);
       return false;

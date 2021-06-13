@@ -78,6 +78,7 @@ class UIInstance {
     UISpec spec;
     std::string id;
     std::string what_for;
+    std::string player_tag;
     std::function<void()> open_callback;
     std::function<void()> update_callback;
     std::function<void()> close_callback;

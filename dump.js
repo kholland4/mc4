@@ -31,6 +31,7 @@ function dumpAllDefs() {
       isNode: src.isNode,
       isTool: src.isTool,
       toolWear: src.toolWear,
+      fuel: src.fuel,
       inCreativeInventory: src.inCreativeInventory,
       groups: src.groups,
       toolGroups: src.toolGroups

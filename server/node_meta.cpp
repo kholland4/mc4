@@ -33,9 +33,14 @@ NodeMeta::NodeMeta(MapPos<int> _pos, std::string json) : is_nil(false), db_error
     boost::property_tree::ptree pt;
     boost::property_tree::read_json(ss, pt);
     
-    if(pt.get_child_optional("inventory")) {
+    if(pt.get_child_optional("inventory"))
       inventory = InvSet(pt.get_child("inventory"));
-    }
+    
+    if(pt.get_child_optional("int1"))
+      int1 = pt.get<int>("int1");
+    if(pt.get_child_optional("int2"))
+      int2 = pt.get<int>("int2");
+    
   } catch(boost::property_tree::ptree_error const& e) {
     log(LogSource::PLAYER, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " json=" + json);
     
@@ -49,11 +54,15 @@ std::string NodeMeta::to_json() {
   
   out << "{";
   
-  if(inventory.inventory.size() > 0) {
-    out << "\"inventory\":" << inventory.to_json();
-  }
+  if(inventory.inventory.size() > 0)
+    out << "\"inventory\":" << inventory.to_json() << ",";
   
-  out << "}";
+  if(int1)
+    out << "\"int1\":" << *int1 << ",";
+  if(int2)
+    out << "\"int2\":" << *int2 << ",";
+  
+  out << "\"n\":null}"; // to make commas work out
   
   return out.str();
 }

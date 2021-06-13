@@ -27,18 +27,19 @@
 
 class ItemDef {
   public:
-    ItemDef() : itemstring("nothing"), stackable(false), max_stack(1), is_node(false), is_tool(false), tool_wear(0), in_creative_inventory(false) {};
-    ItemDef(std::string _itemstring) : itemstring(_itemstring), stackable(false), max_stack(1), is_node(false), is_tool(false), tool_wear(0), in_creative_inventory(false) {};
+    ItemDef() : itemstring("nothing") {};
+    ItemDef(std::string _itemstring) : itemstring(_itemstring) {};
     
     std::string itemstring;
-    bool stackable;
-    int max_stack;
+    bool stackable = false;
+    int max_stack = 1;
     
-    bool is_node;
-    bool is_tool;
-    int tool_wear;
+    bool is_node = false;
+    bool is_tool = false;
+    int tool_wear = 0;
+    int fuel = 0;
     
-    bool in_creative_inventory;
+    bool in_creative_inventory = false;
     
     std::set<std::string> groups;
     std::map<std::string, std::pair<std::vector<double>, int>> tool_groups;

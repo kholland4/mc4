@@ -34,6 +34,20 @@ bool Server::inv_apply_patch(InvPatch patch, PlayerState *requesting_player) {
   for(const auto& diff : patch.diffs) {
     InvRef list_ref = diff.ref;
     list_ref.index = std::nullopt;
+    
+    // Locking a list in a node locks the entire node, not just that list
+    // Workaround to only lock the node once
+    if(list_ref.obj_type == "node") {
+      bool already_have = false;
+      for(const auto& it : refs_to_lock) {
+        if(it.obj_type == list_ref.obj_type && it.obj_id == list_ref.obj_id) {
+          already_have = true;
+          break;
+        }
+      }
+      if(already_have)
+        continue;
+    }
     refs_to_lock.insert(list_ref);
   }
   
@@ -370,6 +384,11 @@ bool Server::set_invlist(InvRef ref, InvList list, PlayerState *player_hint) {
     meta->inventory.set(ref.list_name, list);
     db.set_node_meta(node_pos, meta);
     delete meta;
+    
+    //FIXME hacky
+    if(player_hint != NULL)
+      wake_interact_tick(node_pos);
+    
     return true;
   }
   
