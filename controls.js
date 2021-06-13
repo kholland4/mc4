@@ -82,7 +82,7 @@ class KeyboardControls extends BaseControls {
     });
   }
   keyUp(e) {
-    if(!api.ingameKey()) { return; }
+    //if(!api.ingameKey()) { return; }
     
     mapKey(e.code).forEach((keybind) => {
       if(!(keybind in this.keymap))

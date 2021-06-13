@@ -68,7 +68,7 @@ class Player {
       }
     }.bind(this));
     window.addEventListener("keyup", function(e) {
-      if(!api.ingameKey()) { return; }
+      //if(!api.ingameKey()) { return; }
       
       var keybind = mapKey(e.code);
       
