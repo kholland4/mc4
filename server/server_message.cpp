@@ -846,6 +846,15 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
     } else if(type == "interact") {
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       Node node = map.get_node(pos);
+      
+      MapPos<int> player_pos_int((int)std::round(player->pos.x), (int)std::round(player->pos.y), (int)std::round(player->pos.z), player->pos.w, player->pos.world, player->pos.universe);
+      MapBox<int> bounding(player_pos_int - PLAYER_LIMIT_REACH_DISTANCE, player_pos_int + PLAYER_LIMIT_REACH_DISTANCE);
+      if(!bounding.contains(pos)) {
+        log(LogSource::SERVER, LogLevel::NOTICE, "Player '" + player->get_name() + "' at " + player_pos_int.to_string()
+                                                 + " attempted to interact with node '" + node.itemstring + "' far away at " + pos.to_string());
+        return;
+      }
+      
       //TODO close ui if it gets dug?
       //TODO track ui IDs or something
       if(node.itemstring == "default:chest") {
