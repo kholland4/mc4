@@ -693,7 +693,7 @@ function animate() {
       if(destroySel != null) {
         var pointNode = server.getNode(destroySel);
         var pointDef = pointNode.getDef();
-        if(pointDef.allowInteract) {
+        if(pointDef.allowInteract && !getKeyState("keybind_sneak")) {
           didInteract = true;
           if(pointDef.interactFunc != null) {
             pointDef.interactFunc(destroySel, server);
