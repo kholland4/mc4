@@ -296,10 +296,12 @@
   ];
   
   mods.stairs.registerSlab = function(itemstring) {
-    var itemstringFlat = itemstring.replace(":", "_");
+    //var itemstringFlat = itemstring.replace(":", "_");
     
     var idef = api.getItemDef(itemstring);
     var ndef = api.getNodeDef(itemstring);
+    
+    var itemstringFlat = idef.iconFile.replace(/.png$/, "").replace(/^.*\//, "");
     
     var tex = {};
     var keys = ["texAll", "texTop", "texBottom", "texSides", "texFront", "texBack", "texLeft", "texRight"];
@@ -377,12 +379,13 @@
       "sandstone", "sandstone_block", "sandstone_brick",
       "desert_sandstone", "desert_sandstone_block", "desert_sandstone_brick",
       "silver_sandstone", "silver_sandstone_block", "silver_sandstone_brick",
-      "snow",
+      "snowblock",
       "wood", "acacia_wood", "aspen_wood", "jungle_wood", "pine_wood",
       "obsidian", "obsidian_block", "obsidian_brick",
       "coal_block", "iron_block", "gold_block", "diamond_block",
       "glass",
-      "brick"
+      "brick",
+      "brick_white", "brick_light", "brick_medium", "brick_dark"
     ];
     
     for(var i = 0; i < slabs_stairs_list.length; i++) {
