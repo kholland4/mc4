@@ -231,7 +231,7 @@ function renderUpdateMap(centerPos, doScan) {
       var mapBlock = server.getMapBlock(pos, true);
       requestsMade.add(index);
       if(mapBlock != null) {
-        /*if(mapBlock.updateNum != renderCurrentMeshes[index].updateNum) {
+        /*if(mapBlock.updateNum != renderCurrentMeshes[index].main.updateNum) {
           renderQueueUpdate(pos);
         }*/
         if(mapBlock.renderNeedsUpdate > 0) {
@@ -390,7 +390,7 @@ function renderUpdateMap(centerPos, doScan) {
   raycastTestLayers.set(2);
   for(var key in renderCurrentMeshes) {
     var curr = renderCurrentMeshes[key];
-    var curr_pos = curr.pos;
+    var curr_pos = curr.main.pos;
     
     if(curr_pos.x < centerPos.x - unrenderDist.x || curr_pos.x > centerPos.x + unrenderDist.x ||
        curr_pos.y < centerPos.y - unrenderDist.y || curr_pos.y > centerPos.y + unrenderDist.y ||
@@ -398,9 +398,12 @@ function renderUpdateMap(centerPos, doScan) {
        curr_pos.w < centerPos.w - unrenderDist.w || curr_pos.w > centerPos.w + unrenderDist.w ||
        curr_pos.world < centerPos.world - unrenderDist.world || curr_pos.world > centerPos.world + unrenderDist.world ||
        curr_pos.universe < centerPos.universe - unrenderDist.universe || curr_pos.universe > centerPos.universe + unrenderDist.universe) {
-      curr.obj.geometry.dispose();
-      curr.obj.material.dispose();
-      renderMapGroup.remove(curr.obj);
+      curr.main.obj.geometry.dispose();
+      curr.main.obj.material.dispose();
+      renderMapGroup.remove(curr.main.obj);
+      curr.transparent.obj.geometry.dispose();
+      curr.transparent.obj.material.dispose();
+      renderMapGroup.remove(curr.transparent.obj);
       renderCurrentMeshes[key] = null;
       delete renderCurrentMeshes[key];
     } else if(curr_pos.x < centerPos.x - hideDist.x || curr_pos.x > centerPos.x + hideDist.x ||
@@ -411,25 +414,31 @@ function renderUpdateMap(centerPos, doScan) {
        curr_pos.universe < centerPos.universe - hideDist.universe || curr_pos.universe > centerPos.universe + hideDist.universe) {
       
       //curr.obj.visible = false;
-      curr.obj.layers.disable(1); //disable the camera layer
-    } else if(!curr.obj.layers.test(cameraTestLayers)) {
+      curr.main.obj.layers.disable(1); //disable the camera layer
+      curr.transparent.obj.layers.disable(1); //disable the camera layer
+    } else if(!curr.main.obj.layers.test(cameraTestLayers)) {
       //curr.obj.visible = true;
-      curr.obj.layers.enable(1); //enable the camera layer
+      curr.main.obj.layers.enable(1); //enable the camera layer
+      curr.transparent.obj.layers.enable(1); //enable the camera layer
     }
     
     if(key in renderCurrentMeshes) {
       //raycast to wherever we're peeking
-      if((curr_pos.w == player.pos.w + player.peekW) && !curr.obj.layers.test(raycastTestLayers)) {
-        curr.obj.layers.enable(2);
-      } else if((curr_pos.w != player.pos.w + player.peekW) && curr.obj.layers.test(raycastTestLayers)) {
-        curr.obj.layers.disable(2);
+      if((curr_pos.w == player.pos.w + player.peekW) && !curr.main.obj.layers.test(raycastTestLayers)) {
+        curr.main.obj.layers.enable(2);
+        curr.transparent.obj.layers.enable(2);
+      } else if((curr_pos.w != player.pos.w + player.peekW) && curr.main.obj.layers.test(raycastTestLayers)) {
+        curr.main.obj.layers.disable(2);
+        curr.transparent.obj.layers.disable(2);
       }
       
-      curr.obj.layers.disable(3); //disable the peek layer
+      curr.main.obj.layers.disable(3); //disable the peek layer
+      curr.transparent.obj.layers.disable(3); //disable the peek layer
       
       if(player.peekW != 0) {
         if((curr_pos.w == player.pos.w + player.peekW)) {
-          curr.obj.layers.enable(3); //enable the peek layer
+          curr.main.obj.layers.enable(3); //enable the peek layer
+          curr.transparent.obj.layers.enable(3); //enable the peek layer
         }
       }
     }
@@ -475,13 +484,17 @@ function renderWorkerCallback(message) {
   var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString() + "," + pos.w.toString() + "," + pos.world.toString() + "," + pos.universe.toString();
   var current = renderCurrentMeshes[index];
   if(current != undefined && current != null) {
-    current.obj.geometry.dispose();
-    current.obj.material.dispose();
-    renderMapGroup.remove(current.obj);
+    current.main.obj.geometry.dispose();
+    current.main.obj.material.dispose();
+    renderMapGroup.remove(current.main.obj);
+    current.transparent.obj.geometry.dispose();
+    current.transparent.obj.material.dispose();
+    renderMapGroup.remove(current.transparent.obj);
     current = null;
     delete renderCurrentMeshes[index];
   }
   
+  // main
   var verts = message.data.verts;
   var uvs = message.data.uvs;
   var colors = message.data.colors;
@@ -505,7 +518,37 @@ function renderWorkerCallback(message) {
   
   var renderObj = new RenderMesh(pos, updateNum, mesh);
   renderObj.facePos = facePos;
-  renderCurrentMeshes[index] = renderObj;
+  
+  // transparent
+  var transparentVerts = message.data.transparentVerts;
+  var transparentUVs = message.data.transparentUVs;
+  var transparentColors = message.data.transparentColors;
+  var transparentFacePos = message.data.transparentFacePos;
+  
+  var geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(transparentVerts, 3));
+  geometry.setAttribute("uv", new THREE.BufferAttribute(transparentUVs, 2));
+  geometry.setAttribute("color", new THREE.BufferAttribute(transparentColors, 3, true));
+  var material = new THREE.MeshBasicMaterial({map: texmap, vertexColors: THREE.VertexColors, side: THREE.DoubleSide, transparent: true, opacity: 0.75});
+  var mesh = new THREE.Mesh(geometry, material);
+  mesh.position.x = pos.x * MAPBLOCK_SIZE.x;
+  mesh.position.y = pos.y * MAPBLOCK_SIZE.y;
+  mesh.position.z = pos.z * MAPBLOCK_SIZE.z;
+  
+  mesh.layers.disable(0); //disable the default layer
+  mesh.layers.enable(1); //enable the camera layer
+  mesh.layers.disable(2); //disable the raycast layer (it will be enabled later)
+  
+  renderMapGroup.add(mesh);
+  
+  var transparentRenderObj = new RenderMesh(pos, updateNum, mesh);
+  transparentRenderObj.facePos = transparentFacePos;
+  
+  // ---
+  renderCurrentMeshes[index] = {
+    main: renderObj,
+    transparent: transparentRenderObj
+  };
   
   var mapBlock = server.getMapBlock(pos);
   if(updateNum == mapBlock.updateNum) {
@@ -528,7 +571,8 @@ function renderUpdateLighting(pos) {
   var index = pos.x.toString() + "," + pos.y.toString() + "," + pos.z.toString() + "," + pos.w.toString() + "," + pos.world.toString() + "," + pos.universe.toString();
   if(!(index in renderCurrentMeshes)) { return false; }
   
-  var renderObj = renderCurrentMeshes[index];
+  var renderObj = renderCurrentMeshes[index].main;
+  var transparentRenderObj = renderCurrentMeshes[index].transparent;
   
   var mapBlock = server.getMapBlock(pos, true);
   if(mapBlock == null) { return false; }
@@ -543,93 +587,106 @@ function renderUpdateLighting(pos) {
     //if(blocks[index] == null) { return false; }
   }
   
-  var attr = renderObj.obj.geometry.getAttribute("color");
+  var attr1 = renderObj.obj.geometry.getAttribute("color");
+  var facePos1 = renderObj.facePos;
+  var attr2 = transparentRenderObj.obj.geometry.getAttribute("color");
+  var facePos2 = transparentRenderObj.facePos;
   
-  var facePos = renderObj.facePos;
-  for(var i = 0; i < facePos.length; i++) {
-    var rx = facePos[i][0];
-    var ry = facePos[i][1];
-    var rz = facePos[i][2];
-    
-    var d = mapBlock.data[rx][ry][rz];
-    /*var d;
-    if(rx < 0) { d = blocks["-1,0,0"].data[mapBlock.size.x - 1][ry][rz]; } else
-    if(ry < 0) { d = blocks["0,-1,0"].data[rx][mapBlock.size.y - 1][rz]; } else
-    if(rz < 0) { d = blocks["0,0,-1"].data[rx][ry][mapBlock.size.z - 1]; } else
-    if(rx >= mapBlock.size.x) { d = blocks["1,0,0"].data[0][ry][rz]; } else
-    if(ry >= mapBlock.size.y) { d = blocks["0,1,0"].data[rx][0][rz]; } else
-    if(rz >= mapBlock.size.z) { d = blocks["0,0,1"].data[rx][ry][0]; } else
-    { d = blocks["0,0,0"].data[rx][ry][rz]; }*/
-    
-    var id = d & 32767;
-    var lightRaw = (d >> 23) & 255;
-    var light = Math.max(lightRaw & 15, Math.round(((lightRaw >> 4) & 15) * sunAmount));
-    light = Math.max(light, 1);
-    
-    var tint = facePos[i][3];
-    var tLight = facePos[i][4];
-    
-    var colorR, colorG, colorB;
-    if(tLight) {
-      colorR = Math.round(lightCurve[light] * tint);
-      colorG = colorR;
-      colorB = colorR;
+  for(var objNum = 0; objNum < 2; objNum++) {
+    if(objNum == 0) {
+      var attr = attr1;
+      var facePos = facePos1;
     } else {
-      var total = lightCurve[light] * tint;
-      var count = 1;
+      var attr = attr2;
+      var facePos = facePos2;
+    }
+    for(var i = 0; i < facePos.length; i++) {
+      var rx = facePos[i][0];
+      var ry = facePos[i][1];
+      var rz = facePos[i][2];
       
-      var adjList = facePos[i][5];
-      for(var n = 0; n < adjList.length; n++) {
-        if(adjList[n] == null) { continue; }
+      var d = mapBlock.data[rx][ry][rz];
+      /*var d;
+      if(rx < 0) { d = blocks["-1,0,0"].data[mapBlock.size.x - 1][ry][rz]; } else
+      if(ry < 0) { d = blocks["0,-1,0"].data[rx][mapBlock.size.y - 1][rz]; } else
+      if(rz < 0) { d = blocks["0,0,-1"].data[rx][ry][mapBlock.size.z - 1]; } else
+      if(rx >= mapBlock.size.x) { d = blocks["1,0,0"].data[0][ry][rz]; } else
+      if(ry >= mapBlock.size.y) { d = blocks["0,1,0"].data[rx][0][rz]; } else
+      if(rz >= mapBlock.size.z) { d = blocks["0,0,1"].data[rx][ry][0]; } else
+      { d = blocks["0,0,0"].data[rx][ry][rz]; }*/
+      
+      var id = d & 32767;
+      var lightRaw = (d >> 23) & 255;
+      var light = Math.max(lightRaw & 15, Math.round(((lightRaw >> 4) & 15) * sunAmount));
+      light = Math.max(light, 1);
+      
+      var tint = facePos[i][3];
+      var tLight = facePos[i][4];
+      
+      var colorR, colorG, colorB;
+      if(tLight) {
+        colorR = Math.round(lightCurve[light] * tint);
+        colorG = colorR;
+        colorB = colorR;
+      } else {
+        var total = lightCurve[light] * tint;
+        var count = 1;
         
-        var fx = adjList[n][0];
-        var fy = adjList[n][1];
-        var fz = adjList[n][2];
-        
-        if(fx >= -1 && fx < MAPBLOCK_SIZE.x + 1 &&
-           fy >= -1 && fy < MAPBLOCK_SIZE.y + 1 &&
-           fz >= -1 && fz < MAPBLOCK_SIZE.z + 1) {
-          var dimCount = 0;
-          if(fx < 0 || fx >= mapBlock.size.x) { dimCount++; }
-          if(fy < 0 || fy >= mapBlock.size.y) { dimCount++; }
-          if(fz < 0 || fz >= mapBlock.size.z) { dimCount++; }
-          if(dimCount > 1) { continue; }
-          //var adjD = mapBlock.data[adjList[n][0]][adjList[n][1]][adjList[n][2]];
-          var adjD = -1;
-          if(fx < 0) { if(blocks["-1,0,0"] != null) { adjD = blocks["-1,0,0"].data[mapBlock.size.x - 1][fy][fz]; } } else
-          if(fy < 0) { if(blocks["0,-1,0"] != null) { adjD = blocks["0,-1,0"].data[fx][mapBlock.size.y - 1][fz]; } } else
-          if(fz < 0) { if(blocks["0,0,-1"] != null) { adjD = blocks["0,0,-1"].data[fx][fy][mapBlock.size.z - 1]; } } else
-          if(fx >= mapBlock.size.x) { if(blocks["1,0,0"] != null) { adjD = blocks["1,0,0"].data[0][fy][fz]; } } else
-          if(fy >= mapBlock.size.y) { if(blocks["0,1,0"] != null) { adjD = blocks["0,1,0"].data[fx][0][fz]; } } else
-          if(fz >= mapBlock.size.z) { if(blocks["0,0,1"] != null) { adjD = blocks["0,0,1"].data[fx][fy][0]; } } else
-          { adjD = blocks["0,0,0"].data[fx][fy][fz]; }
-          if(adjD == -1) { continue; }
+        var adjList = facePos[i][5];
+        for(var n = 0; n < adjList.length; n++) {
+          if(adjList[n] == null) { continue; }
           
-          var adjLightRaw = (adjD >> 23) & 255;
-          var adjLight = Math.max(adjLightRaw & 15, Math.round(((adjLightRaw >> 4) & 15) * sunAmount));
-          if(adjLight > 0 && adjLight < light - 2) { continue; }
-          if(adjLight > 0 && light < adjLight - 2) { continue; }
-          if(adjLight == 0) { adjLight = Math.floor(light / 3); }
-          adjLight = Math.max(adjLight, 1);
+          var fx = adjList[n][0];
+          var fy = adjList[n][1];
+          var fz = adjList[n][2];
           
-          total += lightCurve[adjLight] * tint;
-          count++;
+          if(fx >= -1 && fx < MAPBLOCK_SIZE.x + 1 &&
+             fy >= -1 && fy < MAPBLOCK_SIZE.y + 1 &&
+             fz >= -1 && fz < MAPBLOCK_SIZE.z + 1) {
+            var dimCount = 0;
+            if(fx < 0 || fx >= mapBlock.size.x) { dimCount++; }
+            if(fy < 0 || fy >= mapBlock.size.y) { dimCount++; }
+            if(fz < 0 || fz >= mapBlock.size.z) { dimCount++; }
+            if(dimCount > 1) { continue; }
+            //var adjD = mapBlock.data[adjList[n][0]][adjList[n][1]][adjList[n][2]];
+            var adjD = -1;
+            if(fx < 0) { if(blocks["-1,0,0"] != null) { adjD = blocks["-1,0,0"].data[mapBlock.size.x - 1][fy][fz]; } } else
+            if(fy < 0) { if(blocks["0,-1,0"] != null) { adjD = blocks["0,-1,0"].data[fx][mapBlock.size.y - 1][fz]; } } else
+            if(fz < 0) { if(blocks["0,0,-1"] != null) { adjD = blocks["0,0,-1"].data[fx][fy][mapBlock.size.z - 1]; } } else
+            if(fx >= mapBlock.size.x) { if(blocks["1,0,0"] != null) { adjD = blocks["1,0,0"].data[0][fy][fz]; } } else
+            if(fy >= mapBlock.size.y) { if(blocks["0,1,0"] != null) { adjD = blocks["0,1,0"].data[fx][0][fz]; } } else
+            if(fz >= mapBlock.size.z) { if(blocks["0,0,1"] != null) { adjD = blocks["0,0,1"].data[fx][fy][0]; } } else
+            { adjD = blocks["0,0,0"].data[fx][fy][fz]; }
+            if(adjD == -1) { continue; }
+            
+            var adjLightRaw = (adjD >> 23) & 255;
+            var adjLight = Math.max(adjLightRaw & 15, Math.round(((adjLightRaw >> 4) & 15) * sunAmount));
+            if(adjLight > 0 && adjLight < light - 2) { continue; }
+            if(adjLight > 0 && light < adjLight - 2) { continue; }
+            if(adjLight == 0) { adjLight = Math.floor(light / 3); }
+            adjLight = Math.max(adjLight, 1);
+            
+            total += lightCurve[adjLight] * tint;
+            count++;
+          }
         }
+        
+        var avgLight = Math.round(total / count);
+        colorR = avgLight;
+        colorG = colorR;
+        colorB = colorR;
       }
       
-      var avgLight = Math.round(total / count);
-      colorR = avgLight;
-      colorG = colorR;
-      colorB = colorR;
+      attr.array[i * 3] = colorR;
+      attr.array[i * 3 + 1] = colorG;
+      attr.array[i * 3 + 2] = colorB;
     }
-    
-    attr.array[i * 3] = colorR;
-    attr.array[i * 3 + 1] = colorG;
-    attr.array[i * 3 + 2] = colorB;
   }
   
-  attr.needsUpdate = true;
-  renderObj.obj.geometry.setAttribute("color", attr);
+  attr1.needsUpdate = true;
+  renderObj.obj.geometry.setAttribute("color", attr1);
+  attr2.needsUpdate = true;
+  transparentRenderObj.obj.geometry.setAttribute("color", attr2);
   
   return true;
 }
@@ -640,7 +697,7 @@ function setSun(amount) {
   sunAmount = amount;
   
   for(var key in renderCurrentMeshes) {
-    renderQueueLightingUpdate(renderCurrentMeshes[key].pos);
+    renderQueueLightingUpdate(renderCurrentMeshes[key].main.pos);
   }
 }
 

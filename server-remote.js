@@ -407,11 +407,11 @@ class ServerRemote extends ServerBase {
                 if(index in renderCurrentMeshes) {
                   if(hasWorker) {
                     worker.registerOnComplete(function(pos, updateNum, index) {
-                      renderCurrentMeshes[index].updateNum = updateNum;
+                      renderCurrentMeshes[index].main.updateNum = updateNum;
                       renderQueueLightingUpdate(pos);
                     }.bind(null, mapBlock.pos, mapBlock.updateNum, index));
                   } else {
-                    renderCurrentMeshes[index].updateNum = updateNum;
+                    renderCurrentMeshes[index].main.updateNum = updateNum;
                     renderQueueLightingUpdate(mapBlock.pos);
                   }
                 } else {

@@ -20,5 +20,5 @@ importScripts("geometry.js", "meshgen.js");
 
 onmessage = function(e) {
   var res = generateMapblockMesh(e.data);
-  this.postMessage(res, [res.verts.buffer, res.uvs.buffer, res.colors.buffer]);
+  this.postMessage(res, [res.verts.buffer, res.uvs.buffer, res.colors.buffer, res.transparentVerts.buffer, res.transparentUVs.buffer, res.transparentColors.buffer]);
 };

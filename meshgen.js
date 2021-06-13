@@ -32,6 +32,11 @@ function generateMapblockMesh(dataIn) {
   var colors = [];
   var facePos = [];
   
+  var transparentVerts = [];
+  var transparentUVs = [];
+  var transparentColors = [];
+  var transparentFacePos = [];
+  
   for(var x = 0; x < size.x + 2; x++) {
     for(var y = 0; y < size.y + 2; y++) {
       for(var z = 0; z < size.z + 2; z++) {
@@ -53,6 +58,8 @@ function generateMapblockMesh(dataIn) {
         { def = nodeDef[id]; }
         if(def == undefined) { def = unknownDef; }
         if(!def.visible) { continue; }
+        
+        var useTransparent = def.itemstring == "default:water_source";
         
         var connectDirs = [false, false, false, false, false, false];
         if(def.connectingMesh) {
@@ -311,11 +318,18 @@ function generateMapblockMesh(dataIn) {
           { relDef = nodeDef[relID]; }
           if(relDef == undefined) { relDef = unknownDef; }
           
-          if(!def.transparent && !relDef.transparent) { continue; }
-          //if(!def.renderAdj && !relDef.renderAdj) { continue; }
+          if(!def.transparent && !relDef.transparent)
+            continue;
+          //if(!def.renderAdj && !relDef.renderAdj)
+          //  continue;
           
           //joined nodes (ie water)
-          if(def.itemstring == relDef.itemstring && def.joined) { continue; }
+          if(def.itemstring == relDef.itemstring && def.joined)
+            continue;
+          
+          // workaround for water
+          if(useTransparent && def.joined && !relDef.transparent)
+            continue;
           
           var sunkLit = def.faceIsRecessed[rotFaceIndex];
           if(sunkLit == null) { sunkLit = false; }
@@ -435,15 +449,27 @@ function generateMapblockMesh(dataIn) {
           var vertMidZ = (vertMinZ + vertMaxZ) / 2;
           
           for(var i = 0; i < arr.length; i += 3) {
-            verts.push(arr[i] + (x - 1));
-            verts.push(arr[i + 1] + (y - 1));
-            verts.push(arr[i + 2] + (z - 1));
+            if(useTransparent) {
+              transparentVerts.push(arr[i] + (x - 1));
+              transparentVerts.push(arr[i + 1] + (y - 1));
+              transparentVerts.push(arr[i + 2] + (z - 1));
+            } else {
+              verts.push(arr[i] + (x - 1));
+              verts.push(arr[i + 1] + (y - 1));
+              verts.push(arr[i + 2] + (z - 1));
+            }
             
             //FIXME - see above
             if(tLight) {
-              colors.push(colorR);
-              colors.push(colorG);
-              colors.push(colorB);
+              if(useTransparent) {
+                transparentColors.push(colorR);
+                transparentColors.push(colorG);
+                transparentColors.push(colorB);
+              } else {
+                colors.push(colorR);
+                colors.push(colorG);
+                colors.push(colorB);
+              }
               
               facePos.push([x - 1, y - 1, z - 1, tint, true, null]);
             } else {
@@ -511,22 +537,48 @@ function generateMapblockMesh(dataIn) {
               var f_colorG = f_colorR;
               var f_colorB = f_colorR;
               
-              colors.push(f_colorR);
-              colors.push(f_colorG);
-              colors.push(f_colorB);
-              
-              facePos.push([lx - 1, ly - 1, lz - 1, tint, false, adjList]);
+              if(useTransparent) {
+                transparentColors.push(f_colorR);
+                transparentColors.push(f_colorG);
+                transparentColors.push(f_colorB);
+                
+                transparentFacePos.push([lx - 1, ly - 1, lz - 1, tint, false, adjList]);
+              } else {
+                colors.push(f_colorR);
+                colors.push(f_colorG);
+                colors.push(f_colorB);
+                
+                facePos.push([lx - 1, ly - 1, lz - 1, tint, false, adjList]);
+              }
             }
           }
-          if(def.isFluid) {
-            uvs.push.apply(uvs, fluidUVs[rotFaceIndex]);
+          
+          if(useTransparent) {
+            if(def.isFluid) {
+              transparentUVs.push.apply(transparentUVs, fluidUVs[rotFaceIndex]);
+            } else {
+              transparentUVs.push.apply(transparentUVs, def.uvs[rotFaceIndex]);
+              if(def.connectingMesh) {
+                for(var n = 0; n < 6; n++) {
+                  if(connectDirs[n]) {
+                    if(def.connectingUVs[n] != null) {
+                      transparentUVs.push.apply(transparentUVs, def.connectingUVs[n][rotFaceIndex]);
+                    }
+                  }
+                }
+              }
+            }
           } else {
-            uvs.push.apply(uvs, def.uvs[rotFaceIndex]);
-            if(def.connectingMesh) {
-              for(var n = 0; n < 6; n++) {
-                if(connectDirs[n]) {
-                  if(def.connectingUVs[n] != null) {
-                    uvs.push.apply(uvs, def.connectingUVs[n][rotFaceIndex]);
+            if(def.isFluid) {
+              uvs.push.apply(uvs, fluidUVs[rotFaceIndex]);
+            } else {
+              uvs.push.apply(uvs, def.uvs[rotFaceIndex]);
+              if(def.connectingMesh) {
+                for(var n = 0; n < 6; n++) {
+                  if(connectDirs[n]) {
+                    if(def.connectingUVs[n] != null) {
+                      uvs.push.apply(uvs, def.connectingUVs[n][rotFaceIndex]);
+                    }
                   }
                 }
               }
@@ -542,6 +594,10 @@ function generateMapblockMesh(dataIn) {
     uvs: new Float32Array(uvs),
     colors: new Uint8Array(colors),
     facePos: facePos,
+    transparentVerts: new Float32Array(transparentVerts),
+    transparentUVs: new Float32Array(transparentUVs),
+    transparentColors: new Uint8Array(transparentColors),
+    transparentFacePos: transparentFacePos,
     pos: pos
   }
   /*if(lightNeedsUpdate) {
