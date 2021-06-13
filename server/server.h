@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.7-dev1"
+#define VERSION "0.4.7-dev2"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -154,6 +154,7 @@ class Server {
     void cmd_revoke(PlayerState *player, std::vector<std::string> args);
     void cmd_privs(PlayerState *player, std::vector<std::string> args);
     void cmd_giveme(PlayerState *player, std::vector<std::string> args);
+    void cmd_give(PlayerState *player, std::vector<std::string> args);
     void cmd_clearinv(PlayerState *player, std::vector<std::string> args);
     void cmd_creative(PlayerState *player, std::vector<std::string> args);
     
@@ -251,6 +252,14 @@ class Server {
         "\n"
         "For example:\n"
         "  /giveme default:cobble 64"
+      }},
+      {"/give", {
+        std::bind(&Server::cmd_give, this, std::placeholders::_1, std::placeholders::_2),
+        "give someone an item",
+        "/give <player> <itemstring> [<count>] : give someone an item\n"
+        "\n"
+        "For example:\n"
+        "  /give Player123 default:cobble 64"
       }},
       {"/clearinv", {
         std::bind(&Server::cmd_clearinv, this, std::placeholders::_1, std::placeholders::_2),

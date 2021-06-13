@@ -582,6 +582,85 @@ void Server::cmd_giveme(PlayerState *player, std::vector<std::string> args) {
   chat_send_player(player, "server", "'" + to_give.spec() + "' added to inventory.");
 }
 
+void Server::cmd_give(PlayerState *player, std::vector<std::string> args) {
+  std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+  
+  std::string self_name = player->get_name();
+  
+  if(!player->has_priv("give")) {
+    player_lock_shared.unlock();
+    chat_send_player(player, "server", "missing priv: give");
+    return;
+  }
+  
+  player_lock_shared.unlock();
+  
+  if(args.size() < 3) {
+    chat_send_player(player, "server", "usage: '/give <player> <itemstring>'");
+    return;
+  }
+  
+  std::string player_name = args[1];
+  
+  //Find the requested player.
+  PlayerState *player_found = NULL;
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  for(auto it : m_players) {
+    PlayerState *player_check = it.second;
+    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+    if(player_check->get_name() == player_name) {
+      player_found = player_check;
+      break;
+    }
+  }
+  
+  //TODO offline players?
+  
+  if(player_found == NULL) {
+    chat_send_player(player, "server", "unknown or offline player '" + player_name + "'");
+    return;
+  }
+  
+  std::unique_lock<std::shared_mutex> target_lock_unique(player_found->lock);
+  
+  std::string itemstring = args[2];
+  ItemDef def = get_item_def(itemstring);
+  if(def.itemstring == "nothing") {
+    chat_send_player(player, "server", "unknown item '" + itemstring + "'");
+    return;
+  }
+  
+  std::ostringstream spec;
+  for(size_t i = 2; i < args.size(); i++) {
+    if(i > 2)
+      spec << " ";
+    spec << args[i];
+  }
+  
+  InvStack to_give = InvStack(spec.str());
+  
+  std::optional<InvPatch> give_patch = inv_calc_give(
+          InvRef("player", std::nullopt, "main", std::nullopt),
+          player_found->inv_get("main"),
+          to_give);
+  
+  if(!give_patch) {
+    chat_send_player(player, "server", "unable to give '" + to_give.spec() + "' to '" + player_name + "'");
+    return;
+  }
+  
+  target_lock_unique.unlock();
+  bool res = inv_apply_patch(*give_patch, player_found);
+  
+  if(!res) {
+    chat_send_player(player, "server", "unable to give '" + to_give.spec() + "' to '" + player_name + "'");
+    return;
+  }
+  
+  chat_send_player(player, "server", "gave '" + to_give.spec() + "' to '" + player_name + "'");
+  chat_send_player(player_found, "server", self_name + " gave you '" + to_give.spec() + "'");
+}
+
 void Server::cmd_clearinv(PlayerState *player, std::vector<std::string> args) {
   //Clear own player's inventory (main, craft, craftOutput, hand)
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
