@@ -1,81 +1,168 @@
-## Rendering
+## Access control
+* Record number of violations and kick player if too many in a rolling time interval
+* Restrict chat channel access -- store chat channels & ACLs
+* Better login/register/update UI
+* Roles -> overlay set of privs
+* Privs for offline players
+* /grant, /grantme multiple
+* Require 'grant' to grant/grantme
+* Area protection system
+  * Explicit deny for dig/place
+* Hard limits on node/mapblock access (+/- 2^31-1) -- throw error
 
-* Textures - composite textures similar to MT
-* Textures - fix registration/use race condition
-* Water
-  * Textures - partial transparency (ie water)
-* Proper skybox
-
-
-## Lighting
-
+## Performance
+* renderer.js hotspots
+* GC spikes
+* UI generation speed
+* Debug when set_node is being combined - ARM vs x86
+* Purge old IDtoIS entries on save?
+* Faster client lighting (similar to server)
+* Test unordered_map
+* set_mapblock*s*?
+* Global itemstring compression table?
+* Throttle (with burst?) for player actions like setting nodes and loading mapblocks and causing the server to prep mapblocks
+* Built in stats.js
+* Batch mapblock request/response? -- use array instead of object
+* SIMD?
+* DB access profiling
 * Faster lighting
-* Bleed in light from edges after recompute
-* Semitransparency
 
+## Commands / chat
+* Teleport & teleport requests
+* View chat history
+* Arrow up/down w/chat -- command/chat history
 
-## Physics
-
-* Sneak
-
-
-## UI (ingame)
-
-* Formspec-inspired UI
-* Instructions and such
-
-
-## Interact
-
-* Select and break boxes should match boundingBox
-* Restart digging when wield changed
-
-
-## UI (menu)
-
+## UI
+* UI for keybindings & other config
+* UI for help?
+* Render distance options in GUI
+  * Render frustrum culling
+* Fix login form submit in Firefox
+* Login SSO
+* Creative inventory search
+* Differential ui_update
+* Nested UI definition -- much more flexibility
 * Loading screen?
 * Better menu screen
+* Inventory -- shift-right-click/scroll/shift-scroll/etc.
 
+## Visuals
+* Skybox -- change colors etc. (incl. night) -- proper skybox
+* Different color temperature for sunlight and artificial light?
+* Pointy box should match node collision/mesh box
+* Third-person view option
+* Animated textures (torch, water)
+* No backface culling on glass
+* Fully connecting glass
+* Fence lighting looks unnatural
+* Fix texture flickering
+* Textures - composite textures similar to MT
+* Textures - fix registration/use race condition
+* Bleed in light from edges after recompute?
 
-## Crafting
+## Visuals (4th dimension)
+* Fast peek option (only render 1 camera)
+* Firefox peek compositing performance
+* Peek for players
 
+## Glitches
+* Fix Firefox glitches
+* Fix sun updates
+  * Prioritize lighting updates from server
+  * Lighting updates not always shown by originating client /
+    smooth lighting seams / etc. / at y=0
+* Fix Firefox highlight bug
+* Firefox inv highlight
+* Don't fall when client out of focus -- request OOB mapblock
 
-## Inventory
-
-* Shift-click/shift-right-click/scroll/etc.
-
-
-## mods/default
-
-* Comprehensive nodes/items/crafts
-  * More bricks
-
-
-## mods/hud
-
-
-## mods/stairs
-
-
-## Server / map
-
-* Metadata system
+## Server map stuff
+* Fast path lighting -- pull mapblocks and spread sunlight deeper
+* Make water destroy some nodes (like plants)
+* ABM system: grass and flowers spreading, for example
 * Random tick system (grass growth/spread, farming, etc.)
-
-
-## Server (remote)
-
+* Leaf degeneration
 
 ## Mapgen
-
+* Survival-ready mapgen
 * Ores
 * Caves
-* Biomes
+* Mapgen biomes + fancier noise
+* Clay underwater
 
+## Player
+* Handling for build-in-player
+* Sneak
+* Limit player fall speed
+* Player model & floating name
+* Food/stamina
+* Head bobbing while walking
+* Better sprint key
+* Noclip
+* Restart digging when wield changed
 
-## Other
+## Server improvements
+* validate_config -- issue warnings or errors for bad config
+* Declarative command input validation
+  * regex? required privs? different command variants?
+* Throw/catch for client request errors (server_message.cpp)
+* Use const/const ref where appropriate
+* More logging info -- event type
 
-* Configurable keybindings
+## Client improvements
+* Rework client window system
+
+## Items (easy)
+* More doors (doors mod)
+* Dye mixing/flower sourcing
+* Marble!
+* Light flowers?
+* Quartz + variants
+  * Pillars
+* Metal pillar beam
+* Amethyst
+* Sponge?
+* Basalt
+* Obsidian glass
+* Asphalt
+* Metal ladder
+* Ice, ice bricks
+
+## Items (new features)
+* Wall torches
+* Make torches look nicer
+* Buckets (water buckets etc.)
+* Redstone
+* Signs
+* Magma blocks
+* Minecarts
+* TNT
+* Liquids
+  * Lava
+  * Acid
+  * Interdimensional slime
 * Farming
-* Leaf degeneration
+
+## Items (other)
+* Comprehensive cook recipies
+* Comprehensive craft recipies
 * Fix oddly_breakable_by_hand (torches)
+
+## Space
+* 4th dimension
+  * Portals
+  * Optional see through portals
+* Proximity chat
+
+## Speculation
+* Tests or something
+* 4th dimension
+  * Inception dreams
+* Gravity mechanics (space)
+* Light based on vertex normals -- artificial light on one axis, sunlight on another?
+* Atmosphere/space skybox?
+
+## Map tools
+* Worldedit
+* Screwdriver and node replacer
+* More flexible slab rotation
+* Different restrict rot on place for chest/furnace/door
