@@ -861,12 +861,17 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         InvRef chest_ref("node", pos.to_json(), "chest", std::nullopt);
         
         UISpec chest_ui;
-        chest_ui.components.push_back(
-            UI_InvList(chest_ref).to_json());
+        UI_InvList chest_ui_list(chest_ref);
+        chest_ui_list.opts["mergeTarget"] 
+            = InvRef("player", std::nullopt, "main", std::nullopt).to_json();
+        chest_ui.components.push_back(chest_ui_list.to_json());
         chest_ui.components.push_back(
             UI_Spacer().to_json());
-        chest_ui.components.push_back(
-            UI_InvList(InvRef("player", std::nullopt, "main", std::nullopt)).to_json());
+        
+        UI_InvList chest_ui_mainlist(
+            InvRef("player", std::nullopt, "main", std::nullopt));
+        chest_ui_mainlist.opts["mergeTarget"] = chest_ref.to_json();
+        chest_ui.components.push_back(chest_ui_mainlist.to_json());
         
         UIInstance chest_ui_instance(chest_ui);
         std::string player_tag = player->get_tag();
@@ -931,6 +936,9 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
           }
         }
         
+        if(f_active_fuel <= 0)
+          can_cook = false;
+        
         std::ostringstream status;
         status << "Cooking: " << std::boolalpha << can_cook << "\n"
                << "Fuel: " << f_active_fuel << "\n"
@@ -941,22 +949,29 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         InvRef furnace_ref_in("node", pos.to_json(), "furnace_in", std::nullopt);
         InvRef furnace_ref_fuel("node", pos.to_json(), "furnace_fuel", std::nullopt);
         InvRef furnace_ref_out("node", pos.to_json(), "furnace_out", std::nullopt);
+        InvRef player_main_ref("player", std::nullopt, "main", std::nullopt);
+        
+        UI_InvList furnace_list_in(furnace_ref_in);
+        furnace_list_in.opts["mergeTarget"] = player_main_ref.to_json();
+        UI_InvList furnace_list_fuel(furnace_ref_fuel);
+        furnace_list_fuel.opts["mergeTarget"] = player_main_ref.to_json();
+        UI_InvList furnace_list_out(furnace_ref_out);
+        furnace_list_out.opts["mergeTarget"] = player_main_ref.to_json();
+        UI_InvList player_main_list(player_main_ref);
+        player_main_list.opts["mergeTarget"] = furnace_ref_in.to_json();
         
         UISpec furnace_ui;
         furnace_ui.components.push_back(
             UI_TextBlock("In").to_json());
-        furnace_ui.components.push_back(
-            UI_InvList(furnace_ref_in).to_json());
+        furnace_ui.components.push_back(furnace_list_in.to_json());
         furnace_ui.components.push_back(
             UI_TextBlock("Out").to_json());
-        furnace_ui.components.push_back(
-            UI_InvList(furnace_ref_out).to_json());
+        furnace_ui.components.push_back(furnace_list_out.to_json());
         furnace_ui.components.push_back(
             UI_Spacer().to_json());
         furnace_ui.components.push_back(
             UI_TextBlock("Fuel").to_json());
-        furnace_ui.components.push_back(
-            UI_InvList(furnace_ref_fuel).to_json());
+        furnace_ui.components.push_back(furnace_list_fuel.to_json());
         
         furnace_ui.components.push_back(
             UI_Spacer().to_json());
@@ -966,8 +981,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         
         furnace_ui.components.push_back(
             UI_Spacer().to_json());
-        furnace_ui.components.push_back(
-            UI_InvList(InvRef("player", std::nullopt, "main", std::nullopt)).to_json());
+        furnace_ui.components.push_back(player_main_list.to_json());
         
         UIInstance furnace_ui_instance(furnace_ui);
         furnace_ui_instance.what_for = "furnace " + pos.to_json();

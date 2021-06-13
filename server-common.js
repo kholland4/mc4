@@ -628,8 +628,89 @@ class ServerBase {
     
     return true;
   }
-  invAutomerge(ref, qty, target) {
+  
+  // Used for shift-click -- take a single stack and merge it with a list
+  // Calls invSwap and invDistribute to do the real work
+  invAutomerge(src, qty, targetListRef) {
+    if(this.isRemote() && !this._socketReady)
+      return false;
     
+    if(qty == 0)
+      return true;
+    
+    var srcStack = this.invGetStack(src);
+    if(srcStack == null)
+      return true;
+    srcStack = new ItemStack(srcStack.itemstring, srcStack.count, srcStack.wear, srcStack.data);
+    
+    if(qty == null)
+      qty = srcStack.count;
+    
+    var srcDef = getItemDef(srcStack.itemstring);
+    
+    if(!srcDef.stackable) {
+      assert(qty == 1, "qty == 1 for an unstackable item");
+      
+      // Swap it into the first empty slot in the target
+      var targetList = this.invGetList(targetListRef);
+      var targetSlot = targetListRef;
+      targetSlot.index = null;
+      for(var i = 0; i < targetList.length; i++) {
+        if(targetList[i] != null)
+          continue;
+        targetSlot.index = i;
+        break;
+      }
+      if(targetSlot.index == null)
+        return false;
+      
+      return this.invSwap(src, targetSlot);
+    } else {
+      assert(srcStack.data == null, "data == null for a stackable item");
+      assert(srcStack.wear == null, "wear == null for a stackable item");
+      
+      // Stackable item, merge where possible then dump the rest in an empty slot
+      var targetList = this.invGetList(targetListRef);
+      for(var i = 0; i < targetList.length; i++) {
+        if(srcStack.count == 0)
+          break;
+        
+        if(targetList[i] == null)
+          continue;
+        if(targetList[i].itemstring != srcStack.itemstring)
+          continue;
+        
+        var transferQty = Math.min(srcDef.maxStack - targetList[i].count, srcStack.count);
+        if(transferQty <= 0)
+          continue;
+        
+        var targetStackRef = new InvRef(targetListRef.objType, targetListRef.objID, targetListRef.listName, i);
+        var newQtySrc = srcStack.count - transferQty;
+        var newQtyTarget = targetList[i].count + transferQty;
+        var res = this.invDistribute(src, newQtySrc, targetStackRef, newQtyTarget);
+        if(res)
+          srcStack.count = newQtySrc;
+      }
+      
+      if(srcStack.count == 0)
+        return true;
+      
+      var targetList = this.invGetList(targetListRef);
+      var targetSlot = targetListRef;
+      targetSlot.index = null;
+      for(var i = 0; i < targetList.length; i++) {
+        if(targetList[i] != null)
+          continue;
+        targetSlot.index = i;
+        break;
+      }
+      if(targetSlot.index == null)
+        return false;
+      
+      return this.invSwap(src, targetSlot);
+    }
+    
+    return false;
   }
   
   //false = do nothing

@@ -23,7 +23,18 @@
 
 std::string UI_InvList::to_json() const {
   std::ostringstream out;
-  out << "{\"type\":\"inv_list\",\"ref\":" << ref.to_json() << "}";
+  out << "{\"type\":\"inv_list\",\"ref\":" << ref.to_json() << ",\"opts\":{";
+  
+  bool first = true;
+  for(const auto& o : opts) {
+    if(!first)
+      out << ",";
+    first = false;
+    out << "\"" << json_escape(o.first) << "\":"
+        << o.second << "";
+  }
+  
+  out << "}}";
   return out.str();
 }
 

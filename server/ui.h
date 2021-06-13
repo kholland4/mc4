@@ -23,6 +23,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <functional>
 
 #include <boost/uuid/uuid.hpp>
@@ -40,6 +41,7 @@ class UI_InvList : public UIComponent {
     virtual std::string to_json() const;
     
     InvRef ref;
+    std::map<std::string, std::string> opts;
 };
 
 class UI_Spacer : public UIComponent {

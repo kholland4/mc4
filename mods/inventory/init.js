@@ -43,25 +43,48 @@
       var win = new api.UIWindow();
       
       if(mods.inventory.creative) {
-        mods.inventory.creativeInvEl = api.uiRenderInventoryList(new InvRef("player", null, "creative", null), {width: 8, interactive: true, scrollHeight: 3});
+        mods.inventory.creativeInvEl = api.uiRenderInventoryList(
+            new InvRef("player", null, "creative", null), {
+              width: 8, interactive: true, scrollHeight: 3,
+              mergeTarget: new InvRef("player", null, "main", null)
+            });
         
         win.add(mods.inventory.creativeInvEl);
         
         win.add(api.uiElement("spacer"));
+        
+        var invList = api.uiRenderInventoryList(
+            new InvRef("player", null, "main", null), {
+              width: 8, interactive: true,
+              mergeTarget: new InvRef("player", null, "creative", null)
+            });
+        win.add(invList);
       } else {
-        mods.inventory.craftListEl = api.uiRenderInventoryList(new InvRef("player", null, "craft", null), {width: 3, interactive: true});
+        mods.inventory.craftListEl = api.uiRenderInventoryList(
+            new InvRef("player", null, "craft", null), {
+              width: 3, interactive: true,
+              mergeTarget: new InvRef("player", null, "main", null)
+            });
         win.add(mods.inventory.craftListEl);
         
         win.add(api.uiElement("spacer"));
         
-        mods.inventory.craftOutputEl = api.uiRenderInventoryList(new InvRef("player", null, "craftOutput", null), {interactive: true});
+        mods.inventory.craftOutputEl = api.uiRenderInventoryList(
+            new InvRef("player", null, "craftOutput", null), {
+              interactive: true,
+              mergeTarget: new InvRef("player", null, "main", null)
+            });
         win.add(mods.inventory.craftOutputEl);
         
         win.add(api.uiElement("spacer"));
+        
+        var invList = api.uiRenderInventoryList(
+            new InvRef("player", null, "main", null), {
+              width: 8, interactive: true,
+              mergeTarget: new InvRef("player", null, "craft", null)
+            });
+        win.add(invList);
       }
-      
-      var invList = api.uiRenderInventoryList(new InvRef("player", null, "main", null), {width: 8, interactive: true});
-      win.add(invList);
       
       win.onClose = function() {
         mods.inventory.isOpen = false;

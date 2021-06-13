@@ -536,7 +536,11 @@ class ServerRemote extends ServerBase {
         for(var element of data.ui) {
           if(element.type == "inv_list") {
             var ref = new InvRef(element.ref.objType, element.ref.objID, element.ref.listName, element.ref.index);
-            win.add(api.uiRenderInventoryList(ref, {width: 8, interactive: true}));
+            var opts = element.opts;
+            if("mergeTarget" in opts)
+              opts.mergeTarget = new InvRef(opts.mergeTarget.objType, opts.mergeTarget.objID, opts.mergeTarget.listName, opts.mergeTarget.index);
+            
+            win.add(api.uiRenderInventoryList(ref, Object.assign({width: 8, interactive: true}, opts)));
           } else if(element.type == "spacer") {
             win.add(api.uiElement("spacer"));
           } else if(element.type == "textblock") {
@@ -565,7 +569,11 @@ class ServerRemote extends ServerBase {
         for(var element of data.ui) {
           if(element.type == "inv_list") {
             var ref = new InvRef(element.ref.objType, element.ref.objID, element.ref.listName, element.ref.index);
-            win.add(api.uiRenderInventoryList(ref, {width: 8, interactive: true}));
+            var opts = element.opts;
+            if("mergeTarget" in opts)
+              opts.mergeTarget = new InvRef(opts.mergeTarget.objType, opts.mergeTarget.objID, opts.mergeTarget.listName, opts.mergeTarget.index);
+            
+            win.add(api.uiRenderInventoryList(ref, Object.assign({width: 8, interactive: true}, opts)));
           } else if(element.type == "spacer") {
             win.add(api.uiElement("spacer"));
           } else if(element.type == "textblock") {

@@ -61,7 +61,7 @@ function uiRenderItemStack(stack) {
 function uiRenderInventoryList(ref, kwargs) {
   var list = server.invGetList(ref);
   
-  var args = Object.assign({start: 0, count: list.length, width: list.length, interactive: true, scrollHeight: null}, kwargs);
+  var args = Object.assign({start: 0, count: list.length, width: list.length, interactive: true, scrollHeight: null, mergeTarget: null}, kwargs);
   
   var container = document.createElement("div");
   container.className = "uiInvList";
@@ -86,7 +86,11 @@ function uiRenderInventoryList(ref, kwargs) {
     
     if(args.interactive) {
       sq.onclick = function() {
-        uiInteractInventoryList(this.ref.cloneWithIndex(this.index), "leftclick");
+        if(getKeyState("keybind_inventory_merge") && args.mergeTarget != null) {
+          uiInteractInventoryList(this.ref.cloneWithIndex(this.index), "shiftleftclick", args.mergeTarget);
+        } else {
+          uiInteractInventoryList(this.ref.cloneWithIndex(this.index), "leftclick");
+        }
       }.bind({ref: ref, index: i, args: args, container: container});
       sq.oncontextmenu = function(e) {
         e.preventDefault();
@@ -173,7 +177,7 @@ function uiUpdateInventoryList(ref, kwargs, container) {
   return container;
 }
 
-function uiInteractInventoryList(ref, type="leftclick") {
+function uiInteractInventoryList(ref, type="leftclick", mergeTarget=null) {
   var handRef = new InvRef("player", null, "hand", 0);
   
   var handStack = server.invGetStack(handRef);
@@ -199,6 +203,8 @@ function uiInteractInventoryList(ref, type="leftclick") {
     } else {
       server.invSwap(ref, handRef);
     }
+  } else if(type == "shiftleftclick") {
+    server.invAutomerge(ref, null, mergeTarget);
   } else if(type == "rightclick") {
     if(typeMatch && def.stackable) {
       if(targetStack.count < targetStack.getDef().maxStack) {

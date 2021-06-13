@@ -30,7 +30,8 @@ var defaultConfig = {
   keybind_close_window1: "KeyE",
   keybind_close_window2: "Escape",
   keybind_open_menu: "Escape",
-  keybind_show_debug: "F4"
+  keybind_show_debug: "F4",
+  keybind_inventory_merge: "ShiftLeft"
 };
 
 var userConfig = {};
@@ -122,3 +123,16 @@ function mapKey(k) {
 
 var keymap = {};
 buildKeymap();
+
+var pressedKeys = {};
+function getKeyState(keybindName) {
+  var keyCode = getConfig(keybindName);
+  return keyCode in pressedKeys;
+}
+document.addEventListener("keydown", function(e) {
+  pressedKeys[e.code] = true;
+});
+document.addEventListener("keyup", function(e) {
+  if(e.code in pressedKeys)
+    delete pressedKeys[e.code];
+});
