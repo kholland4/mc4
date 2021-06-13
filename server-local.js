@@ -110,7 +110,7 @@ class ServerLocal extends ServerBase {
         this.invTakeIndex(new InvRef("player", null, "main", player.wieldIndex), stack);
       }
       var nodeData = NodeData.fromItemStack(stack);
-      nodeData.rot = this.calcPlaceRot(nodeData);
+      nodeData.rot = this.calcPlaceRot(nodeData, pos, pos_on);
       this.setNode(pos, nodeData);
       
       debug("server", "log", "place " + stack.itemstring + " at " + pos.toString());

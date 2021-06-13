@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.3.9-dev1";
+var VERSION = "0.3.10-dev1";
 
 var serverListURL = "https://ss1.tausquared.net:8083/serverlist.json";
 
@@ -812,8 +812,10 @@ function animate() {
     
     if(destroySel) {
       var destroyNode = server.getNode(destroySel);
-      if(destroyNode)
+      if(destroyNode) {
         debugText += "point = " + destroyNode.itemstring + "\n";
+        debugText += "(rot = " + destroyNode.rot + ")\n";
+      }
     }
     
     var wieldNodeData = server.nodeToPlace(player);

@@ -21,6 +21,7 @@ var textureCanvas;
 var textureCtx;
 var texmapWidth = 32;
 var texmapHeight = 32;
+var texmapUsed;
 
 var allTextures = [];
 var textureCoords = {};
@@ -75,6 +76,10 @@ class TextureImage {
     this.error = false;
     this.w = 0;
     this.h = 0;
+    this.x = null;
+    this.y = null;
+    this.allocX = 1;
+    this.allocY = 1;
   }
   
   onload() {
@@ -99,21 +104,64 @@ function initTextures() {
   texmap.magFilter = THREE.NearestFilter;
   //texmap.encoding = THREE.sRGBEncoding;
   
+  texmapUsed = [];
+  for(var x = 0; x < texmapWidth; x++) {
+    texmapUsed.push(Array(texmapHeight).fill(false));
+  }
+  
   updateTextureMap();
 }
 
-function loadTexture(name, file) {
+function loadTexture(name, file, allocX=1, allocY=1) {
   if(textureCanvas == undefined) { initTextures(); }
   
-  allTextures.push(new TextureImage(name, file));
+  var indexX = null;
+  var indexY = null;
+  for(var searchX = 0; searchX <= texmapWidth - allocX; searchX++) {
+    for(var searchY = 0; searchY <= texmapHeight - allocY; searchY++) {
+      var found = true;
+      for(var cx = 0; cx < allocX; cx++) {
+        for(var cy = 0; cy < allocY; cy++) {
+          if(texmapUsed[searchX + cx][searchY + cy]) {
+            found = false;
+            break;
+          }
+        }
+        if(!found)
+          break;
+      }
+      
+      if(found) {
+        indexX = searchX;
+        indexY = searchY;
+        break;
+      }
+    }
+    if(indexX != null)
+      break;
+  }
   
-  var index = allTextures.length - 1;
+  if(indexX == null)
+    throw new Error("out of room on texture map; can't fit " + name + " (from " + file + ") which is " + allocX + "x" + allocY + " units");
   
-  var x = (index % texmapWidth) * TEXTURE_SIZE.x;
-  var y = Math.floor(index / texmapWidth) * TEXTURE_SIZE.y;
+  for(var cx = 0; cx < allocX; cx++) {
+    for(var cy = 0; cy < allocY; cy++) {
+      texmapUsed[indexX + cx][indexY + cy] = true;
+    }
+  }
+  
+  var x = indexX * TEXTURE_SIZE.x;
+  var y = indexY * TEXTURE_SIZE.y;
   var w = textureCanvas.width;
   var h = textureCanvas.height;
   textureCoords[name] = [x / w, 1 - ((y + TEXTURE_SIZE.y) / h), (x + TEXTURE_SIZE.x) / w, 1 - (y / h)];
+  
+  var texImg = new TextureImage(name, file);
+  texImg.x = x;
+  texImg.y = y;
+  texImg.allocX = allocX;
+  texImg.allocY = allocY;
+  allTextures.push(texImg);
 }
 
 var TEXTURE_SIZE = new THREE.Vector2(16, 16);
@@ -128,21 +176,22 @@ function updateTextureMap() {
   textureCtx.fillRect(0, 0, w, h);
   
   for(var i = 0; i < textures.length; i++) {
-    if(!textures[i].loaded || textures[i].w != TEXTURE_SIZE.x || textures[i].h != TEXTURE_SIZE.y) { continue; }
+    if(!textures[i].loaded || textures[i].w > textures[i].allocX * TEXTURE_SIZE.x || textures[i].h > textures[i].allocY * TEXTURE_SIZE.y)
+      continue;
     
-    var x = i % texmapWidth;
-    var y = Math.floor(i / texmapWidth);
-    textureCtx.drawImage(textures[i].img, x * TEXTURE_SIZE.x, y * TEXTURE_SIZE.y);
+    var x = textures[i].x;
+    var y = textures[i].y;
+    textureCtx.drawImage(textures[i].img, x, y);
     
     //transparency
-    var lx = x * TEXTURE_SIZE.x;
-    var ly = y * TEXTURE_SIZE.y;
-    var lw = TEXTURE_SIZE.x;
-    var lh = TEXTURE_SIZE.y;
+    var lx = x;
+    var ly = y;
+    var lw = textures[i].w;
+    var lh = textures[i].h;
     
     var imgData = textureCtx.getImageData(lx, ly, lw, lh);
     
-    //FIXME - sets pixels with #ff00ff color to transparent, should really check for alpha in source image
+    //FIXME - sets pixels with #ff00fe color to transparent, should really check for alpha in source image
     var pixelData = imgData.data;
     for(var n = 0; n < pixelData.length; n += 4) {
       var r = pixelData[n];

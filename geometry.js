@@ -56,9 +56,9 @@ var stdRotAxis = [
 var stdRotMapping = [
   //axis 0, facing +y
   {shuffle: [0, 1, 2, 3, 4, 5], rot: [0, 0, 0, 0, 0, 0]}, //axis 0 face 0
-  {shuffle: [5, 4, 2, 3, 0, 1], rot: [0, 0, 1, 1, 0, 0]}, //axis 0 face 1
+  {shuffle: [5, 4, 2, 3, 0, 1], rot: [0, 0, 3, 1, 0, 0]}, //axis 0 face 1
   {shuffle: [1, 0, 2, 3, 5, 4], rot: [0, 0, 2, 2, 0, 0]}, //axis 0 face 2
-  {shuffle: [4, 5, 2, 3, 1, 0], rot: [0, 0, 3, 3, 0, 0]}, //axis 0 face 3
+  {shuffle: [4, 5, 2, 3, 1, 0], rot: [0, 0, 1, 3, 0, 0]}, //axis 0 face 3
   
   //axis 1, facing -y
   {shuffle: [0, 1, 3, 2, 5, 4], rot: [2, 2, 0, 0, 2, 2]}, //axis 1 face 0

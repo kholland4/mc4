@@ -1006,6 +1006,29 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         open_ui(player, furnace_ui_instance);
         return;
       }
+      
+      if(node.itemstring == "doors:door_wood_a") {
+        Node new_node(node);
+        new_node.itemstring = "doors:door_wood_b";
+        int face = node.rot & 3;
+        face++;
+        if(face > 3)
+          face = 0;
+        new_node.rot = (node.rot & 252) | face;
+        map.set_node(pos, new_node, node);
+        return;
+      }
+      if(node.itemstring == "doors:door_wood_b") {
+        Node new_node(node);
+        new_node.itemstring = "doors:door_wood_a";
+        int face = node.rot & 3;
+        face--;
+        if(face < 0)
+          face = 3;
+        new_node.rot = (node.rot & 252) | face;
+        map.set_node(pos, new_node, node);
+        return;
+      }
     } else if(type == "ui_close") {
       player_lock_unique.unlock();
       
