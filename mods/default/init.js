@@ -351,8 +351,6 @@
   
   
   
-  
-  
   //---TORCH---
   api.registerItem(new api.Item("default:torch", {
     isNode: true, desc: "Torch",
@@ -487,8 +485,22 @@
     desc: "Water Source",
     tex: {texAll: "default_water_source.png"},
     icon: "default_water_source.png",
-    node: {transparent: true, reallyTransparent: true, passSunlight: false, walkable: true, isFluid: true, fluidOverlayColor: "rgba(64, 64, 255, 0.3)", joined: true, canPlaceInside: true}
+    node: {transparent: true, reallyTransparent: true, passSunlight: false, walkable: true, isFluid: true, fluidOverlayColor: "rgba(64, 64, 255, 0.3)", joined: true, canPlaceInside: true, groups: {bucket: 1}},
+    item: {maxStack: 4}
   });
+  
+  
+  
+  //---Bucket---
+  api.registerItem(new api.Item("default:bucket", {
+    desc: "Bucket",
+    isTool: true, toolAllowRepeat: false, toolWear: 40, toolGroups: {
+      "bucket": {times: [0, 0], maxlevel: 1}
+    }, iconFile: modpath + "/icons/bucket.png"}));
+  api.registerCraft(new api.CraftEntry("default:bucket", [
+    "default:ingot_iron", null, "default:ingot_iron",
+    null, "default:ingot_iron", null
+  ], {shape: {x: 3, y: 2}}));
   
   
   //---sand, sandstone, sandstone block, sandstone brick (+ same for silver sand)---

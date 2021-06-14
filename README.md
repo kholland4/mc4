@@ -130,6 +130,10 @@ set the appropriate options pointing to certificate files and such.
   See [README.flowers.txt](mods/flowers/icons/README.flowers.txt) and
   [LICENSE.flowers.txt](mods/flowers/icons/LICENSE.flowers.txt) for full
   license information.
+* [minetest_game/mods/bucket](https://github.com/minetest/minetest_game/tree/master/mods/bucket):
+  ElementW (CC BY-SA 3.0).
+  See [LICENSE.bucket.txt](mods/default/icons/LICENSE.bucket.txt) for full
+  license information.
 * [minetest-mods/technic](https://github.com/minetest-mods/technic):
   kpoppel, Nekogloop, Nore/Ekdohibs, ShadowNinja, VanessaE, and others (LGPLv2).
   See [LICENSE.technic.txt](mods/minerals/icons/LICENSE.technic.txt) for full

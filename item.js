@@ -45,6 +45,7 @@ class ItemBase {
     this.isNode = false;
     this.isTool = false;
     this.toolWear = 0;
+    this.toolAllowRepeat = true;
     this.fuel = 0;
     
     this.iconFile = null;

@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-var VERSION = "0.3.10-dev2";
+var VERSION = "0.3.10-dev3";
 
 var serverListURL = "https://ss1.tausquared.net:8083/serverlist.json";
 
@@ -438,7 +438,7 @@ function init() {
     }
   });
   window.addEventListener("mouseup", function(e) {
-    if(!controls.isLocked) { return; }
+    //if(!controls.isLocked) { return; }
     if(e.which == 1) {
       isDigging = false;
       digTimer = null;
@@ -559,44 +559,70 @@ function animate() {
       raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
       var intersects = raycaster.intersectObjects(renderMapGroup.children);
       if(intersects.length > 0) {
-        var intersect = intersects[0];
-        if(intersect.distance < RAYCAST_DISTANCE) {
-          var vertices = intersect.object.geometry.getAttribute("position");
-          var a = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.a).add(intersect.object.position);
-          var b = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.b).add(intersect.object.position);
-          var c = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.c).add(intersect.object.position);
-          var box = new THREE.Box3().setFromPoints([a, b, c]);
-          var center = box.getCenter(new THREE.Vector3());
-          
-          var isAxisAligned = true;
-          
-          var plane = 0;
-          if(box.min.x == box.max.x) { plane = 0; } else
-          if(box.min.y == box.max.y) { plane = 1; } else
-          if(box.min.z == box.max.z) { plane = 2; } else
-          { isAxisAligned = false; }
-          
-          if(isAxisAligned) {
-            var side = 1;
-            if(player.pos.getComponent(plane) > center.getComponent(plane)) { side = -1; }
+        for(var intersect of intersects) {
+          if(intersect.distance < RAYCAST_DISTANCE) {
+            var vertices = intersect.object.geometry.getAttribute("position");
+            var a = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.a).add(intersect.object.position);
+            var b = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.b).add(intersect.object.position);
+            var c = new THREE.Vector3().fromBufferAttribute(vertices, intersect.face.c).add(intersect.object.position);
+            var box = new THREE.Box3().setFromPoints([a, b, c]);
+            var center = box.getCenter(new THREE.Vector3());
             
-            destroySel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * 0.01));
-            destroySel = new MapPos(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z), player.pos.w + player.peekW, player.pos.world, player.pos.universe);
-            placeSel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * -0.99));
-            placeSel = new MapPos(Math.round(placeSel.x), Math.round(placeSel.y), Math.round(placeSel.z), player.pos.w + player.peekW, player.pos.world, player.pos.universe);
+            var isAxisAligned = true;
+            
+            var plane = 0;
+            if(box.min.x == box.max.x) { plane = 0; } else
+            if(box.min.y == box.max.y) { plane = 1; } else
+            if(box.min.z == box.max.z) { plane = 2; } else
+            { isAxisAligned = false; }
+            
+            if(isAxisAligned) {
+              var side = 1;
+              if(player.pos.getComponent(plane) > center.getComponent(plane)) { side = -1; }
+              
+              destroySel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * 0.01));
+              destroySel = new MapPos(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z), player.pos.w + player.peekW, player.pos.world, player.pos.universe);
+              placeSel = center.clone().add(new THREE.Vector3(0, 0, 0).setComponent(plane, side * -0.99));
+              placeSel = new MapPos(Math.round(placeSel.x), Math.round(placeSel.y), Math.round(placeSel.z), player.pos.w + player.peekW, player.pos.world, player.pos.universe);
+            } else {
+              //usually flowers or whatever
+              destroySel = center.clone();
+              destroySel = new MapPos(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z), player.pos.w + player.peekW, player.pos.world, player.pos.universe);
+              placeSel = destroySel.clone();
+            }
+            
+            var nodeData = server.getNode(destroySel);
+            if(nodeData != null) {
+              if(nodeData.itemstring == "air") {
+                //not ok
+                destroySel = null;
+                placeSel = null;
+                raycasterSel.visible = false;
+                continue;
+              }
+              
+              var nodeDef = getNodeDef(nodeData.itemstring);
+              if("bucket" in nodeDef.groups) {
+                if(player.wield != null && player.wield.itemstring == "default:bucket") {
+                  //ok
+                } else {
+                  //not ok
+                  destroySel = null;
+                  placeSel = null;
+                  raycasterSel.visible = false;
+                  continue;
+                }
+              }
+            }
+            
+            raycasterSel.position.set(destroySel.x, destroySel.y, destroySel.z);
+            raycasterSel.visible = true;
           } else {
-            //usually flowers or whatever
-            destroySel = center.clone();
-            destroySel = new MapPos(Math.round(destroySel.x), Math.round(destroySel.y), Math.round(destroySel.z), player.pos.w + player.peekW, player.pos.world, player.pos.universe);
-            placeSel = destroySel.clone();
+            destroySel = null;
+            placeSel = null;
+            raycasterSel.visible = false;
           }
-          
-          raycasterSel.position.set(destroySel.x, destroySel.y, destroySel.z);
-          raycasterSel.visible = true;
-        } else {
-          destroySel = null;
-          placeSel = null;
-          raycasterSel.visible = false;
+          break;
         }
       } else {
         destroySel = null;
@@ -669,6 +695,13 @@ function animate() {
         useTool(nodeData, new InvRef("player", null, "main", player.wieldIndex));
       }
       server.digNode(player, digSel);
+      
+      var currentTool = player.wield;
+      if(currentTool != null) {
+        var currentToolDef = getItemDef(currentTool.itemstring);
+        if(currentToolDef.isTool && !currentToolDef.toolAllowRepeat)
+          isDigging = false;
+      }
     } else if(digTimer <= 0) {
       digTimer = null;
       digSel = null;
