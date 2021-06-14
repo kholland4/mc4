@@ -130,7 +130,6 @@
 ## Items (new features)
 * Wall torches
 * Make torches look nicer
-* Buckets (water buckets etc.)
 * Redstone
 * Signs
 * Magma blocks
