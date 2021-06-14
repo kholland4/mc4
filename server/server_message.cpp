@@ -826,9 +826,10 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       player_lock_unique.unlock();
       
-      bool res = inv_apply_patch(pulverize_patch);
+      bool res = inv_apply_patch(pulverize_patch, player);
       if(!res) {
         chat_send_player(player, "server", "failed to pulverize '" + wield_stack.spec() + "'!");
+        return;
       }
       
       chat_send_player(player, "server", "pulverized '" + wield_stack.spec() + "'");
