@@ -154,7 +154,8 @@ function loadTexture(name, file, allocX=1, allocY=1) {
   var y = indexY * TEXTURE_SIZE.y;
   var w = textureCanvas.width;
   var h = textureCanvas.height;
-  textureCoords[name] = [x / w, 1 - ((y + TEXTURE_SIZE.y) / h), (x + TEXTURE_SIZE.x) / w, 1 - (y / h)];
+  // +/- 0.0625 is a workaround for texture flickering
+  textureCoords[name] = [(x + 0.0625) / w, 1 - ((y + TEXTURE_SIZE.y - 0.0625) / h), (x + TEXTURE_SIZE.x - 0.0625) / w, 1 - ((y + 0.0625) / h)];
   
   var texImg = new TextureImage(name, file);
   texImg.x = x;

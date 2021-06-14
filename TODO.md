@@ -55,7 +55,6 @@
 * No backface culling on glass
 * Fully connecting glass
 * Fence lighting looks unnatural
-* Fix texture flickering
 * Textures - composite textures similar to MT
 * Textures - fix registration/use race condition
 * Bleed in light from edges after recompute?
