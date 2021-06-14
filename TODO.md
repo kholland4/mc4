@@ -80,6 +80,7 @@
 * ABM system: grass and flowers spreading, for example
 * Random tick system (grass growth/spread, farming, etc.)
 * Leaf degeneration
+* Break flowers/etc. when node below broken
 
 ## Mapgen
 * Survival-ready mapgen
