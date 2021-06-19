@@ -858,6 +858,7 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       std::string message = pt.get<std::string>("message");
       
       //TODO: validate channel, access control, etc.
+      channel = "main";
       //TODO: any other anti-abuse validation (player name and channel character set restrictions, length limits, etc.)
       
       player_lock_unique.unlock();
