@@ -4,7 +4,6 @@
 * Better login/register/update UI
 * Roles -> overlay set of privs
 * Privs for offline players
-* /grant, /grantme multiple
 * Area protection system
   * Explicit deny for dig/place
 * Hard limits on node/mapblock access (+/- 2^31-1) -- throw error
