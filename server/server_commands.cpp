@@ -127,6 +127,46 @@ void Server::cmd_status(PlayerState *player, std::vector<std::string> args) {
   chat_send_player(player, "server", status());
 }
 
+void Server::cmd_who(PlayerState *player, std::vector<std::string> args) {
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  
+  if(player->has_priv("admin")) {
+    std::ostringstream s;
+    s << "{";
+    
+    bool first = true;
+    for(auto const& x : m_players) {
+      if(!first) { s << ", "; }
+      first = false;
+      
+      std::shared_lock<std::shared_mutex> player_lock(x.second->lock);
+      if(x.second->auth) {
+        s << x.second->get_name() << " [id " << x.second->data.auth_id << "]";
+      } else {
+        s << x.second->get_name() << " [guest]";
+      }
+    }
+    
+    s << "}";
+    chat_send_player(player, "server", s.str());
+  } else {
+    std::ostringstream s;
+    s << "{";
+    
+    bool first = true;
+    for(auto const& x : m_players) {
+      if(!first) { s << ", "; }
+      first = false;
+      
+      std::shared_lock<std::shared_mutex> player_lock(x.second->lock);
+      s << x.second->get_name();
+    }
+    
+    s << "}";
+    chat_send_player(player, "server", s.str());
+  }
+}
+
 void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
   if(args.size() == 1) {
     std::ostringstream time_s;

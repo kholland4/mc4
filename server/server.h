@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.9-dev2"
+#define VERSION "0.4.9-dev3"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -144,6 +144,7 @@ class Server {
     void cmd_help(PlayerState *player, std::vector<std::string> args);
     void cmd_nick(PlayerState *player, std::vector<std::string> args);
     void cmd_status(PlayerState *player, std::vector<std::string> args);
+    void cmd_who(PlayerState *player, std::vector<std::string> args);
     void cmd_time(PlayerState *player, std::vector<std::string> args);
     void cmd_whereami(PlayerState *player, std::vector<std::string> args);
     void cmd_tp(PlayerState *player, std::vector<std::string> args);
@@ -178,6 +179,11 @@ class Server {
         std::bind(&Server::cmd_status, this, std::placeholders::_1, std::placeholders::_2),
         "information about server status",
         "/status : information about server status"
+      }},
+      {"/who", {
+        std::bind(&Server::cmd_who, this, std::placeholders::_1, std::placeholders::_2),
+        "information about online players",
+        "/who : information about online players"
       }},
       {"/time", {
         std::bind(&Server::cmd_time, this, std::placeholders::_1, std::placeholders::_2),
