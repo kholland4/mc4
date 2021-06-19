@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.9-dev3"
+#define VERSION "0.4.9-dev4"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -160,6 +160,7 @@ class Server {
     void cmd_give(PlayerState *player, std::vector<std::string> args);
     void cmd_clearinv(PlayerState *player, std::vector<std::string> args);
     void cmd_creative(PlayerState *player, std::vector<std::string> args);
+    void cmd_kick(PlayerState *player, std::vector<std::string> args);
     
     std::map<std::string, ServerCommand> commands_list{
       {"/help", {
@@ -288,6 +289,13 @@ class Server {
         "/creative [on|off] : enable or disable creative mode\n"
         "\n"
         "'creative' privilege required."
+      }},
+      {"/kick", {
+        std::bind(&Server::cmd_kick, this, std::placeholders::_1, std::placeholders::_2),
+        "disconnect a player",
+        "/kick <player> [<message>] : disconnect a player\n"
+        "\n"
+        "'kick' privilege required."
       }}
     };
     
@@ -321,6 +329,7 @@ class Server {
     mutable std::shared_mutex active_interact_tick_lock;
     
     PlayerState* get_player_by_tag(std::string tag);
+    PlayerState* find_player(std::string name_or_id);
     
     typedef std::map<connection_hdl, PlayerState*, std::owner_less<connection_hdl>> player_list;
     

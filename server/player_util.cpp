@@ -23,7 +23,7 @@
 #include <regex>
 #include <sstream>
 
-std::set<std::string> allowed_privs = {"interact", "shout", "touch", "fast", "fly", "teleport", "settime", "give", "creative", "grant", "grant_basic", "admin"};
+std::set<std::string> allowed_privs = {"interact", "shout", "touch", "fast", "fly", "teleport", "settime", "give", "creative", "grant", "grant_basic", "admin", "kick"};
 
 //To grant $x, a player must possess one or more of $y
 //By default this is "grant"

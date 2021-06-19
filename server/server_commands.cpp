@@ -20,6 +20,7 @@
 #include "player_util.h"
 #include "except.h"
 #include "lang.h"
+#include "config.h"
 
 #include <regex>
 
@@ -131,24 +132,75 @@ void Server::cmd_who(PlayerState *player, std::vector<std::string> args) {
   std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
   
   if(player->has_priv("admin")) {
-    std::ostringstream s;
-    s << "{";
+    std::optional<std::string> target_search_name = std::nullopt;
+    if(args.size() >= 2)
+      target_search_name = args[1];
     
-    bool first = true;
-    for(auto const& x : m_players) {
-      if(!first) { s << ", "; }
-      first = false;
+    std::ostringstream who_text;
+    
+    if(!target_search_name) {
+      who_text << "Online players:\n\n";
       
-      std::shared_lock<std::shared_mutex> player_lock(x.second->lock);
-      if(x.second->auth) {
-        s << x.second->get_name() << " [id " << x.second->data.auth_id << "]";
+      for(auto const& x : m_players) {
+        std::shared_lock<std::shared_mutex> player_lock(x.second->lock);
+        // TODO function to escape {{ etc.?
+        who_text << "{{" << x.second->get_name() << "|/who " << x.second->get_tag() << "}}";
+        if(x.second->auth) {
+          who_text << " [id " << x.second->data.auth_id << "]\n";
+        } else {
+          who_text << " [guest, tag " << x.second->get_tag() << "]\n";
+        }
+      }
+    } else {
+      PlayerState *target = find_player(*target_search_name);
+      if(target != NULL) {
+        std::shared_lock<std::shared_mutex> target_lock(target->lock);
+        
+        who_text << "Player '" << target->get_name() << "'";
+        if(target->auth) {
+          who_text << " [id " << target->data.auth_id << "]\n";
+        } else {
+          who_text << " [guest]\n";
+        }
+        who_text << "{{Back to list|/who}}\n";
+        who_text << "\n";
+        
+        who_text << "tag: " << target->get_tag() << "\n";
+        
+        who_text << "privs:";
+        for(auto p : target->data.privs) {
+          who_text << " " << p;
+        }
+        if(target->data.privs.size() == 0)
+          who_text << " (none)";
+        who_text << "\n";
+        
+        who_text << "pos: " << target->pos << "\n";
+        who_text << "creative_mode: " << std::boolalpha << target->data.creative_mode << "\n";
+        who_text << "\n";
+        who_text << "Actions:\n";
+        who_text << "  {{/kick " << target->get_tag() << "|/kick " << target->get_tag() << "}}";
       } else {
-        s << x.second->get_name() << " [guest]";
+        who_text << "Cannot find player '" << *target_search_name << "'\n";
+        who_text << "Have they disconnected?";
       }
     }
     
-    s << "}";
-    chat_send_player(player, "server", s.str());
+    UISpec who_ui;
+    who_ui.components.push_back(
+        UI_TextBlock(who_text.str()).to_json());
+    
+    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+    UIInstance current_ui = find_ui(player->get_tag() + " server_cmd_who");
+    
+    if(current_ui.is_nil) {
+      UIInstance who_ui_instance(who_ui);
+      who_ui_instance.what_for = player->get_tag() + " server_cmd_who";
+      open_ui(player, who_ui_instance);
+    } else {
+      current_ui.spec = who_ui;
+      update_ui(player, current_ui);
+    }
   } else {
     std::ostringstream s;
     s << "{";
@@ -388,16 +440,7 @@ void Server::grant_revoke_common(PlayerState *player, std::string target_search_
   }
   
   //Find the requested player.
-  PlayerState *target = NULL;
-  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
-  for(auto it : m_players) {
-    PlayerState *player_check = it.second;
-    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
-    if(player_check->get_name() == target_search_name) {
-      target = player_check;
-      break;
-    }
-  }
+  PlayerState *target = find_player(target_search_name);
   
   //TODO offline players
   
@@ -566,16 +609,7 @@ void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {
   std::string player_name = args[1];
   
   //Find the requested player.
-  PlayerState *player_found = NULL;
-  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
-  for(auto it : m_players) {
-    PlayerState *player_check = it.second;
-    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
-    if(player_check->get_name() == player_name) {
-      player_found = player_check;
-      break;
-    }
-  }
+  PlayerState *player_found = find_player(player_name);
   
   //TODO offline players
   
@@ -653,16 +687,7 @@ void Server::cmd_give(PlayerState *player, std::vector<std::string> args) {
   std::string player_name = args[1];
   
   //Find the requested player.
-  PlayerState *player_found = NULL;
-  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
-  for(auto it : m_players) {
-    PlayerState *player_check = it.second;
-    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
-    if(player_check->get_name() == player_name) {
-      player_found = player_check;
-      break;
-    }
-  }
+  PlayerState *player_found = find_player(player_name);
   
   //TODO offline players?
   
@@ -748,9 +773,8 @@ void Server::cmd_creative(PlayerState *player, std::vector<std::string> args) {
   }
   
   std::string mode = args[1];
-  if(mode != "on" && mode != "off") {
+  if(mode != "on" && mode != "off")
     throw CommandError("usage: /creative [on|off]");
-  }
   
   must_have_privs(player, {"creative"});
   
@@ -772,5 +796,37 @@ void Server::cmd_creative(PlayerState *player, std::vector<std::string> args) {
   } else {
     player_lock_unique.unlock();
     chat_send_player(player, "server", "creative mode is already " + mode);
+  }
+}
+
+void Server::cmd_kick(PlayerState *player, std::vector<std::string> args) {
+  must_have_privs(player, {"kick"});
+  
+  if(args.size() < 2 || args.size() > 3)
+    throw CommandError("usage: '/kick <player> [<message>]");
+  
+  std::string target_search_name = args[1];
+  std::string message = get_config<std::string>("player.default_kick_message");
+  if(args.size() >= 3)
+    message = args[2];
+  
+  PlayerState *target = find_player(target_search_name);
+  
+  if(target == NULL)
+    throw CommandError("unknown or offline player '" + target_search_name + "'");
+  
+  {
+    std::unique_lock<std::shared_mutex> player_lock(target->lock);
+    
+    connection_hdl hdl = target->m_connection_hdl;
+    
+    try {
+      //on_close will be run later, so no worries about deadlocks
+      m_server.close(hdl, websocketpp::close::status::going_away, message);
+      chat_send_player(player, "server", "Kicked player '" + target->get_name() + "'");
+    } catch(websocketpp::exception const& e) {
+      log(LogSource::SERVER, LogLevel::ERR, "Socket error: " + std::string(e.what()));
+      chat_send_player(player, "server", "Socket error while kicking player '" + target->get_name() + "', they may have disconnected");
+    }
   }
 }

@@ -39,7 +39,8 @@ std::map<std::string, std::string> config_keys_str = {
   
   {"loader.defs_file", "defs.json"},
   
-  {"player.default_grants", "interact shout touch"}
+  {"player.default_grants", "interact shout touch"},
+  {"player.default_kick_message", "Kicked"}
 };
 std::map<std::string, std::string> config_str;
 

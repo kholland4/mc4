@@ -78,7 +78,9 @@
         res.unshift(mods.chat.displayBuf[i].str);
       }
     }
-    mods.chat.textbox.innerText = res.join("\n");
+    var newText = res.join("\n");
+    if(mods.chat.textbox.innerText != newText)
+      mods.chat.textbox.innerText = newText;
   };
   
   mods.chat.updateDom();

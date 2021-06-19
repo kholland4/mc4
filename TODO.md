@@ -50,6 +50,7 @@
 * Better menu screen
 * Inventory -- shift-right-click/scroll/shift-scroll/etc.
 * Scrollbars
+* Overlay when disconnected
 
 ## Visuals
 * Skybox -- change colors etc. (incl. night) -- proper skybox

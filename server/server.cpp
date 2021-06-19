@@ -304,3 +304,21 @@ PlayerState* Server::get_player_by_tag(std::string tag) {
   }
   return NULL;
 }
+
+PlayerState* Server::find_player(std::string name_or_id) {
+  PlayerState *target = NULL;
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  for(auto it : m_players) {
+    PlayerState *player_check = it.second;
+    std::shared_lock<std::shared_mutex> player_lock_shared(player_check->lock);
+    if(player_check->get_name() == name_or_id ||
+       player_check->get_tag() == name_or_id ||
+       (player_check->auth && player_check->data.auth_id == name_or_id))
+    {
+      target = player_check;
+      break;
+    }
+  }
+  
+  return target;
+}

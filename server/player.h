@@ -162,8 +162,9 @@ class PlayerState {
     std::string address;
     
     std::shared_mutex lock;
-  private:
+    
     connection_hdl m_connection_hdl;
+  private:
     boost::uuids::uuid m_tag;
     std::string m_name;
     WsServer& m_sender;
