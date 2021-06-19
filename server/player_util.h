@@ -31,5 +31,6 @@ extern std::map<std::string, std::set<std::string>> required_to_grant;
 
 void init_player_data(PlayerData &data);
 bool validate_player_name(std::string name);
+std::string generate_possible_guest_name();
 
 #endif

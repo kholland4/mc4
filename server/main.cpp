@@ -23,6 +23,7 @@
 #include "arg_parse.h"
 
 #include <malloc.h>
+#include <time.h>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -34,6 +35,7 @@ namespace {
 
 int main(int argc, char *argv[]) {
   mallopt(M_ARENA_MAX, 2);
+  srand(time(NULL));
   
   parse_args(argc, argv);
   

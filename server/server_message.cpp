@@ -279,6 +279,28 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       if(type == "auth_guest") {
         PlayerData new_data;
         new_data.name = player->get_tag();
+        for(int retries = 0; retries < 10; retries++) {
+          std::string name = generate_possible_guest_name();
+          if(!validate_player_name(name))
+            continue;
+          
+          bool used = false;
+          for(auto p : m_players) {
+            PlayerState *check = p.second;
+            if(check->get_name() == name) {
+              used = true;
+              break;
+            }
+          }
+          if(used)
+            continue;
+          
+          if(db.player_data_name_used(name))
+            continue;
+          
+          new_data.name = name;
+          break;
+        }
         new_data.is_nil = false;
         init_player_data(new_data);
         player->load_data(new_data);
