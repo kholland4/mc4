@@ -17,12 +17,11 @@
 */
 
 #include "server.h"
-
 #include "player_util.h"
+#include "except.h"
+#include "lang.h"
 
 #include <regex>
-
-std::set<std::string> allowed_privs = {"fast", "fly", "teleport", "settime", "give", "creative", "grant"};
 
 void Server::cmd_help(PlayerState *player, std::vector<std::string> args) {
   std::optional<std::string> topic = std::nullopt;
@@ -321,9 +320,168 @@ void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args)
   }
 }
 
-void Server::cmd_grant(PlayerState *player, std::vector<std::string> args) {
-  //TODO check for 'grant' priv and update help message
+void Server::grant_revoke_common(PlayerState *player, std::string target_search_name, std::set<std::string> grant_privs, std::set<std::string> revoke_privs) {
+  if(grant_privs.size() == 0 && revoke_privs.size() == 0) {
+    throw CommandError("please specify privileges");
+  }
   
+  // check that privs to be granted are valid
+  std::set<std::string> invalid_privs;
+  for(const auto& to_grant : grant_privs) {
+    if(allowed_privs.find(to_grant) == allowed_privs.end()) {
+      invalid_privs.insert(to_grant);
+    }
+  }
+  if(invalid_privs.size() > 0)
+    throw CommandError("cannot grant " + lang_fmt_list(invalid_privs, "or", "'") +
+                       ": not " + std::string(invalid_privs.size() > 1 ? "a ": "") + "valid privilege" + std::string(invalid_privs.size() > 1 ? "s": ""));
+  
+  // check that player has permission to grant/revoke them
+  std::string self_name;
+  {
+    std::shared_lock<std::shared_mutex> self_lock(player->lock);
+    self_name = player->get_name();
+    
+    for(const auto& to_grant : grant_privs) {
+      std::set<std::string> req{"grant"};
+      auto req_search = required_to_grant.find(to_grant);
+      if(req_search != required_to_grant.end())
+        req = req_search->second;
+      
+      bool player_has_req = false;
+      for(const auto& it : req) {
+        if(player->has_priv(it)) {
+          player_has_req = true;
+          break;
+        }
+      }
+      
+      if(!player_has_req)
+        throw CommandError("you must have " + lang_fmt_list(req, "or", "'") + " to grant '" + to_grant + "'");
+    }
+    
+    for(const auto& to_revoke : revoke_privs) {
+      if(allowed_privs.find(to_revoke) == allowed_privs.end()) {
+        if(!player->has_priv("admin")) {
+          throw CommandError("you must have 'admin' to revoke an unknown privilege ('" + to_revoke + "')");
+        }
+      }
+      
+      std::set<std::string> req{"grant"};
+      auto req_search = required_to_grant.find(to_revoke);
+      if(req_search != required_to_grant.end())
+        req = req_search->second;
+      
+      bool player_has_req = false;
+      for(const auto& it : req) {
+        if(player->has_priv(it)) {
+          player_has_req = true;
+          break;
+        }
+      }
+      
+      if(!player_has_req)
+        throw CommandError("you must have " + lang_fmt_list(req, "or", "'") + " to revoke '" + to_revoke + "'");
+    }
+  }
+  
+  //Find the requested player.
+  PlayerState *target = NULL;
+  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
+  for(auto it : m_players) {
+    PlayerState *player_check = it.second;
+    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+    if(player_check->get_name() == target_search_name) {
+      target = player_check;
+      break;
+    }
+  }
+  
+  //TODO offline players
+  
+  if(target == NULL)
+    throw CommandError("unknown or offline player '" + target_search_name + "'");
+  
+  std::unique_lock<std::shared_mutex> player_lock_unique(target->lock);
+  std::string target_name = target->get_name();
+  
+  // do grants
+  std::set<std::string> already_have;
+  std::set<std::string> do_grant;
+  for(const auto& to_grant : grant_privs) {
+    if(target->has_priv(to_grant))
+      already_have.insert(to_grant);
+    else
+      do_grant.insert(to_grant);
+  }
+  
+  if(do_grant.size() > 0) {
+    for(const auto& to_grant : do_grant)
+      target->data.privs.insert(to_grant);
+  }
+  
+  // do revokes
+  std::set<std::string> already_revoke;
+  std::set<std::string> do_revoke;
+  for(const auto& to_revoke : revoke_privs) {
+    if(!target->has_priv(to_revoke))
+      already_revoke.insert(to_revoke);
+    else
+      do_revoke.insert(to_revoke);
+  }
+  
+  if(do_revoke.size() > 0) {
+    for(const auto& to_revoke : do_revoke)
+      target->data.privs.erase(to_revoke);
+  }
+  
+  // save changes
+  if(do_grant.size() > 0 || do_revoke.size() > 0) {
+    target->send_privs();
+    if(target->auth)
+      db.update_player_data(target->get_data());
+  }
+  
+  player_lock_unique.unlock();
+  
+  // show messages for grants
+  if(do_grant.size() > 0) {
+    std::string grants = lang_fmt_list(do_grant, "and", "'");
+    if(player == target) {
+      chat_send_player(player, "server", "granted " + grants);
+    } else {
+      chat_send_player(player, "server", "granted " + grants + " to " + target_name);
+      chat_send_player(target, "server", self_name + " granted you " + grants);
+    }
+  }
+  if(already_have.size() > 0) {
+    std::string have = lang_fmt_list(already_have, "and", "'");
+    if(player == target)
+      chat_send_player(player, "server", "you already have " + have);
+    else
+      chat_send_player(player, "server", target_name + " already has " + have);
+  }
+  
+  // show messages for revokes
+  if(do_revoke.size() > 0) {
+    std::string revokes = lang_fmt_list(do_grant, "and", "'");
+    if(player == target) {
+      chat_send_player(player, "server", "revoked " + revokes);
+    } else {
+      chat_send_player(player, "server", "revoked " + revokes + " from " + target_name);
+      chat_send_player(target, "server", self_name + " revoked your privilege" + std::string(do_revoke.size() > 1 ? "s ": " ") + revokes);
+    }
+  }
+  if(already_revoke.size() > 0) {
+    std::string missing = lang_fmt_list(already_revoke, "or", "'");
+    if(player == target)
+      chat_send_player(player, "server", "you don't have " + missing);
+    else
+      chat_send_player(player, "server", target_name + " doesn't have " + missing);
+  }
+}
+
+void Server::cmd_grant(PlayerState *player, std::vector<std::string> args) {
   if(args.size() == 1) {
     std::ostringstream out;
     out << "valid privileges:";
@@ -335,147 +493,75 @@ void Server::cmd_grant(PlayerState *player, std::vector<std::string> args) {
     return;
   }
   
-  std::shared_lock<std::shared_mutex> self_lock(player->lock);
-  std::string self_name = player->get_name();
-  self_lock.unlock();
-  
-  if(args.size() != 3) {
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/grant <player> <priv>'");
+  if(args.size() < 3) {
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/grant <player> <priv>...'");
     return;
   }
   
-  std::string player_name = args[1];
-  std::string new_priv = args[2];
-  
-  if(allowed_privs.find(new_priv) == allowed_privs.end()) {
-    chat_send_player(player, "server", "invalid privilege '" + new_priv + "'");
-    return;
+  std::string target_name = args[1];
+  std::set<std::string> new_privs{args.begin() + 2, args.end()};
+  try {
+    grant_revoke_common(player, target_name, new_privs, std::set<std::string>());
+  } catch(const CommandError& e) {
+    chat_send_player(player, "server", e.what());
   }
-  
-  //Find the requested player.
-  PlayerState *player_found = NULL;
-  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
-  for(auto it : m_players) {
-    PlayerState *player_check = it.second;
-    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
-    if(player_check->get_name() == player_name) {
-      player_found = player_check;
-      break;
-    }
-  }
-  
-  //TODO offline players
-  
-  if(player_found == NULL) {
-    chat_send_player(player, "server", "unknown or offline player '" + player_name + "'");
-    return;
-  }
-  
-  std::unique_lock<std::shared_mutex> player_lock_unique(player_found->lock);
-  
-  if(player_found->has_priv(new_priv)) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "player '" + player_name + "' already has '" + new_priv + "'");
-    return;
-  }
-  
-  player_found->data.privs.insert(new_priv);
-  player_found->send_privs();
-  
-  if(player_found->auth) {
-    db.update_player_data(player_found->get_data());
-  }
-  
-  player_lock_unique.unlock();
-  chat_send_player(player, "server", "granted '" + new_priv + "' to '" + player_name + "'");
-  chat_send_player(player_found, "server", self_name + " granted you '" + new_priv + "'");
 }
 
 void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
-  std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
+  std::string self_name;
+  {
+    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+    self_name = player->get_name();
+  }
   
-  if(args.size() != 2) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/grantme <priv>'");
+  if(args.size() < 2) {
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/grantme <priv>...'");
     return;
   }
   
-  std::string new_priv = args[1];
-  
-  if(allowed_privs.find(new_priv) == allowed_privs.end()) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "invalid privilege '" + new_priv + "'");
-    return;
+  std::string target_name = self_name;
+  std::set<std::string> new_privs{args.begin() + 1, args.end()};
+  try {
+    grant_revoke_common(player, target_name, new_privs, std::set<std::string>());
+  } catch(const CommandError& e) {
+    chat_send_player(player, "server", e.what());
   }
-  
-  if(player->has_priv(new_priv)) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "you already have '" + new_priv + "'");
-    return;
-  }
-  
-  player->data.privs.insert(new_priv);
-  player->send_privs();
-  
-  if(player->auth) {
-    db.update_player_data(player->get_data());
-  }
-  
-  player_lock_unique.unlock();
-  chat_send_player(player, "server", "granted '" + new_priv + "'");
 }
 
 void Server::cmd_revoke(PlayerState *player, std::vector<std::string> args) {
-  std::shared_lock<std::shared_mutex> self_lock(player->lock);
-  std::string self_name = player->get_name();
-  self_lock.unlock();
-  
-  if(args.size() != 3) {
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/revoke <player> <priv>'");
+  if(args.size() < 3) {
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/revoke <player> <priv>...'");
     return;
   }
   
-  std::string player_name = args[1];
-  std::string new_priv = args[2];
-  
-  //Find the requested player.
-  PlayerState *player_found = NULL;
-  std::shared_lock<std::shared_mutex> list_lock(m_players_lock);
-  for(auto it : m_players) {
-    PlayerState *player_check = it.second;
+  std::string target_name = args[1];
+  std::set<std::string> revoke_privs{args.begin() + 2, args.end()};
+  try {
+    grant_revoke_common(player, target_name, std::set<std::string>(), revoke_privs);
+  } catch(const CommandError& e) {
+    chat_send_player(player, "server", e.what());
+  }
+}
+
+void Server::cmd_revokeme(PlayerState *player, std::vector<std::string> args) {
+  std::string self_name;
+  {
     std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
-    if(player_check->get_name() == player_name) {
-      player_found = player_check;
-      break;
-    }
+    self_name = player->get_name();
   }
   
-  //TODO offline players
-  
-  if(player_found == NULL) {
-    chat_send_player(player, "server", "unknown or offline player '" + player_name + "'");
+  if(args.size() < 2) {
+    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/revokeme <priv>...'");
     return;
   }
   
-  std::unique_lock<std::shared_mutex> player_lock_unique(player_found->lock);
-  
-  auto search = player_found->data.privs.find(new_priv);
-  if(search == player_found->data.privs.end()) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "player '" + player_name + "' does not have '" + new_priv + "'");
-    return;
+  std::string target_name = self_name;
+  std::set<std::string> revoke_privs{args.begin() + 1, args.end()};
+  try {
+    grant_revoke_common(player, target_name, std::set<std::string>(), revoke_privs);
+  } catch(const CommandError& e) {
+    chat_send_player(player, "server", e.what());
   }
-  
-  player_found->data.privs.erase(search);
-  player_found->send_privs();
-  
-  if(player_found->auth) {
-    db.update_player_data(player_found->get_data());
-  }
-  
-  player_lock_unique.unlock();
-  chat_send_player(player, "server", "revoked '" + new_priv + "' from '" + player_name + "'");
-  chat_send_player(player_found, "server", self_name + " revoked your privelege '" + new_priv + "'");
 }
 
 void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {

@@ -19,7 +19,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define VERSION "0.4.8-dev3"
+#define VERSION "0.4.9-dev1"
 #define SERVER_TICK_INTERVAL 250
 #define SERVER_MAPBLOCK_TICK_RATIO 2
 #define SERVER_FLUID_TICK_RATIO 8
@@ -149,9 +149,11 @@ class Server {
     void cmd_tp(PlayerState *player, std::vector<std::string> args);
     void cmd_tp_world(PlayerState *player, std::vector<std::string> args);
     void cmd_tp_universe(PlayerState *player, std::vector<std::string> args);
+    void grant_revoke_common(PlayerState *player, std::string target_search_name, std::set<std::string> grant_privs, std::set<std::string> revoke_privs);
     void cmd_grant(PlayerState *player, std::vector<std::string> args);
     void cmd_grantme(PlayerState *player, std::vector<std::string> args);
     void cmd_revoke(PlayerState *player, std::vector<std::string> args);
+    void cmd_revokeme(PlayerState *player, std::vector<std::string> args);
     void cmd_privs(PlayerState *player, std::vector<std::string> args);
     void cmd_giveme(PlayerState *player, std::vector<std::string> args);
     void cmd_give(PlayerState *player, std::vector<std::string> args);
@@ -217,25 +219,30 @@ class Server {
       }},
       {"/grant", {
         std::bind(&Server::cmd_grant, this, std::placeholders::_1, std::placeholders::_2),
-        "grant a privilege to a player",
-        "/grant <player> <priv> : grant <priv> to <player>\n"
+        "grant privileges to a player",
+        "/grant <player> <priv> [<priv>] ... : grant <priv>s to <player>\n"
         "/grant : list possible privileges\n"
         "\n"
         "The player will receive a message informing them of the grant."
       }},
       {"/grantme", {
         std::bind(&Server::cmd_grantme, this, std::placeholders::_1, std::placeholders::_2),
-        "grant a privilege to yourself",
-        "/grantme <priv> : grant <priv> to yourself\n"
+        "grant privileges to yourself",
+        "/grantme <priv> [<priv>] ... : grant <priv>s to yourself\n"
         "\n"
         "Use /grant to list possible privileges."
       }},
       {"/revoke", {
         std::bind(&Server::cmd_revoke, this, std::placeholders::_1, std::placeholders::_2),
-        "revoke a privilege from a player",
-        "/revoke <player> <priv> : revoke <priv> from <player>\n"
+        "revoke privileges from a player",
+        "/revoke <player> <priv> [<priv>] ... : revoke <priv>s from <player>\n"
         "\n"
         "The player will receive a message informing them of the revocation."
+      }},
+      {"/revokeme", {
+        std::bind(&Server::cmd_revokeme, this, std::placeholders::_1, std::placeholders::_2),
+        "revoke privileges from yourself",
+        "/revokeme <priv> [<priv>] ... : revoke <priv>s from yourself\n"
       }},
       {"/privs", {
         std::bind(&Server::cmd_privs, this, std::placeholders::_1, std::placeholders::_2),

@@ -459,6 +459,12 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       player->prepare_nearby_mapblocks(2, 3, 0, map);
       player->prepare_nearby_mapblocks(1, 2, 1, map);
     } else if(type == "dig_node") {
+      if(!player->has_priv("touch")) {
+        player_lock_unique.unlock();
+        chat_send_player(player, "server", "you can't dig nodes, you haven't got the 'touch' privilege!");
+        return;
+      }
+      
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       int wield_index = pt.get<int>("wield");
       Node existing(pt.get<std::string>("existing.itemstring"), pt.get<unsigned int>("existing.rot"));
@@ -595,6 +601,12 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
         }
       }
     } else if(type == "place_node") {
+      if(!player->has_priv("touch")) {
+        player_lock_unique.unlock();
+        chat_send_player(player, "server", "you can't place nodes, you haven't got the 'touch' privilege!");
+        return;
+      }
+      
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       int wield_index = pt.get<int>("wield");
       Node to_place(pt.get<std::string>("data.itemstring"), pt.get<unsigned int>("data.rot"));
@@ -834,6 +846,12 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       
       chat_send_player(player, "server", "pulverized '" + wield_stack.spec() + "'");
     } else if(type == "send_chat") {
+      if(!player->has_priv("shout")) {
+        player_lock_unique.unlock();
+        chat_send_player(player, "server", "you can't talk, you haven't got the 'shout' privilege!");
+        return;
+      }
+      
       std::string from = player->get_name();
       std::string channel = pt.get<std::string>("channel");
       std::string message = pt.get<std::string>("message");
@@ -845,6 +863,12 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       chat_send(channel, from, message);
       return;
     } else if(type == "interact") {
+      if(!player->has_priv("interact")) {
+        player_lock_unique.unlock();
+        chat_send_player(player, "server", "you can't interact with the map, you haven't got the 'interact' privilege!");
+        return;
+      }
+      
       MapPos<int> pos(pt.get<int>("pos.x"), pt.get<int>("pos.y"), pt.get<int>("pos.z"), pt.get<int>("pos.w"), pt.get<int>("pos.world"), pt.get<int>("pos.universe"));
       Node node = map.get_node(pos);
       

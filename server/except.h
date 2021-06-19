@@ -16,20 +16,15 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __PLAYER_UTIL_H__
-#define __PLAYER_UTIL_H__
+#ifndef __EXCEPT_H__
+#define __EXCEPT_H__
 
-#include "player_data.h"
+#include <stdexcept>
+#include <string>
 
-#include <set>
-#include <map>
-
-#define BAD_PLAYER_NAME_MESSAGE "invalid nickname: allowed characters are a-z A-Z 0-9 - _ and length must be 1 to 40 characters"
-
-extern std::set<std::string> allowed_privs;
-extern std::map<std::string, std::set<std::string>> required_to_grant;
-
-void init_player_data(PlayerData &data);
-bool validate_player_name(std::string name);
+class CommandError : public std::runtime_error {
+  public:
+    CommandError(std::string msg) : runtime_error(msg.c_str()) {}
+};
 
 #endif

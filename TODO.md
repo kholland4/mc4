@@ -5,7 +5,6 @@
 * Roles -> overlay set of privs
 * Privs for offline players
 * /grant, /grantme multiple
-* Require 'grant' to grant/grantme
 * Area protection system
   * Explicit deny for dig/place
 * Hard limits on node/mapblock access (+/- 2^31-1) -- throw error
@@ -28,9 +27,11 @@
 * Faster lighting
 
 ## Commands / chat
-* Teleport & teleport requests
+* Teleport to player/player to you & teleport requests
 * View chat history
 * Arrow up/down w/chat -- command/chat history
+* Admin CLI on stdin
+* PM command
 
 ## UI
 * UI for keybindings & other config
@@ -45,6 +46,7 @@
 * Loading screen?
 * Better menu screen
 * Inventory -- shift-right-click/scroll/shift-scroll/etc.
+* Scrollbars
 
 ## Visuals
 * Skybox -- change colors etc. (incl. night) -- proper skybox

@@ -16,20 +16,29 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __PLAYER_UTIL_H__
-#define __PLAYER_UTIL_H__
+#include "lang.h"
 
-#include "player_data.h"
+#include <sstream>
 
-#include <set>
-#include <map>
-
-#define BAD_PLAYER_NAME_MESSAGE "invalid nickname: allowed characters are a-z A-Z 0-9 - _ and length must be 1 to 40 characters"
-
-extern std::set<std::string> allowed_privs;
-extern std::map<std::string, std::set<std::string>> required_to_grant;
-
-void init_player_data(PlayerData &data);
-bool validate_player_name(std::string name);
-
-#endif
+std::string lang_fmt_list(std::vector<std::string> items, std::string conj, std::string quote_char) {
+  std::ostringstream out;
+  size_t qty = items.size();
+  size_t i = 0;
+  for(const auto& item : items) {
+    out << quote_char << item << quote_char;
+    if(i < qty - 1) {
+      if(qty >= 3)
+        out << ", ";
+      else
+        out << " ";
+    }
+    
+    if(qty > 1 && i == qty - 2)
+      out << conj << " ";
+    i++;
+  }
+  return out.str();
+}
+std::string lang_fmt_list(std::set<std::string> items, std::string conj, std::string quote_char) {
+  return lang_fmt_list(std::vector<std::string>{items.begin(), items.end()}, conj, quote_char);
+}

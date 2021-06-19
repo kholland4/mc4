@@ -37,7 +37,9 @@ std::map<std::string, std::string> config_keys_str = {
   {"ssl.private_key_file", ""},
   {"ssl.dhparam_file", ""},
   
-  {"loader.defs_file", "defs.json"}
+  {"loader.defs_file", "defs.json"},
+  
+  {"player.default_grants", "interact shout touch"}
 };
 std::map<std::string, std::string> config_str;
 
