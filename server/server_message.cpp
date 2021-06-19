@@ -23,6 +23,7 @@
 #include "player_util.h"
 #include "tool.h"
 #include "craft.h"
+#include "except.h"
 
 std::optional<std::pair<InvStack, InvStack>> inv_calc_distribute(InvStack stack1, int qty1, InvStack stack2, int qty2) {
   if(stack1.is_nil && stack2.is_nil)
@@ -1096,7 +1097,11 @@ void Server::on_message(connection_hdl hdl, websocketpp::config::asio::message_t
       }
       
       const ServerCommand& cmd = search->second;
-      cmd.fn(player, tokens);
+      try {
+        cmd.fn(player, tokens);
+      } catch(const CommandError& e) {
+        chat_send_player(player, "server", e.what());
+      }
     }
   } catch(boost::property_tree::ptree_error const& e) {
     log(LogSource::SERVER, LogLevel::ERR, "JSON parse error: " + std::string(e.what()) + " payload=" + msg->get_payload());

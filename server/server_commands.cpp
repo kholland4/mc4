@@ -23,6 +23,19 @@
 
 #include <regex>
 
+void must_have_privs(PlayerState *player, std::set<std::string> privs) {
+  //TODO locking
+  
+  std::set<std::string> need_privs;
+  for(const auto& priv : privs) {
+    if(!player->has_priv(priv))
+      need_privs.insert(priv);
+  }
+  
+  if(need_privs.size() > 0)
+    throw CommandError((need_privs.size() > 1 ? "missing privs: " : "missing priv: ") + lang_fmt_list(need_privs, "and", "'"));
+}
+
 void Server::cmd_help(PlayerState *player, std::vector<std::string> args) {
   std::optional<std::string> topic = std::nullopt;
   if(args.size() >= 2)
@@ -84,33 +97,23 @@ void Server::cmd_help(PlayerState *player, std::vector<std::string> args) {
 void Server::cmd_nick(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
-  if(args.size() != 2) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/nick <new_nickname>'");
-    return;
-  }
+  if(args.size() != 2)
+    throw CommandError("invalid command: wrong number of args, expected '/nick <new_nickname>'");
   
   std::string new_nick = args[1];
   
-  if(!validate_player_name(new_nick)) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", BAD_PLAYER_NAME_MESSAGE);
-    return;
-  }
+  if(!validate_player_name(new_nick))
+    throw CommandError(BAD_PLAYER_NAME_MESSAGE);
+  
   for(auto p : m_players) {
     PlayerState *check = p.second;
-    if(check->get_name() == new_nick) {
-      player_lock_unique.unlock();
-      chat_send_player(player, "server", "that nickname is already in use, try another one?");
-      return;
-    }
+    if(check->get_name() == new_nick)
+      throw CommandError("that nickname is already in use, try another one?");
   }
   if(player->data.name == new_nick) {
     //all good, it's the player's own nickname
   } else if(db.player_data_name_used(new_nick)) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "that nickname is already in use, try another one?");
-    return;
+    throw CommandError("that nickname is already in use, try another one?");
   }
   
   std::string old_nick = player->get_name();
@@ -135,23 +138,16 @@ void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
   }
   
   //set time
-  if(!player->has_priv("settime")) {
-    chat_send_player(player, "server", "missing priv: settime");
-    return;
-  }
+  must_have_privs(player, {"settime"});
   
-  if(args.size() != 2) {
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/time' or '/time hh:mm'");
-    return;
-  }
+  if(args.size() != 2)
+    throw CommandError("invalid command: wrong number of args, expected '/time' or '/time hh:mm'");
   
   std::string time_spec = args[1];
   
   std::regex time_allow("^((|0|1)[0-9]|2[0-3]):[0-5][0-9]$");
-  if(!std::regex_match(time_spec, time_allow)) {
-    chat_send_player(player, "server", "invalid /time command: please use '/time hh:mm' in 24-hour format");
-    return;
-  }
+  if(!std::regex_match(time_spec, time_allow))
+    throw CommandError("invalid /time command: please use '/time hh:mm' in 24-hour format");
   
   auto colon_pos = time_spec.find(":");
   std::string hours_str = time_spec.substr(0, colon_pos);
@@ -162,11 +158,9 @@ void Server::cmd_time(PlayerState *player, std::vector<std::string> args) {
     hours = std::stoi(hours_str);
     minutes = std::stoi(minutes_str);
   } catch(std::invalid_argument const& e) {
-    chat_send_player(player, "server", "not a number: " + hours_str + " or " + minutes_str);
-    return;
+    throw CommandError("not a number: " + hours_str + " or " + minutes_str);
   } catch(std::out_of_range const& e) {
-    chat_send_player(player, "server", "invalid (too large) number: " + hours_str + " or " + minutes_str);
-    return;
+    throw CommandError("invalid (too large) number: " + hours_str + " or " + minutes_str);
   }
   set_time(hours, minutes);
   
@@ -188,30 +182,19 @@ void Server::cmd_whereami(PlayerState *player, std::vector<std::string> args) {
 void Server::cmd_tp(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
-  if(!player->has_priv("teleport")) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "missing priv: teleport");
-    return;
-  }
+  must_have_privs(player, {"teleport"});
   
-  if(args.size() < 4 || args.size() > 5) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "usage '/tp <x> <y> <z> [<w>]'");
-    return;
-  }
+  if(args.size() < 4 || args.size() > 5)
+    throw CommandError("usage '/tp <x> <y> <z> [<w>]'");
   
   int args_int[4] = {0, 0, 0, 0};
   for(size_t i = 1; i < std::min((size_t)5, args.size()); i++) {
     try {
       args_int[i - 1] = stoi(args[i]);
     } catch(std::invalid_argument const& e) {
-      player_lock_unique.unlock();
-      chat_send_player(player, "server", "not a number: " + args[i]);
-      return;
+      throw CommandError("not a number: " + args[i]);
     } catch(std::out_of_range const& e) {
-      player_lock_unique.unlock();
-      chat_send_player(player, "server", "invalid (too large) number: " + args[i]);
-      return;
+      throw CommandError("invalid (too large) number: " + args[i]);
     }
   }
   int x = args_int[0];
@@ -234,23 +217,15 @@ void Server::cmd_tp(PlayerState *player, std::vector<std::string> args) {
   if(player->auth) {
     db.update_player_data(player->get_data());
   }
-  return;
 }
 
 void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
-  if(!player->has_priv("teleport")) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "missing priv: teleport");
-    return;
-  }
+  must_have_privs(player, {"teleport"});
   
-  if(args.size() != 2) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/world <name>'");
-    return;
-  }
+  if(args.size() != 2)
+    throw CommandError("invalid command: wrong number of args, expected '/world <name>'");
   
   for(auto it : map.worlds) {
     if(it.second->name == args[1]) {
@@ -271,36 +246,24 @@ void Server::cmd_tp_world(PlayerState *player, std::vector<std::string> args) {
       return;
     }
   }
-  player_lock_unique.unlock();
-  chat_send_player(player, "server", "unknown world");
+  throw CommandError("unknown world");
 }
 
 void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
-  if(!player->has_priv("teleport")) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "missing priv: teleport");
-    return;
-  }
+  must_have_privs(player, {"teleport"});
   
-  if(args.size() != 2) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/universe <number>'");
-    return;
-  }
+  if(args.size() != 2)
+    throw CommandError("invalid command: wrong number of args, expected '/universe <number>'");
   
   int universe;
   try {
     universe = stoi(args[1]);
   } catch(std::invalid_argument const& e) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "not a number: " + args[1]);
-    return;
+    throw CommandError("not a number: " + args[1]);
   } catch(std::out_of_range const& e) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "invalid (too large) number: " + args[1]);
-    return;
+    throw CommandError("invalid (too large) number: " + args[1]);
   }
   
   if(player->pos.universe == universe) {
@@ -316,7 +279,6 @@ void Server::cmd_tp_universe(PlayerState *player, std::vector<std::string> args)
     if(player->auth) {
       db.update_player_data(player->get_data());
     }
-    return;
   }
 }
 
@@ -464,7 +426,7 @@ void Server::grant_revoke_common(PlayerState *player, std::string target_search_
   
   // show messages for revokes
   if(do_revoke.size() > 0) {
-    std::string revokes = lang_fmt_list(do_grant, "and", "'");
+    std::string revokes = lang_fmt_list(do_revoke, "and", "'");
     if(player == target) {
       chat_send_player(player, "server", "revoked " + revokes);
     } else {
@@ -493,18 +455,12 @@ void Server::cmd_grant(PlayerState *player, std::vector<std::string> args) {
     return;
   }
   
-  if(args.size() < 3) {
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/grant <player> <priv>...'");
-    return;
-  }
+  if(args.size() < 3)
+    throw CommandError("invalid command: wrong number of args, expected '/grant <player> <priv>...'");
   
   std::string target_name = args[1];
   std::set<std::string> new_privs{args.begin() + 2, args.end()};
-  try {
-    grant_revoke_common(player, target_name, new_privs, std::set<std::string>());
-  } catch(const CommandError& e) {
-    chat_send_player(player, "server", e.what());
-  }
+  grant_revoke_common(player, target_name, new_privs, std::set<std::string>());
 }
 
 void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
@@ -514,10 +470,8 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
     self_name = player->get_name();
   }
   
-  if(args.size() < 2) {
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/grantme <priv>...'");
-    return;
-  }
+  if(args.size() < 2)
+    throw CommandError("invalid command: wrong number of args, expected '/grantme <priv>...'");
   
   std::string target_name = self_name;
   std::set<std::string> new_privs{args.begin() + 1, args.end()};
@@ -529,18 +483,12 @@ void Server::cmd_grantme(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_revoke(PlayerState *player, std::vector<std::string> args) {
-  if(args.size() < 3) {
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/revoke <player> <priv>...'");
-    return;
-  }
+  if(args.size() < 3)
+    throw CommandError("invalid command: wrong number of args, expected '/revoke <player> <priv>...'");
   
   std::string target_name = args[1];
   std::set<std::string> revoke_privs{args.begin() + 2, args.end()};
-  try {
-    grant_revoke_common(player, target_name, std::set<std::string>(), revoke_privs);
-  } catch(const CommandError& e) {
-    chat_send_player(player, "server", e.what());
-  }
+  grant_revoke_common(player, target_name, std::set<std::string>(), revoke_privs);
 }
 
 void Server::cmd_revokeme(PlayerState *player, std::vector<std::string> args) {
@@ -550,18 +498,12 @@ void Server::cmd_revokeme(PlayerState *player, std::vector<std::string> args) {
     self_name = player->get_name();
   }
   
-  if(args.size() < 2) {
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/revokeme <priv>...'");
-    return;
-  }
+  if(args.size() < 2)
+    throw CommandError("invalid command: wrong number of args, expected '/revokeme <priv>...'");
   
   std::string target_name = self_name;
   std::set<std::string> revoke_privs{args.begin() + 1, args.end()};
-  try {
-    grant_revoke_common(player, target_name, std::set<std::string>(), revoke_privs);
-  } catch(const CommandError& e) {
-    chat_send_player(player, "server", e.what());
-  }
+  grant_revoke_common(player, target_name, std::set<std::string>(), revoke_privs);
 }
 
 void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {
@@ -578,10 +520,8 @@ void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {
     return;
   }
   
-  if(args.size() != 2) {
-    chat_send_player(player, "server", "invalid command: wrong number of args, expected '/privs' or '/privs <player>'");
-    return;
-  }
+  if(args.size() != 2)
+    throw CommandError("invalid command: wrong number of args, expected '/privs' or '/privs <player>'");
   
   std::string player_name = args[1];
   
@@ -618,25 +558,15 @@ void Server::cmd_privs(PlayerState *player, std::vector<std::string> args) {
 void Server::cmd_giveme(PlayerState *player, std::vector<std::string> args) {
   std::unique_lock<std::shared_mutex> player_lock_unique(player->lock);
   
-  if(!player->has_priv("give")) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "missing priv: give");
-    return;
-  }
+  must_have_privs(player, {"give"});
   
-  if(args.size() < 2) {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "please specify an itemstring");
-    return;
-  }
+  if(args.size() < 2)
+    throw CommandError("please specify an itemstring");
   
   std::string itemstring = args[1];
   ItemDef def = get_item_def(itemstring);
-  if(def.itemstring == "nothing") {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "unknown item '" + itemstring + "'");
-    return;
-  }
+  if(def.itemstring == "nothing")
+    throw CommandError("unknown item '" + itemstring + "'");
   
   std::ostringstream spec;
   for(size_t i = 1; i < args.size(); i++) {
@@ -669,22 +599,16 @@ void Server::cmd_giveme(PlayerState *player, std::vector<std::string> args) {
 }
 
 void Server::cmd_give(PlayerState *player, std::vector<std::string> args) {
-  std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
-  
-  std::string self_name = player->get_name();
-  
-  if(!player->has_priv("give")) {
-    player_lock_shared.unlock();
-    chat_send_player(player, "server", "missing priv: give");
-    return;
+  std::string self_name;
+  {
+    std::shared_lock<std::shared_mutex> player_lock_shared(player->lock);
+    self_name = player->get_name();
   }
   
-  player_lock_shared.unlock();
+  must_have_privs(player, {"give"});
   
-  if(args.size() < 3) {
-    chat_send_player(player, "server", "usage: '/give <player> <itemstring>'");
-    return;
-  }
+  if(args.size() < 3)
+    throw CommandError("usage: '/give <player> <itemstring>'");
   
   std::string player_name = args[1];
   
@@ -702,19 +626,15 @@ void Server::cmd_give(PlayerState *player, std::vector<std::string> args) {
   
   //TODO offline players?
   
-  if(player_found == NULL) {
-    chat_send_player(player, "server", "unknown or offline player '" + player_name + "'");
-    return;
-  }
+  if(player_found == NULL)
+    throw CommandError("unknown or offline player '" + player_name + "'");
   
   std::unique_lock<std::shared_mutex> target_lock_unique(player_found->lock);
   
   std::string itemstring = args[2];
   ItemDef def = get_item_def(itemstring);
-  if(def.itemstring == "nothing") {
-    chat_send_player(player, "server", "unknown item '" + itemstring + "'");
-    return;
-  }
+  if(def.itemstring == "nothing")
+    throw CommandError("unknown item '" + itemstring + "'");
   
   std::ostringstream spec;
   for(size_t i = 2; i < args.size(); i++) {
@@ -789,16 +709,10 @@ void Server::cmd_creative(PlayerState *player, std::vector<std::string> args) {
   
   std::string mode = args[1];
   if(mode != "on" && mode != "off") {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "usage: /creative [on|off]");
-    return;
+    throw CommandError("usage: /creative [on|off]");
   }
   
-  if(!player->has_priv("creative") && mode != "off") {
-    player_lock_unique.unlock();
-    chat_send_player(player, "server", "missing priv: creative");
-    return;
-  }
+  must_have_privs(player, {"creative"});
   
   bool old_creative_mode = player->data.creative_mode;
   

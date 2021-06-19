@@ -32,6 +32,9 @@
 * Arrow up/down w/chat -- command/chat history
 * Admin CLI on stdin
 * PM command
+* Nice auto-generated names with words for guest players
+* Chat channels & channel ACLs
+* Chat & player name & channel anti-abuse
 
 ## UI
 * UI for keybindings & other config
