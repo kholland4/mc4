@@ -30,6 +30,7 @@ std::set<std::string> allowed_privs = {"interact", "shout", "touch", "fast", "fl
 std::map<std::string, std::set<std::string>> required_to_grant = {
   {"interact", {"grant", "grant_basic"}},
   {"shout", {"grant", "grant_basic"}},
+  {"touch", {"grant", "grant_basic"}},
   {"fast", {"grant", "grant_basic"}},
   {"fly", {"grant", "grant_basic"}},
   {"grant_basic", {"grant", "admin"}},

@@ -99,3 +99,35 @@ fit your system setup, then copy it to
     # nano /etc/systemd/system/mc4-server.service
     # systemctl enable mc4-server
     # systemctl start mc4-server
+    # systemctl status mc4-server
+
+## Connect!
+
+Hop on the web client and put in the address of your server, something like
+
+    wss://host.example.com:8080/
+
+depending on configuration.
+You can connect as guest, register an account, etc. -- the game is ready to go!
+
+### Privileges
+
+Players have privileges that determine what they may do in game, such as `fast`,
+`fly`, `creative`, or `teleport`.
+By default, all guests and newly-registered players get `interact`, `shout`, and
+`touch`; these allow basic interaction with the game and can be revoked as a
+means of moderation.
+You must have the `grant` privilege to grant most privileges (or `grant_basic`
+for some of the lower-level ones).
+There's one exception: the `grant` privilege itself and the omnipotent `admin`
+privilege require the `admin` privilege to grant.
+If you register an account on your new server, there's no way to get that
+privilege.
+The current workaround to solve that is to set `player.default_grants="admin interact shout touch"`
+temporarily, register your account, then unset it.
+
+    $ sudo systemctl stop mc4-server
+    $ ./mc4-server --config-file config.ini -o player.default_grants="admin interact shout touch"
+    (register your new account)
+    (Ctrl-C)
+    $ sudo systemctl start mc4-server
