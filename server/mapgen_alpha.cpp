@@ -326,6 +326,16 @@ TreeDef tree_pine("TTTTLTTMTTN",
         {'N', TreePlaceRule("default:pine_tree", "default:pine_needles", Vector3<double>(1, 1, 1), Vector3<double>(0.5, 0, 0.5))}
       }, 20);
 
+class OreSpec {
+  public:
+    OreSpec(std::string _itemstring, double _prob, int _min_depth)
+        : itemstring(_itemstring), prob(_prob), min_depth(_min_depth) {};
+    
+    std::string itemstring;
+    double prob;
+    int min_depth;
+};
+
 std::map<MapPos<int>, Mapblock*> MapgenAlpha::generate_near(MapPos<int> pos) {
   int water_depth = get_config<int>("map.water_depth");
   int sand_depth = get_config<int>("map.sand_depth");
@@ -342,6 +352,11 @@ std::map<MapPos<int>, Mapblock*> MapgenAlpha::generate_near(MapPos<int> pos) {
   uint32_t seed = pos.x * 1234 + start_y * 7 + pos.z * 420 + pos.w * 24;
   std::mt19937 rng(seed);
   std::uniform_real_distribution<double> rng_dist;
+  
+  // 1 96 487 3126
+  uint32_t ore_seed = pos.x * 167 + pos.y * 12 + pos.z * 1092 + pos.w * 5;
+  std::mt19937 ore_rng(ore_seed);
+  std::uniform_real_distribution<double> ore_rng_dist;
   
   std::pair<std::string, double> flower_is_list[] = {
     {"flowers:grass_1", 0.10},
@@ -390,6 +405,15 @@ std::map<MapPos<int>, Mapblock*> MapgenAlpha::generate_near(MapPos<int> pos) {
           unsigned int sand_id = mb->itemstring_to_id("default:sand");
           unsigned int water_id = mb->itemstring_to_id("default:water_source");
           
+          OreSpec ore_list[] = {
+            {"default:ore_coal",    0.0100, -16},
+            {"default:ore_iron",    0.0060, -32},
+            {"default:ore_gold",    0.0010, -107},
+            {"default:ore_tin",     0.0020, -64},
+            {"default:ore_copper",  0.0030, -64},
+            {"default:ore_diamond", 0.0005, -195}
+          };
+          
           for(int y = 0; y < MAPBLOCK_SIZE_Y; y++) {
             int global_y = y + mb_y * MAPBLOCK_SIZE_Y;
             if(global_y > height) {
@@ -435,6 +459,30 @@ std::map<MapPos<int>, Mapblock*> MapgenAlpha::generate_near(MapPos<int> pos) {
             } else {
               mb->data[x][y][z] = stone_id;
             }
+            
+            // Ores
+            if(global_y < -10 && global_y < height - 2 && mb->data[x][y][z] == stone_id) {
+              double r = ore_rng_dist(ore_rng);
+              double offset = 0;
+              for(const auto& ore : ore_list) {
+                if(global_y > ore.min_depth)
+                  continue;
+                double adj = 0.7;
+                if(global_y < -57)
+                  adj = 1.4;
+                if(global_y < -283)
+                  adj = 2.0;
+                if(global_y < -1154)
+                  adj = 2.7;
+                double adj_prob = ore.prob * adj;
+                if(r >= offset && r < offset + adj_prob) {
+                  mb->data[x][y][z] = mb->itemstring_to_id(ore.itemstring);
+                  break;
+                }
+                offset += adj_prob;
+              }
+            }
+            
           }
         }
       }
