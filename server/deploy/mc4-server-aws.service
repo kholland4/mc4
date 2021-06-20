@@ -1,0 +1,14 @@
+[Unit]
+Description=mc4 server
+After=network.target
+
+[Service]
+type=simple
+User=TARGET_USER
+Group=TARGET_USER
+WorkingDirectory=TARGET_DIR
+ExecStart=TARGET_DIR/mc4-server --config-file TARGET_DIR/config.ini
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

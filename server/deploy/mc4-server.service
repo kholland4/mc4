@@ -1,0 +1,14 @@
+[Unit]
+Description=mc4 server
+After=network.target
+
+[Service]
+type=simple
+User=your_username_here
+Group=your_username_here
+WorkingDirectory=/path/to/wherever
+ExecStart=/path/to/wherever/mc4-server --config-file /path/to/wherever/config.ini
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

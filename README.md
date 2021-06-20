@@ -88,6 +88,10 @@ By default, the server will run on port `8080` and store data to an SQLite datab
 If you're using TLS, take a look at [config_example.ini](server/config_example.ini) and
 set the appropriate options pointing to certificate files and such.
 
+### Deploying
+
+If you're more serious about running a server, take a look at the resources in [server/deploy/](server/deploy/README.md)
+
 ## Libraries/assets/etc.
 
 #### Libraries (client)
