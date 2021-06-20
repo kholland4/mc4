@@ -20,7 +20,7 @@ Build using the Makefile in the `server/` directory.
 For deployment, using TLS is strongly recommended.
 If you need a certificate, get one from
 [Let's Encrypt](https://letsencrypt.org/getting-started/)
-([instructions](https://certbot.eff.org/lets-encrypt/othersnap-other.html)].
+([instructions](https://certbot.eff.org/lets-encrypt/othersnap-other.html)).
 If for some reason you aren't using TLS, be sure to remove the `-DTLS` option
 from any build scripts you use.
 
@@ -70,7 +70,7 @@ TLS options.
 ## Configuration
 
 The server can be configured using an ini file
-(see [config_example.ini](server/config_example.ini)) or on the command line.
+(see [config_example.ini](../config_example.ini)) or on the command line.
 For example:
 
     $ ./mc4-server --config-file config_example.ini

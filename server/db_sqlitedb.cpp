@@ -216,7 +216,7 @@ SQLiteDB::SQLiteDB(const char* filename) {
       exit(1);
     }
     
-    int res = sqlite3_step(pragma_reader);
+    int res = sqlite3_step(table_check);
     if(res == SQLITE_ROW) {
       //Table found, must be version 1.
       db_version = 1;
@@ -233,7 +233,7 @@ SQLiteDB::SQLiteDB(const char* filename) {
   //If version is still 0, the database is empty and uninitialized.
   //Create the appropriate table(s) and set the 'user_version' pragma.
   if(db_version == 0) {
-    db_version = 4;
+    db_version = 5;
     
     std::map<std::string, const char*> sql = {
 {"map",
