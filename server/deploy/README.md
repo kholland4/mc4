@@ -2,8 +2,9 @@
 
 The server binary, `mc4-server` is just a monolithic executable.
 You can deploy it pretty much however you want.
-That said, I've found it useful to create a systemd unit file, build helper
-scripts, etc. to aid in the process.
+That said, there are a couple data files to be aware of, and I've found it
+useful to create a systemd unit file, build helper scripts, etc. to aid in the
+process.
 
 ## TL;DR
 
