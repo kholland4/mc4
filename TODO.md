@@ -24,6 +24,7 @@
 * SIMD?
 * DB access profiling
 * Faster lighting
+* Time mapblock generation w/ DEBUG_PERF
 
 ## Commands / chat
 * Teleport to player/player to you & teleport requests
@@ -75,6 +76,7 @@
   * Prioritize lighting updates from server
   * Lighting updates not always shown by originating client /
     smooth lighting seams / etc. / at y=0
+  * Client not always catching light updates
 * Fix Firefox highlight bug
 * Firefox inv highlight
 * Don't fall when client out of focus -- request OOB mapblock
@@ -112,6 +114,14 @@
 * Throw/catch for client request errors (server_message.cpp)
 * Use const/const ref where appropriate
 * More logging info -- event type
+* Lock cerr in log
+* Ticks delayed when server busy -- fix
+  * Want to be able to do basic movement validation
+
+## DB
+* Fixed-endian DB storage
+* DB - use text compression on IDtoIS?
+* DB - clear old IDtoIS entries on save
 
 ## Client improvements
 * Rework client window system
@@ -150,6 +160,9 @@
 * Comprehensive cook recipies
 * Comprehensive craft recipies
 * Fix oddly_breakable_by_hand (torches)
+* Unknown item shouldn't be stackable
+* Set ladder sunkLit?
+* Stairs lighting issue
 
 ## Space
 * 4th dimension
@@ -170,3 +183,7 @@
 * Screwdriver and node replacer
 * More flexible slab rotation
 * Different restrict rot on place for chest/furnace/door
+
+## Lighting
+* More efficient & correct sunlight calculations: check node above (if in up-to-date mapblock) for sunlight_level=15
+
